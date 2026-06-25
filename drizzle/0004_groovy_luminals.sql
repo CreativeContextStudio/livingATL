@@ -1,0 +1,1 @@
+ALTER TABLE "metadata_extracted" ADD COLUMN "content_decades" text[] DEFAULT '{}' NOT NULL;

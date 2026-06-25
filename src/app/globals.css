@@ -1,44 +1,74 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "mapbox-gl/dist/mapbox-gl.css";
 
-@custom-variant dark (&:is(.dark *));
+/* The `dark:` variant now matches both the shadcn `.dark` class convention
+ * and the Atlanta Brand System `[data-theme="dark"]` attribute convention
+ * (see refDocs/livingATL_Style_Guide.md §2). Either toggle works. */
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
 
 @theme inline {
+  /* Shadcn color tokens (remapped to Atlanta Brand System palette below) */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Typography — Atlanta Brand System (Style Guide §3).
+   * Tailwind v4 `@theme inline` resolves at parse time, so these MUST be
+   * literal font family names, NOT `var(--font-space-grotesk)`. next/font
+   * in layout.tsx still preloads the font files and attaches its own CSS
+   * variables on <html>; the browser matches the literal name below to
+   * the loaded font. */
+  --font-sans: "DM Sans", -apple-system, "system-ui", ui-sans-serif, sans-serif;
+  --font-heading: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "Courier New", monospace;
+
+  /* Fluid type scale — Style Guide §3 */
+  --text-xs: clamp(0.694rem, 0.66rem + 0.18vw, 0.8rem);
+  --text-sm: clamp(0.833rem, 0.78rem + 0.26vw, 1rem);
+  --text-base: clamp(1rem, 0.93rem + 0.36vw, 1.25rem);
+  --text-lg: clamp(1.2rem, 1.1rem + 0.5vw, 1.563rem);
+  --text-xl: clamp(1.44rem, 1.28rem + 0.8vw, 1.953rem);
+  --text-2xl: clamp(1.728rem, 1.49rem + 1.19vw, 2.441rem);
+  --text-3xl: clamp(2.074rem, 1.72rem + 1.77vw, 3.052rem);
+  --text-4xl: clamp(2.488rem, 1.97rem + 2.59vw, 3.815rem);
+  --text-5xl: clamp(2.986rem, 2.23rem + 3.78vw, 4.768rem);
+
+  /* Motion — Style Guide §5 */
+  --ease-atl: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Radius — shadcn derivation from --radius; Style Guide §4 values land
+   * at the midpoints (--radius-md = 10px when --radius = 0.625rem). */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -48,83 +78,427 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+/* ============================================================================
+ * Light theme — Neon + Peach (PRD §11, Style Guide §2 "Light Theme")
+ * Modern, vibrant, public-facing. Coral accent (#FF7F5C) + warm white surface.
+ * ============================================================================ */
+:root,
+[data-theme="light"] {
+  /* shadcn tokens → Atlanta Brand System values */
+  --background: #fff8f5;        /* surface */
+  --foreground: #1a1a2e;        /* text-primary */
+  --card: #fff0eb;              /* surface-alt */
+  --card-foreground: #1a1a2e;
+  --popover: #fff8f5;
+  --popover-foreground: #1a1a2e;
+  --primary: #ff7f5c;           /* accent — coral */
+  --primary-foreground: #fff8f5;
+  --secondary: #7b2fbe;         /* secondary — purple */
+  --secondary-foreground: #fff8f5;
+  --muted: #fff0eb;             /* surface-alt */
+  --muted-foreground: #5c5470;  /* text-secondary */
+  --accent: #fff0eb;            /* shadcn's "accent" = subtle hover surface */
+  --accent-foreground: #1a1a2e;
+  --destructive: #ff4057;       /* error */
+  --border: #f0e5df;            /* derived neutral */
+  --input: #fff0eb;
+  --ring: #ff7f5c;              /* focus ring = brand accent */
+  --chart-1: #ff7f5c;
+  --chart-2: #00a8cc;           /* interactive */
+  --chart-3: #7b2fbe;
+  --chart-4: #2ec866;           /* success */
+  --chart-5: #ffb627;           /* warning */
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #fff8f5;
+  --sidebar-foreground: #1a1a2e;
+  --sidebar-primary: #ff7f5c;
+  --sidebar-primary-foreground: #fff8f5;
+  --sidebar-accent: #fff0eb;
+  --sidebar-accent-foreground: #1a1a2e;
+  --sidebar-border: #f0e5df;
+  --sidebar-ring: #ff7f5c;
+
+  /* Atlanta Brand System semantic tokens — for hand-coded components that
+   * want the Style Guide's named API (--color-accent, --color-surface, etc.)
+   * rather than the shadcn token names. Values mirror the shadcn tokens
+   * above; the two APIs are kept in sync per theme. */
+  --color-surface: #fff8f5;
+  --color-surface-alt: #fff0eb;
+  --color-surface-dark: #1a1a2e;
+  --color-accent-base: #ff7f5c;
+  --color-accent-hover: #ffa07a;
+  --color-secondary-base: #7b2fbe;
+  --color-secondary-light: #9b59d0;
+  --color-text-primary: #1a1a2e;
+  --color-text-secondary: #5c5470;
+  --color-text-inverse: #fff8f5;
+  --color-interactive: #00a8cc;
+  --color-interactive-hover: #008dad;
+  --color-success: #2ec866;
+  --color-warning: #ffb627;
+  --color-error: #ff4057;
+  --color-highlight: #ff2d7b;
+  --shadow-glow: 0 8px 30px rgba(255, 127, 92, 0.25);
+
+  /* Timeline (Style Guide §2 specialty tokens) */
+  --color-timeline-active: #ff7f5c;
+  --color-timeline-visited: #165b4a;
+  --color-timeline-future: #d8d5de;
+  --color-timeline-line: #d8d5de;
+
+  /* Timeline 5-family palette (Phase 2 P2 refinement, 2026-06-25). Moment
+   * dots, the events band, and the legend swatches collapse the 21 themes
+   * down to these 5 family colors — one vivid hue per family instead of 21
+   * competing jewel tones. A punchy, well-separated wheel (rose-red /
+   * green / amber-gold / blue / violet) kept clear of coral (#ff7f5c, the
+   * brand highlight accent) so the coral pin/highlight rings still pop.
+   * Keyed by `FamilyKey` in `src/lib/theme-colors.ts`. */
+  --family-color-default: #5c5470;
+  --family-color-justice: #e5345b;
+  --family-color-place: #12a05e;
+  --family-color-daily-life: #ed9a00;
+  --family-color-institutions: #1e78c8;
+  --family-color-culture: #8b3fd4;
+
+  /* Timeline 21-theme palette (Phase 2 P2). Drives `--theme-color-*`
+   * references from `src/lib/theme-colors.ts`. Now only paints the small
+   * per-theme chips in the detail folio + filter popover (dots use the
+   * family palette above), so each theme is a vibrant variation WITHIN its
+   * family hue — chip and family dot read as one system. Tuned for the
+   * #FFF8F5 warm-white ABS light surface. See PRD §7.3.1. */
+  --theme-color-default: #5c5470;
+  --theme-color-civil-rights: #e5345b;
+  --theme-color-segregation: #d8324f;
+  --theme-color-integration: #ef5a78;
+  --theme-color-politics: #c82a63;
+  --theme-color-crime: #b11e44;
+  --theme-color-housing: #12a05e;
+  --theme-color-urban-renewal: #17b86a;
+  --theme-color-migration: #0c8a66;
+  --theme-color-transportation: #3da82b;
+  --theme-color-family: #ed9a00;
+  --theme-color-community: #f8b81e;
+  --theme-color-religion: #ce8400;
+  --theme-color-food-culture: #c9a60e;
+  --theme-color-health: #e08800;
+  --theme-color-education: #1593a6;
+  --theme-color-employment: #128ab0;
+  --theme-color-business: #1e78c8;
+  --theme-color-military: #3a5fc0;
+  --theme-color-music: #7b36c2;
+  --theme-color-arts: #8b3fd4;
+  --theme-color-sports: #c13c8e;
+
+  /* Motion/duration (Style Guide §5) — kept off @theme so they're not
+   * exposed as utility classes; hand-coded components reference directly */
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 400ms;
+
+  /* Z-index scale (Style Guide §4) */
+  --z-base: 1;
+  --z-card: 10;
+  --z-sticky: 20;
+  --z-overlay: 30;
+  --z-toast: 40;
+  --z-max: 50;
+
+  /* Fixed footer height (content chrome). Matches SiteHeader's h-14. */
+  --footer-h: 3.5rem;
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+/* ============================================================================
+ * Dark theme — true dark (near-black → charcoal surface progression).
+ * ABS coral (#FF7F5C) preserved as primary accent so Light and Dark read as
+ * siblings of the same brand. 2026-04-19 — replaced the original "Canopy +
+ * Concrete" parchment treatment per project lead's call that the parchment
+ * tone read as brown, not as dark mode.
+ * ============================================================================ */
+.dark,
+[data-theme="dark"] {
+  --background: #232326;        /* charcoal — lifted from near-black 2026-04-19 */
+  --foreground: #fafafa;
+  --card: #2d2d30;              /* surface-alt, slight elevation */
+  --card-foreground: #fafafa;
+  --popover: #323236;
+  --popover-foreground: #fafafa;
+  --primary: #ff7f5c;           /* ABS coral — brand continuity with Light */
+  --primary-foreground: #232326;
+  --secondary: #9b59d0;         /* lightened ABS purple for dark-bg legibility */
+  --secondary-foreground: #232326;
+  --muted: #37373b;
+  --muted-foreground: #a1a1aa;
+  --accent: #37373b;
+  --accent-foreground: #fafafa;
+  --destructive: #ff4057;
+  --border: #434347;
+  --input: #37373b;
+  --ring: #ff7f5c;
+  --chart-1: #ff7f5c;
+  --chart-2: #00d4ff;           /* cyan — lifted from ABS interactive for dark */
+  --chart-3: #9b59d0;
+  --chart-4: #2ec866;
+  --chart-5: #ffb627;
+  --sidebar: #232326;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #ff7f5c;
+  --sidebar-primary-foreground: #232326;
+  --sidebar-accent: #37373b;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #434347;
+  --sidebar-ring: #ff7f5c;
+
+  --color-surface: #232326;
+  --color-surface-alt: #2d2d30;
+  --color-surface-dark: #0a0a0a;
+  --color-accent-base: #ff7f5c;
+  --color-accent-hover: #ffa07a;
+  --color-secondary-base: #9b59d0;
+  --color-secondary-light: #b37de0;
+  --color-text-primary: #fafafa;
+  --color-text-secondary: #a1a1aa;
+  --color-text-inverse: #232326;
+  --color-interactive: #00d4ff;
+  --color-interactive-hover: #5ce1ff;
+  --color-success: #2ec866;
+  --color-warning: #ffb627;
+  --color-error: #ff4057;
+  --color-highlight: #ff2d7b;
+  --shadow-glow: 0 8px 30px rgba(255, 127, 92, 0.35);
+
+  --color-timeline-active: #ff7f5c;
+  --color-timeline-visited: #9b59d0;
+  --color-timeline-future: #434347;
+  --color-timeline-line: #434347;
+
+  /* Timeline 5-family palette — vivid hues brightened for the #232326
+   * charcoal surface so the family dots glow without blowing out. See the
+   * light block for the rationale. */
+  --family-color-default: #a1a1aa;
+  --family-color-justice: #ff5c7e;
+  --family-color-place: #2dd08a;
+  --family-color-daily-life: #ffb930;
+  --family-color-institutions: #4da3f0;
+  --family-color-culture: #b16bee;
+
+  /* Timeline 21-theme palette — within-family vibrant variations,
+   * brightened for the #232326 charcoal surface. Paints the per-theme
+   * chips only (dots use the family palette above). */
+  --theme-color-default: #a1a1aa;
+  --theme-color-civil-rights: #ff5c7e;
+  --theme-color-segregation: #ff6e76;
+  --theme-color-integration: #ff7e98;
+  --theme-color-politics: #f25a92;
+  --theme-color-crime: #e8466f;
+  --theme-color-housing: #2dd08a;
+  --theme-color-urban-renewal: #4fe0a0;
+  --theme-color-migration: #22c29a;
+  --theme-color-transportation: #66d84e;
+  --theme-color-family: #ffb930;
+  --theme-color-community: #ffd04d;
+  --theme-color-religion: #e5a52e;
+  --theme-color-food-culture: #dcc44e;
+  --theme-color-health: #ffa94d;
+  --theme-color-education: #3fc6d6;
+  --theme-color-employment: #36b6dc;
+  --theme-color-business: #4da3f0;
+  --theme-color-military: #6e86e8;
+  --theme-color-music: #a35be6;
+  --theme-color-arts: #b16bee;
+  --theme-color-sports: #e86cb6;
+}
+
+/* ============================================================================
+ * Geist fallback theme — neutral escape hatch while ABS rollout is under
+ * review. Not on the Style Guide; this is the pre-ABS default the app
+ * originally shipped with, preserved so the project lead can A/B against
+ * the Atlanta Brand System without reverting commits.
+ *
+ * Font override: Tailwind v4 `@theme inline` resolves DM Sans at parse
+ * time, so `.font-sans` can't be runtime-swapped. We override at the
+ * cascade level on html[data-theme="geist"] so every descendant inherits
+ * system fonts regardless of utility classes.
+ * ============================================================================ */
+html[data-theme="geist"] {
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+html[data-theme="geist"] h1,
+html[data-theme="geist"] h2,
+html[data-theme="geist"] h3,
+html[data-theme="geist"] h4,
+html[data-theme="geist"] h5,
+html[data-theme="geist"] h6 {
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: -0.02em;
+}
+html[data-theme="geist"] code,
+html[data-theme="geist"] pre,
+html[data-theme="geist"] kbd,
+html[data-theme="geist"] samp {
+  font-family: ui-monospace, SFMono-Regular, "Menlo", "Monaco", "Cascadia Mono", monospace;
+}
+
+[data-theme="geist"] {
+  /* shadcn tokens — neutral grayscale */
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --card: #fafafa;
+  --card-foreground: #0a0a0a;
+  --popover: #ffffff;
+  --popover-foreground: #0a0a0a;
+  --primary: #0a0a0a;
+  --primary-foreground: #fafafa;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #0a0a0a;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --accent: #f4f4f5;
+  --accent-foreground: #0a0a0a;
+  --destructive: #dc2626;
+  --border: #e4e4e7;
+  --input: #f4f4f5;
+  --ring: #0a0a0a;
+  --chart-1: #0a0a0a;
+  --chart-2: #71717a;
+  --chart-3: #a1a1aa;
+  --chart-4: #d4d4d8;
+  --chart-5: #e4e4e7;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0a0a0a;
+  --sidebar-primary: #0a0a0a;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #f4f4f5;
+  --sidebar-accent-foreground: #0a0a0a;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #0a0a0a;
+
+  /* ABS semantic tokens — kept in sync so components reading --color-*
+   * don't crash when Geist is active. Values mirror the shadcn tokens. */
+  --color-surface: #ffffff;
+  --color-surface-alt: #fafafa;
+  --color-surface-dark: #0a0a0a;
+  --color-accent-base: #0a0a0a;
+  --color-accent-hover: #27272a;
+  --color-secondary-base: #71717a;
+  --color-secondary-light: #a1a1aa;
+  --color-text-primary: #0a0a0a;
+  --color-text-secondary: #71717a;
+  --color-text-inverse: #fafafa;
+  --color-interactive: #2563eb;
+  --color-interactive-hover: #1d4ed8;
+  --color-success: #16a34a;
+  --color-warning: #ca8a04;
+  --color-error: #dc2626;
+  --color-highlight: #dc2626;
+  --shadow-glow: 0 8px 30px rgba(0, 0, 0, 0.08);
+
+  --color-timeline-active: #0a0a0a;
+  --color-timeline-visited: #71717a;
+  --color-timeline-future: #e4e4e7;
+  --color-timeline-line: #e4e4e7;
+
+  /* Timeline 5-family palette — vivid Tailwind-600 hues for the neutral
+   * #ffffff shadcn surface. See the light block for the rationale. */
+  --family-color-default: #71717a;
+  --family-color-justice: #e11d48;
+  --family-color-place: #059669;
+  --family-color-daily-life: #d97706;
+  --family-color-institutions: #2563eb;
+  --family-color-culture: #9333ea;
+
+  /* Timeline 21-theme palette — within-family vibrant variations on the
+   * neutral white surface. Paints the per-theme chips only. */
+  --theme-color-default: #71717a;
+  --theme-color-civil-rights: #e11d48;
+  --theme-color-segregation: #dc2626;
+  --theme-color-integration: #f43f5e;
+  --theme-color-politics: #be123c;
+  --theme-color-crime: #9f1239;
+  --theme-color-housing: #059669;
+  --theme-color-urban-renewal: #10b981;
+  --theme-color-migration: #0d9488;
+  --theme-color-transportation: #65a30d;
+  --theme-color-family: #d97706;
+  --theme-color-community: #f59e0b;
+  --theme-color-religion: #b45309;
+  --theme-color-food-culture: #ca8a04;
+  --theme-color-health: #eab308;
+  --theme-color-education: #0891b2;
+  --theme-color-employment: #0e7490;
+  --theme-color-business: #2563eb;
+  --theme-color-military: #4f46e5;
+  --theme-color-music: #7e22ce;
+  --theme-color-arts: #9333ea;
+  --theme-color-sports: #db2777;
+}
+
+@layer utilities {
+  /* Rounded, inset native scrollbar — used in card-bound scroll regions
+   * (e.g. the transcript pane) where the default flat-edge scrollbar
+   * collides with the card's rounded corners. Applies to the scrolling
+   * element itself. */
+  .scrollbar-soft {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+  .scrollbar-soft::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .scrollbar-soft::-webkit-scrollbar-track {
+    background: transparent;
+    margin-block: 12px;
+  }
+  .scrollbar-soft::-webkit-scrollbar-thumb {
+    background-color: var(--color-border);
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+    min-height: 32px;
+  }
+  .scrollbar-soft::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-muted-foreground);
+    background-clip: padding-box;
+  }
+  .scrollbar-soft::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     @apply font-sans;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+  code, pre, kbd, samp {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Respect OS-level reduced-motion preference across the app. Kills
+ * meaningful animation/transition durations and smooth-scroll behavior
+ * for users with vestibular sensitivities. Individual components can
+ * still opt back in via `motion-safe:` utilities if a non-motion
+ * alternative isn't feasible. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -44,6 +44,7 @@ const GATE_ALLOWLIST: Array<RegExp> = [
   /^\/api\/gate$/, // password POST handler
   /^\/api\/health$/, // liveness probe
   /^\/monitoring(\/.*)?$/, // Sentry tunnel
+  /^\/audio\//, // same-origin audio proxy → R2 (next.config rewrite); content already public
 ];
 
 const PREVIEW_ALLOWLIST: Array<RegExp> = [
@@ -52,6 +53,7 @@ const PREVIEW_ALLOWLIST: Array<RegExp> = [
   /^\/invite\/[^/]+$/, // signed invite token route
   /^\/api\/health$/, // liveness probe
   /^\/monitoring(\/.*)?$/, // Sentry tunnel — never leak into preview HTML
+  /^\/audio\//, // same-origin audio proxy → R2 (next.config rewrite); content already public
 ];
 
 /**

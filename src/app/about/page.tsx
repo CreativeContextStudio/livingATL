@@ -1,15 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  BookOpenIcon,
-  MapPinIcon,
-  HeadphonesIcon,
-  ClockIcon,
-  SparklesIcon,
-  PodcastIcon,
-  ArrowUpRightIcon,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowUpRightIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { fetchArchiveStats } from "@/lib/queries/recordings";
@@ -93,74 +84,6 @@ const PRINCIPLES: Principle[] = [
     heading: "AI assists. People ship.",
     body: "Every low-confidence transcript and every sensitivity-flagged passage sits in a review queue until a human reviewer signs it off. Automation carries the volume. The editorial call is never automated.",
     accent: "bg-teal-500/80",
-  },
-];
-
-type Surface = {
-  label: string;
-  heading: string;
-  body: string;
-  href: string;
-  icon: LucideIcon;
-  iconAccent: string;
-};
-
-const SURFACES: Surface[] = [
-  {
-    label: "Collection",
-    heading: "Every storyteller, findable.",
-    body: "Search by theme, neighborhood, era, or name. Pull up a 1947 domestic worker alongside a 1974 civil rights organizer and see what they share.",
-    href: "/browse",
-    icon: BookOpenIcon,
-    iconAccent: "bg-primary/15 text-primary",
-  },
-  {
-    label: "Map",
-    heading: "Find your neighborhood's tape.",
-    body: "Every storyteller placed where they lived, worked, and were recorded. Open your block and hear who came before you.",
-    href: "/map",
-    icon: MapPinIcon,
-    iconAccent: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-  },
-  {
-    label: "Player",
-    heading: "Sit inside the recording.",
-    body: "Transcript tracks with the audio. Chapters move you through moments the storyteller chose. Every AI summary cites the second of tape it came from.",
-    href: "/browse",
-    icon: HeadphonesIcon,
-    iconAccent: "bg-teal-500/15 text-teal-700 dark:text-teal-400",
-  },
-];
-
-type Placeholder = {
-  label: string;
-  heading: string;
-  body: string;
-  icon: LucideIcon;
-  iconAccent: string;
-};
-
-const PLACEHOLDERS: Placeholder[] = [
-  {
-    label: "Interactive Timeline",
-    heading: "Walk the decades.",
-    body: "Move through 1914–1977 along a scrubbable timeline. Storyteller-authored moments surface as dots. Tap one and you're inside the tape at that beat.",
-    icon: ClockIcon,
-    iconAccent: "bg-primary/10 text-primary/80",
-  },
-  {
-    label: "AI Portal",
-    heading: "Ask the archive.",
-    body: "A citation-first conversational interface over the full collection. Every answer cites the recording, the speaker, and the timecode it came from. No fabricated quotes.",
-    icon: SparklesIcon,
-    iconAccent: "bg-amber-500/10 text-amber-700/80 dark:text-amber-400/80",
-  },
-  {
-    label: "Podcast",
-    heading: "The archive, on the air.",
-    body: "Curated audio episodes drawn straight from the tapes. Themes, neighborhoods, and storyteller arcs threaded together with light editorial framing and full citations back to the source recordings.",
-    icon: PodcastIcon,
-    iconAccent: "bg-teal-500/10 text-teal-700/80 dark:text-teal-400/80",
   },
 ];
 
@@ -268,14 +191,12 @@ export default async function AboutPage() {
           is a radio oral history of the city between 1914 and 1977: more
           than 500 interviews WRFG recorded in the mid-to-late 1970s,
           broadcast on Radio Free Georgia in the early 1980s, and entrusted
-          to the Atlanta History Center, which digitized the tapes in the
-          late 1990s. It is, quietly, one of the most complete first-person
-          portraits of 20th-century Atlanta in existence. For the decades
-          since, it has sat in a reading room, cited by historians,
-          heard by almost no one. livingATL is opening it: searchable,
+          to the Atlanta History Center. It is, quietly, one of the most
+          complete first-person
+          portraits of 20th-century Atlanta in existence. livingATL is opening it: searchable,
           listenable, neighborhood-mapped, and fully cited back to tape.
           Not a word rewritten. The people in these recordings are mostly
-          gone. Their grandchildren are not.
+          gone. Their stories are not.
         </p>
       </section>
 
@@ -313,94 +234,6 @@ export default async function AboutPage() {
               </article>
             </li>
           ))}
-        </ul>
-      </section>
-
-      <section aria-label="How to livingATL" className="flex flex-col gap-4">
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
-            How to livingATL
-          </p>
-          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground/80">
-            06 · Surfaces
-          </p>
-        </div>
-        <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {SURFACES.map((s) => {
-            const Icon = s.icon;
-            return (
-              <li key={s.label} className="flex">
-                <Link
-                  href={s.href}
-                  className="group flex h-full w-full flex-col gap-4 rounded-xl border border-border bg-card/60 p-5 transition-colors hover:border-foreground/30 hover:bg-card/80 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "inline-flex size-10 shrink-0 items-center justify-center rounded-lg",
-                        s.iconAccent,
-                      )}
-                    >
-                      <Icon className="size-5" strokeWidth={1.75} />
-                    </span>
-                    <ArrowUpRightIcon
-                      aria-hidden
-                      className="size-4 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <p className="font-mono text-[10px] font-semibold tracking-[0.22em] uppercase text-muted-foreground">
-                      {s.label}
-                    </p>
-                    <h3 className="font-heading text-xl font-semibold leading-tight tracking-tight">
-                      {s.heading}
-                    </h3>
-                  </div>
-                  <p className="text-sm leading-relaxed text-foreground/80">
-                    {s.body}
-                  </p>
-                </Link>
-              </li>
-            );
-          })}
-          {PLACEHOLDERS.map((p) => {
-            const Icon = p.icon;
-            return (
-              <li key={p.label} className="flex">
-                <article
-                  aria-disabled="true"
-                  className="flex h-full w-full flex-col gap-4 rounded-xl border border-dashed border-border bg-card/30 p-5"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "inline-flex size-10 shrink-0 items-center justify-center rounded-lg",
-                        p.iconAccent,
-                      )}
-                    >
-                      <Icon className="size-5" strokeWidth={1.75} />
-                    </span>
-                    <span className="rounded-full border border-border/70 bg-background/60 px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] uppercase text-muted-foreground">
-                      Soon
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <p className="font-mono text-[10px] font-semibold tracking-[0.22em] uppercase text-muted-foreground">
-                      {p.label}
-                    </p>
-                    <h3 className="font-heading text-xl font-semibold leading-tight tracking-tight text-foreground/90">
-                      {p.heading}
-                    </h3>
-                  </div>
-                  <p className="text-sm leading-relaxed text-foreground/70">
-                    {p.body}
-                  </p>
-                </article>
-              </li>
-            );
-          })}
         </ul>
       </section>
 

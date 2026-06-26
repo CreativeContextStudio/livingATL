@@ -167,9 +167,6 @@ function CollectionSpan() {
         </div>
         <div className="flex items-center justify-between font-mono text-[11px] tabular-nums text-muted-foreground">
           <span>{SPAN_START}</span>
-          <span className="text-muted-foreground/70">
-            ↑ recorded mid-to-late 1970s
-          </span>
           <span>{SPAN_END}</span>
         </div>
       </div>

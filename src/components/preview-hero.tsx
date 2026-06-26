@@ -1,4 +1,15 @@
-import { ArrowUpRightIcon } from "lucide-react";
+import { cookies } from "next/headers";
+import Link from "next/link";
+import {
+  BookOpenIcon,
+  MapPinIcon,
+  HeadphonesIcon,
+  ClockIcon,
+  SparklesIcon,
+  PodcastIcon,
+  ArrowUpRightIcon,
+  type LucideIcon,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -13,8 +24,8 @@ import { cn } from "@/lib/utils";
  *
  * Design intent: a sibling of `/browse`, `/map`, and `/contact`. Same
  * `max-w-7xl` shell, mono-eyebrow + `font-heading` hero + muted body
- * vocabulary; extended with a stats rail, a partner strip, and an invite
- * note so the front door carries more presence than the other pages.
+ * vocabulary; extended with a stats rail and a partner strip so the front
+ * door carries more presence than the other pages.
  * Kept fully static — the launch-gate page shouldn't hit the DB.
  */
 
@@ -26,7 +37,7 @@ function buildStats(
     {
       label: "The tapes",
       value: "1914–1977",
-      tail: "Recorded late 1970s · digitized late 1990s",
+      tail: "Recorded late 1970s · digitized by WRFG",
     },
     {
       label: "Processed",
@@ -57,16 +68,105 @@ const STEWARDS: Steward[] = [
   },
 ];
 
+type Surface = {
+  label: string;
+  heading: string;
+  body: string;
+  href: string;
+  icon: LucideIcon;
+  iconAccent: string;
+};
+
+const SURFACES: Surface[] = [
+  {
+    label: "Collection",
+    heading: "Every storyteller, findable.",
+    body: "Search by theme, neighborhood, era, or name. Pull up a 1947 domestic worker alongside a 1974 civil rights organizer and see what they share.",
+    href: "/browse",
+    icon: BookOpenIcon,
+    iconAccent: "bg-primary/15 text-primary",
+  },
+  {
+    label: "Map",
+    heading: "Find your neighborhood's tape.",
+    body: "Every storyteller placed where they lived, worked, and were recorded. Open your block and hear who came before you.",
+    href: "/map",
+    icon: MapPinIcon,
+    iconAccent: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+  },
+  {
+    label: "Player",
+    heading: "Sit inside the recording.",
+    body: "Transcript tracks with the audio. Chapters move you through moments the storyteller chose. Every AI summary cites the second of tape it came from.",
+    href: "/browse",
+    icon: HeadphonesIcon,
+    iconAccent: "bg-teal-500/15 text-teal-700 dark:text-teal-400",
+  },
+  {
+    label: "Timeline",
+    heading: "Walk the decades.",
+    body: "Move through 1914–1977 along a scrubbable timeline. Storyteller-authored moments surface as dots. Tap one and you're inside the tape at that beat.",
+    href: "/timeline",
+    icon: ClockIcon,
+    iconAccent: "bg-primary/15 text-primary",
+  },
+  {
+    label: "AI Portal",
+    heading: "Ask the archive.",
+    body: "A citation-first conversational interface over the full collection. Every answer cites the recording, the speaker, and the timecode it came from. No fabricated quotes.",
+    href: "/portal",
+    icon: SparklesIcon,
+    iconAccent: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+  },
+];
+
+type Placeholder = {
+  label: string;
+  heading: string;
+  body: string;
+  icon: LucideIcon;
+  iconAccent: string;
+};
+
+const PLACEHOLDERS: Placeholder[] = [
+  {
+    label: "Podcast",
+    heading: "The archive, on the air.",
+    body: "Curated audio episodes drawn straight from the tapes. Themes, neighborhoods, and storyteller arcs threaded together with light editorial framing and full citations back to the source recordings.",
+    icon: PodcastIcon,
+    iconAccent: "bg-teal-500/10 text-teal-700/80 dark:text-teal-400/80",
+  },
+];
+
 export type PreviewHeroProps = {
   processedRecordings: number;
   distinctInterviewees: number;
 };
 
-export function PreviewHero({
+/**
+ * Has this visitor entered the site? Mirrors the precedence in `proxy.ts`:
+ * when SITE_GATE_TOKEN is set the demo password gate is authoritative (the
+ * `la_gate` cookie must match, regardless of the launch flag); otherwise the
+ * launch flag decides. Returns false in plain invite-only preview, where no
+ * cookie grants access. Drives whether the surface cards are live links —
+ * an entered visitor can actually reach `/browse`, `/map`, etc., so the cards
+ * navigate; everyone else gets the same cards rendered inert.
+ */
+async function hasEntered(): Promise<boolean> {
+  const gateToken = process.env.SITE_GATE_TOKEN;
+  if (gateToken) {
+    const gateCookie = (await cookies()).get("la_gate")?.value ?? "";
+    return gateCookie.length === gateToken.length && gateCookie === gateToken;
+  }
+  return process.env.NEXT_PUBLIC_LAUNCH_ENABLED === "true";
+}
+
+export async function PreviewHero({
   processedRecordings,
   distinctInterviewees,
 }: PreviewHeroProps) {
   const stats = buildStats(processedRecordings, distinctInterviewees);
+  const entered = await hasEntered();
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-7xl flex-col gap-12 px-6 py-10 lg:gap-16 lg:py-16">
@@ -87,15 +187,20 @@ export function PreviewHero({
         </h1>
 
         <p className="text-lg leading-relaxed text-foreground/85">
-          Between 1914 and 1977, Atlanta lived through the decades that made
-          it. In the mid-to-late 1970s, WRFG&apos;s{" "}
+          Between 1914 and 1977, Atlanta lived through the decades that
+          shaped the culture and communities we know today. In the
+          mid-to-late 1970s, WRFG&apos;s{" "}
           <span className="font-medium text-foreground">Living Atlanta</span>{" "}
-          series sat the city down at microphones and recorded what its
-          people had lived through. More than 500 conversations, preserved
-          by the Atlanta History Center and digitized in the late 1990s.
-          livingATL opens that collection: searchable, listenable, and
-          mapped to the neighborhoods, years, and movements its speakers
-          shaped.
+          series invited Atlantans to sit down at microphones and tell those
+          stories in their own words. The result was more than 500
+          conversations, now digitized by WRFG and preserved by the Atlanta
+          History Center.
+        </p>
+
+        <p className="text-lg leading-relaxed text-foreground/85">
+          livingATL opens that collection to new kinds of discovery:
+          searchable, listenable, and mapped to the neighborhoods, years, and
+          movements its speakers helped shape.
         </p>
 
       </section>
@@ -125,6 +230,104 @@ export function PreviewHero({
               </article>
             </li>
           ))}
+        </ul>
+      </section>
+
+      <section aria-label="How to livingATL" className="flex flex-col gap-4">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
+            How to livingATL
+          </p>
+          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground/80">
+            06 · Surfaces
+          </p>
+        </div>
+        <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {SURFACES.map((s) => {
+            const Icon = s.icon;
+            const inner = (
+              <>
+                <div className="flex items-start justify-between gap-3">
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "inline-flex size-10 shrink-0 items-center justify-center rounded-lg",
+                      s.iconAccent,
+                    )}
+                  >
+                    <Icon className="size-5" strokeWidth={1.75} />
+                  </span>
+                  {entered ? (
+                    <ArrowUpRightIcon
+                      aria-hidden
+                      className="size-4 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground"
+                    />
+                  ) : null}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <p className="font-mono text-[10px] font-semibold tracking-[0.22em] uppercase text-muted-foreground">
+                    {s.label}
+                  </p>
+                  <h3 className="font-heading text-xl font-semibold leading-tight tracking-tight">
+                    {s.heading}
+                  </h3>
+                </div>
+                <p className="text-sm leading-relaxed text-foreground/80">
+                  {s.body}
+                </p>
+              </>
+            );
+            return (
+              <li key={s.label} className="flex">
+                {entered ? (
+                  <Link
+                    href={s.href}
+                    className="group flex h-full w-full flex-col gap-4 rounded-xl border border-border bg-card/60 p-5 transition-colors hover:border-foreground/30 hover:bg-card/80 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                  >
+                    {inner}
+                  </Link>
+                ) : (
+                  <div className="flex h-full w-full flex-col gap-4 rounded-xl border border-border bg-card/60 p-5">
+                    {inner}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+          {PLACEHOLDERS.map((p) => {
+            const Icon = p.icon;
+            return (
+              <li key={p.label} className="flex">
+                <article className="flex h-full w-full flex-col gap-4 rounded-xl border border-dashed border-border bg-card/30 p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "inline-flex size-10 shrink-0 items-center justify-center rounded-lg",
+                        p.iconAccent,
+                      )}
+                    >
+                      <Icon className="size-5" strokeWidth={1.75} />
+                    </span>
+                    <span className="rounded-full border border-border/70 bg-background/60 px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] uppercase text-muted-foreground">
+                      Soon
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <p className="font-mono text-[10px] font-semibold tracking-[0.22em] uppercase text-muted-foreground">
+                      {p.label}
+                    </p>
+                    <h3 className="font-heading text-xl font-semibold leading-tight tracking-tight text-foreground/90">
+                      {p.heading}
+                    </h3>
+                  </div>
+                  <p className="text-sm leading-relaxed text-foreground/70">
+                    {p.body}
+                  </p>
+                </article>
+              </li>
+            );
+          })}
         </ul>
       </section>
 
@@ -179,25 +382,6 @@ export function PreviewHero({
           answer traces back to source audio with timecodes. No fabricated
           quotes. No impersonation.
         </p>
-      </section>
-
-      <section
-        aria-label="Invite access"
-        className="flex flex-col gap-3 rounded-xl border border-dashed border-border bg-card/40 p-6 sm:flex-row sm:items-center sm:justify-between sm:gap-6"
-      >
-        <div className="flex flex-col gap-1">
-          <p className="font-mono text-[11px] tracking-[0.22em] uppercase text-muted-foreground">
-            Invite required
-          </p>
-          <p className="text-base leading-relaxed text-foreground/90">
-            Have a personal link? Open it to step inside the preview.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 self-start font-mono text-[10px] tracking-[0.22em] uppercase text-muted-foreground sm:self-center">
-          <span>Public launch</span>
-          <ArrowUpRightIcon aria-hidden className="size-3.5" />
-          <span>Phase 2</span>
-        </div>
       </section>
     </main>
   );

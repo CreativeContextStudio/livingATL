@@ -59,7 +59,7 @@ export function AdvisoryGate({
     <Dialog open onOpenChange={() => {}}>
       <DialogContent
         showCloseButton={false}
-        className="max-w-lg gap-6 p-6 sm:max-w-lg"
+        className="max-w-[calc(100%-2rem)] gap-6 p-6 sm:max-w-lg"
       >
         <DialogHeader>
           <DialogTitle className="font-heading text-2xl leading-tight">

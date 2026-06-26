@@ -13,6 +13,7 @@ import {
   formatSpeakerName,
   titleForCard,
 } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { BrowserRecording } from "@/lib/queries/recordings";
 
 /**
@@ -33,15 +34,24 @@ export function NeighborhoodPreview({
   recordings,
   total,
   onClose,
+  className,
 }: {
   activeNeighborhood: string | null;
   recordings: BrowserRecording[];
   total: number;
   onClose: () => void;
+  /** Optional overrides — used by the mobile bottom-sheet to strip the
+   *  card chrome and let the panel fill the sheet. Desktop passes nothing. */
+  className?: string;
 }) {
   if (!activeNeighborhood) {
     return (
-      <aside className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/40 p-6 text-center">
+      <aside
+        className={cn(
+          "flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/40 p-6 text-center",
+          className,
+        )}
+      >
         <p className="font-heading text-lg font-semibold leading-tight">
           Each neighborhood remembers a different Atlanta.
         </p>
@@ -54,7 +64,12 @@ export function NeighborhoodPreview({
   }
 
   return (
-    <aside className="flex h-full flex-col rounded-xl border border-border bg-card/50">
+    <aside
+      className={cn(
+        "flex h-full flex-col rounded-xl border border-border bg-card/50",
+        className,
+      )}
+    >
       <header className="flex items-start justify-between gap-3 border-b border-border/70 p-5">
         <div className="flex flex-col gap-1">
           <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted-foreground">

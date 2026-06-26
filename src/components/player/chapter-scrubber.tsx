@@ -95,7 +95,52 @@ export function ChapterScrubber({
 
   return (
     <TooltipProvider delay={180}>
-      <div className="w-full overflow-x-auto scrollbar-soft md:overflow-x-visible">
+      {/* Mobile (< md): a fully-tappable chapter list. The proportional bar
+          below forces a 640px horizontal scroll and renders short moments a
+          few pixels wide (untappable), and its titles only surface on hover —
+          which never fires on touch. The list gives every chapter a 44px row,
+          its title, and a timestamp. Hidden at `md` where the bar takes over. */}
+      <ul className="divide-y divide-border bg-muted/40 md:hidden">
+        {chapters.map((c, i) => {
+          const themes = c.moment.themes ?? [];
+          const label =
+            c.moment.title ??
+            (themes.length > 0
+              ? themes.map((t) => t.replace(/_/g, " ")).join(" · ")
+              : "Chapter");
+          return (
+            <li key={`m-${c.start}-${i}`}>
+              <button
+                type="button"
+                onClick={() => seekAndPlay(c.start)}
+                aria-label={`Jump to "${c.moment.title ?? "chapter"}" at ${formatTimestamp(c.start)}`}
+                className={cn(
+                  "flex min-h-11 w-full items-center gap-3 px-4 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset",
+                  c.isActive ? accent.bgSoft : "hover:bg-foreground/5",
+                )}
+              >
+                <span
+                  aria-hidden
+                  className={cn(
+                    "size-2 shrink-0 rounded-full",
+                    c.isActive || c.isHighlight
+                      ? accent.bgStrong
+                      : "bg-foreground/25",
+                  )}
+                />
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground/90">
+                  {label}
+                </span>
+                <span className="shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground">
+                  {formatTimestamp(c.start)}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="hidden w-full overflow-x-auto scrollbar-soft md:block md:overflow-x-visible">
       <div
         className="relative min-h-20 w-full min-w-[640px] overflow-hidden bg-muted/60 md:min-w-0"
         role="group"

@@ -43,7 +43,11 @@ export function CitationChip({ citation }: { citation: PortalCitation }) {
       aria-label={`Open Player for ${label}`}
       data-citation-index={citation.index}
       className={cn(
-        "inline-flex h-5 min-w-5 items-center justify-center rounded-[min(var(--radius-md),10px)] border border-border bg-background px-1.5 align-baseline font-mono text-[10px] font-medium tabular-nums text-muted-foreground transition-colors",
+        "relative inline-flex h-5 min-w-5 items-center justify-center rounded-[min(var(--radius-md),10px)] border border-border bg-background px-1.5 align-baseline font-mono text-[10px] font-medium tabular-nums text-muted-foreground transition-colors",
+        // Enlarge the touch hit-area on mobile without disturbing inline text
+        // flow (the pseudo-element overlays; a modest inset avoids stealing
+        // taps from adjacent words). Removed at md where a cursor is precise.
+        "after:absolute after:-inset-1.5 after:content-[''] md:after:hidden",
         "hover:border-primary/40 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
       )}
     >

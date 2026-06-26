@@ -60,7 +60,7 @@ function TimelineDetailFolioImpl({ selected, onClear, corpus }: Props) {
     <section
       aria-live="polite"
       data-mode={mode}
-      className="relative flex min-h-[260px] flex-col overflow-hidden rounded-2xl border border-border bg-card p-5 sm:h-[320px] sm:p-6"
+      className="relative flex min-h-[260px] flex-col overflow-hidden rounded-2xl border border-border bg-card p-5 sm:p-6 lg:h-[320px]"
     >
       {selected?.kind === "moment" ? (
         <FolioMomentBody moment={selected.moment} onClear={onClear} />

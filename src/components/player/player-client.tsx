@@ -12,6 +12,7 @@ import { ChapterScrubber, ChapterCountsLabel } from "./chapter-scrubber";
 import { EndOfPlaybackCard } from "./end-of-playback-card";
 import { KeyQuotesList } from "./key-quotes";
 import { MetadataSidebar } from "./metadata-sidebar";
+import { MobileMiniPlayer } from "./mobile-mini-player";
 import { PlayerStateProvider, type PlayerState } from "./player-context";
 import { RelatedRecordings } from "./related-recordings";
 import { Transport } from "./transport";
@@ -30,7 +31,7 @@ const Waveform = dynamic(
       <div
         aria-label="Loading waveform"
         className="w-full animate-pulse bg-card/70 px-3 py-2"
-        style={{ height: 64 }}
+        style={{ height: 48 }}
       />
     ),
   },
@@ -88,6 +89,23 @@ export function PlayerClient({
     const advisory = data.contentAdvisory;
     return advisory?.reviewed === true && advisory.display_advisory !== true;
   });
+  // Mobile mini-player visibility — driven by an IntersectionObserver on the
+  // real Transport (wrapped in `transportRef` below). The sticky bottom bar
+  // only appears once the primary controls have scrolled off-screen, so it
+  // never covers content unnecessarily. `lg:hidden` keeps it phone/tablet-only.
+  const transportRef = useRef<HTMLDivElement | null>(null);
+  const [transportVisible, setTransportVisible] = useState(true);
+  useEffect(() => {
+    const node = transportRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setTransportVisible(entry?.isIntersecting ?? true),
+      { rootMargin: "0px", threshold: 0 },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   // Sidebar collapses to a narrow rail so the transcript (and, Phase 2 Week 6,
   // the AI Portal chat column) can claim the freed width. Default open on the
   // Player because the metadata + quotes + related rail is the Player's
@@ -409,16 +427,23 @@ export function PlayerClient({
               related={related[0] ?? null}
               recordingId={data.id}
             />
-            <Transport
-              accent={accent.tailwind}
-              accentHex={accent.hex.progress}
-            />
+            {/* Wrapper is the IntersectionObserver target for the mobile
+                mini-player. Stays a direct child of the `divide-y` flex so
+                the seam still draws; invisible to layout otherwise. */}
+            <div ref={transportRef}>
+              <Transport
+                accent={accent.tailwind}
+                accentHex={accent.hex.progress}
+              />
+            </div>
           </div>
         </div>
 
         <div
           className={cn(
-            "mt-6 grid grid-cols-1 gap-5",
+            // Mobile reserves space below the content so the sticky mini-player
+            // never overlaps the footer; reverts at `lg` where the bar is hidden.
+            "mt-6 grid grid-cols-1 gap-5 pb-20 lg:pb-0",
             sidebarOpen
               ? "lg:grid-cols-[18rem_1fr] xl:grid-cols-[22rem_1fr]"
               : "lg:grid-cols-[3rem_1fr]",
@@ -509,6 +534,15 @@ export function PlayerClient({
             <AISummaryCard summary={data.aiSummary} />
           </div>
         </div>
+
+        {/* Sticky compact audio bar — mobile/tablet only (`lg:hidden`).
+            Appears once the main Transport scrolls out of view. */}
+        <MobileMiniPlayer
+          visible={gateCleared && isReady && !transportVisible}
+          title={data.title ?? data.catalogNumber}
+          accent={accent.tailwind}
+          accentHex={accent.hex.progress}
+        />
       </div>
     </PlayerStateProvider>
   );

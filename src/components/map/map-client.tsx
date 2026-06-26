@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 
 import { MapFilterBar } from "./map-filter-bar";
 import { NeighborhoodPreview } from "./neighborhood-preview";
@@ -111,6 +112,22 @@ export function MapClient({
   const [activeNeighborhood, setActiveNeighborhood] = useState<string | null>(
     null,
   );
+
+  // Below `lg` the preview can't sit in a side column, so a selected
+  // neighborhood opens as a bottom-sheet over the map (otherwise the result
+  // list renders below a full-height map, off-screen). `isDesktop` gates the
+  // sheet's `open` state so the dialog never traps focus / locks scroll on
+  // desktop, where the right sidebar is used instead. Matches the `lg`
+  // breakpoint (1024px) used by the grid below.
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mql = window.matchMedia("(min-width: 1024px)");
+    const apply = () => setIsDesktop(mql.matches);
+    apply();
+    mql.addEventListener("change", apply);
+    return () => mql.removeEventListener("change", apply);
+  }, []);
 
   const featureCollection = useMemo(
     () => buildFeatureCollection(neighborhoods, counts, advisoryByNeighborhood),
@@ -387,13 +404,52 @@ export function MapClient({
           className="h-[60dvh] min-h-[360px] w-full overflow-hidden rounded-xl bg-[color:var(--color-surface)] ring-1 ring-border lg:h-[70dvh] lg:min-h-[420px]"
         />
 
-        <NeighborhoodPreview
-          activeNeighborhood={activeNeighborhood}
-          recordings={activeRecordings}
-          total={allRecordingCount}
-          onClose={handleClose}
-        />
+        {/* Desktop (lg+): the preview is the right sidebar, exactly as before.
+            Hidden below lg, where the bottom-sheet takes over so tap results
+            don't land off-screen under a full-height map. */}
+        <div className="hidden h-full min-h-0 lg:block">
+          <NeighborhoodPreview
+            activeNeighborhood={activeNeighborhood}
+            recordings={activeRecordings}
+            total={allRecordingCount}
+            onClose={handleClose}
+          />
+        </div>
       </div>
+
+      {/* Mobile/tablet (< lg): selecting a pin opens the preview as a
+          dismissible bottom-sheet over the map. `open` is gated on `!isDesktop`
+          so the dialog never traps focus or locks scroll on desktop. */}
+      <DialogPrimitive.Root
+        open={!isDesktop && activeNeighborhood != null}
+        onOpenChange={(open) => {
+          if (!open) handleClose();
+        }}
+      >
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/20 supports-backdrop-filter:backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 lg:hidden" />
+          <DialogPrimitive.Popup className="fixed inset-x-0 bottom-0 z-50 flex max-h-[70dvh] flex-col overflow-hidden rounded-t-2xl border-t border-border bg-background pb-[env(safe-area-inset-bottom)] shadow-xl outline-none data-open:animate-in data-open:slide-in-from-bottom data-closed:animate-out data-closed:slide-out-to-bottom lg:hidden">
+            <DialogPrimitive.Title className="sr-only">
+              {activeNeighborhood ?? "Neighborhood"} recordings
+            </DialogPrimitive.Title>
+            <DialogPrimitive.Description className="sr-only">
+              Oral history recordings that touch this neighborhood.
+            </DialogPrimitive.Description>
+            {/* Drag-handle affordance */}
+            <div
+              aria-hidden
+              className="mx-auto mt-2 h-1.5 w-10 shrink-0 rounded-full bg-foreground/20"
+            />
+            <NeighborhoodPreview
+              activeNeighborhood={activeNeighborhood}
+              recordings={activeRecordings}
+              total={allRecordingCount}
+              onClose={handleClose}
+              className="min-h-0 flex-1 rounded-none border-0 bg-transparent"
+            />
+          </DialogPrimitive.Popup>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
     </div>
   );
 }

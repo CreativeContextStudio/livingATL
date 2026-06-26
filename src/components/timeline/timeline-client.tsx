@@ -729,6 +729,10 @@ export function TimelineClient({
             <span>{laneMode ? "lanes" : "jitter"}</span>
             <span className="hidden text-muted-foreground/50 sm:inline">·</span>
             <span className="hidden sm:inline">scroll to zoom · drag to pan · +/− · 0</span>
+            {/* Touch devices have no hover/scroll-zoom — tell them how to drive
+                the canvas: tap a marker for the detail folio above, drag to
+                pan, use the +/− buttons to zoom. */}
+            <span className="sm:hidden">tap a point for details · drag to pan · +/−</span>
           </span>
         </div>
 
@@ -959,7 +963,7 @@ export function TimelineClient({
               disabled={isFullView}
               aria-label="Zoom out"
               title="Zoom out (−)"
-              className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+              className="inline-flex size-7 min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 md:min-h-0 md:min-w-0"
             >
               <MinusIcon aria-hidden className="size-3.5" />
             </button>
@@ -969,7 +973,7 @@ export function TimelineClient({
               disabled={isDefaultView}
               aria-label="Reset view"
               title="Reset view (0)"
-              className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+              className="inline-flex size-7 min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 md:min-h-0 md:min-w-0"
             >
               <RotateCcwIcon aria-hidden className="size-3.5" />
             </button>
@@ -979,7 +983,7 @@ export function TimelineClient({
               disabled={isMinView}
               aria-label="Zoom in"
               title="Zoom in (+)"
-              className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+              className="inline-flex size-7 min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 md:min-h-0 md:min-w-0"
             >
               <PlusIcon aria-hidden className="size-3.5" />
             </button>

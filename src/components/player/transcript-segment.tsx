@@ -120,7 +120,10 @@ export const TranscriptSegmentRow = memo(
           type="button"
           onClick={() => onSeek(segment.start)}
           className={cn(
-            "self-start font-mono text-[10px] tabular-nums text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:text-foreground",
+            "relative self-start font-mono text-[10px] tabular-nums text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:text-foreground",
+            // Expand the touch hit-area on mobile without affecting layout
+            // (the pseudo-element overlays, the text stays put). Removed at md.
+            "after:absolute after:-inset-3 after:content-[''] md:after:hidden",
             isLowConfidence &&
               "underline decoration-dotted decoration-muted-foreground/60 underline-offset-[3px]",
           )}

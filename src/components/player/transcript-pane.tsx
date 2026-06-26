@@ -241,7 +241,7 @@ export function TranscriptPane({
         ref={(node) => {
           viewportRef.current = node;
         }}
-        className="scrollbar-soft h-full max-h-[36vh] overflow-y-auto pr-3"
+        className="scrollbar-soft h-full max-h-[55vh] overflow-y-auto pr-3 md:max-h-[36vh]"
       >
         <ol className="flex flex-col gap-2">
           {groups.map((group, gi) => (

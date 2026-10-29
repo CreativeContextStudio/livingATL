@@ -5,10 +5,11 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type FormEvent,
   type KeyboardEvent,
 } from "react";
-import { SendHorizontalIcon } from "lucide-react";
+import { RotateCcwIcon, SendHorizontalIcon, SquareIcon } from "lucide-react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 
@@ -17,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { PortalResponseCard } from "@/components/portal/portal-response-card";
 import { CitationsPanel } from "@/components/portal/citations-panel";
 import { capturePortalEvent } from "@/lib/portal/analytics";
+import { MAX_QUESTION_CHARS } from "@/lib/portal/sanitize-messages";
 import {
   ACCENT_BY_KEY,
   defaultSlice,
@@ -40,7 +42,7 @@ import type {
  *
  * Visual register borrows the Player's Transcript Pane: mono-tracked
  * uppercase speaker labels ("YOU" right-aligned, "THE ARCHIVE" left-aligned
- * with the `text-primary` coral), a thin rule between turn groups, flush-
+ * with the `text-primary-ink` coral), a thin rule between turn groups, flush-
  * left prose for the archive's answer (no nested card chrome). Past turns
  * compress — user question becomes an italic overture, citations collapse
  * behind a `▾ N sources` toggle, follow-ups hide. Only the current pair
@@ -74,6 +76,14 @@ function compressQuestion(text: string): string {
   const truncated = words.length > 7;
   const lower = kept.charAt(0).toLowerCase() + kept.slice(1);
   return truncated ? `${lower}…` : lower;
+}
+
+/** `[3]` / `[1, 4]` citation markers read as noise when announced. */
+function stripCitationMarks(text: string): string {
+  return text
+    .replace(/\s*\[\s*\d+(\s*[,|]\s*\d+)*\s*\]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function extractUserText(message: PortalUIMessage): string {
@@ -138,13 +148,33 @@ function extractAssistantFields(message: PortalUIMessage): {
 // Main island
 // ---------------------------------------------------------------------------
 
+/**
+ * Translate useChat errors into user-facing copy. The transport surfaces the
+ * response body as `error.message`, so the route's `error`/`reason` codes are
+ * matched here; anything unrecognized gets the generic "try again".
+ */
+function describePortalError(error: Error | undefined): string | null {
+  if (!error) return null;
+  const message = error.message.toLowerCase();
+  if (message.includes("preview_mode")) {
+    return "The archive is not yet public. This Portal is gated behind preview mode.";
+  }
+  if (message.includes("rate_limited")) {
+    return "You're asking faster than the archive can answer. Wait a minute and try again.";
+  }
+  if (message.includes("question_too_long")) {
+    return `Questions are limited to ${MAX_QUESTION_CHARS.toLocaleString()} characters. Try a shorter question.`;
+  }
+  return "Something went wrong while answering. Please try again.";
+}
+
 export function PortalClient() {
-  const { messages, sendMessage, status, error } = useChat<PortalUIMessage>({
-    transport: new DefaultChatTransport({ api: "/api/portal/chat" }),
-  });
+  const { messages, sendMessage, status, error, stop, regenerate } =
+    useChat<PortalUIMessage>({
+      transport: new DefaultChatTransport({ api: "/api/portal/chat" }),
+    });
 
   const [input, setInput] = useState("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   // Origin group per user-turn ordinal index (0, 1, 2, …). Populated when
   // a visitor clicks a prompt card or a follow-up; typed-from-scratch
   // questions leave the slot empty and render with a neutral border.
@@ -152,7 +182,10 @@ export function PortalClient() {
     () => new Map(),
   );
 
-  const scrollAnchorRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  // Follow the stream only while the reader is at (or near) the bottom of
+  // the conversation; scrolling up to re-read pauses it until they return.
+  const stickToBottomRef = useRef(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isLoading = status === "submitted" || status === "streaming";
@@ -160,42 +193,53 @@ export function PortalClient() {
   const showEmptyState = messages.length === 0 && !isLoading;
   const hasInput = input.trim().length > 0;
 
-  // Auto-scroll the conversation into view as text deltas arrive. The scroll
-  // target is the end-of-list anchor — this keeps the most recent token
-  // visible without fighting user-initiated scrolling.
+  // Keep the newest text in view as deltas arrive — but scroll only the
+  // conversation pane (scrollIntoView also scrolled the page on mobile),
+  // only when the reader hasn't scrolled away, and without smooth-scroll
+  // animation per token (or at all under prefers-reduced-motion).
   useEffect(() => {
-    if (messages.length === 0) return;
-    scrollAnchorRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "end",
+    const scroller = scrollerRef.current;
+    if (messages.length === 0 || !scroller || !stickToBottomRef.current) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    scroller.scrollTo({
+      top: scroller.scrollHeight,
+      behavior: reduce || status === "streaming" ? "auto" : "smooth",
     });
   }, [messages, status]);
 
-  // Translate useChat errors into user-facing copy. Preview-mode 403 is the
-  // one server error the Portal surfaces distinctly; everything else is a
-  // generic "try again" message.
-  useEffect(() => {
-    if (!error) {
-      setErrorMessage(null);
-      return;
-    }
-    if (error.message.toLowerCase().includes("preview_mode")) {
-      setErrorMessage(
-        "The archive is not yet public. This Portal is gated behind preview mode.",
-      );
-    } else {
-      setErrorMessage(
-        "Something went wrong while answering. Please try again.",
-      );
-    }
-  }, [error]);
+  const onScrollerScroll = useCallback(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    stickToBottomRef.current =
+      el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  }, []);
 
-  // Refocus the input after a turn completes so the visitor can keep asking
-  // follow-ups without reaching for the mouse.
+  // One persistent screen-reader status: announce the search, stay quiet
+  // while tokens stream (announcing deltas is noise), then read the
+  // finished answer once. Visible error copy has its own role="alert".
+  const lastMessage = messages.at(-1);
+  const srStatus =
+    status === "submitted"
+      ? "Searching the archive…"
+      : status === "ready" && lastMessage?.role === "assistant"
+        ? `Answer: ${stripCitationMarks(extractAssistantFields(lastMessage).text)}`
+        : "";
+
+  // useChat clears `error` when the next request starts, so the copy is
+  // derived during render rather than mirrored into state.
+  const errorMessage = describePortalError(error);
+
+  // Focus the input on arrival and after each turn so the visitor can keep
+  // asking without reaching for the mouse — but never scroll the page to do
+  // it, and skip the on-arrival focus on touch devices: there it popped the
+  // on-screen keyboard and jumped the page past the intro.
+  const hasMountedRef = useRef(false);
   useEffect(() => {
-    if (!isLoading) {
-      textareaRef.current?.focus();
-    }
+    if (isLoading) return;
+    const firstRun = !hasMountedRef.current;
+    hasMountedRef.current = true;
+    if (firstRun && !window.matchMedia("(pointer: fine)").matches) return;
+    textareaRef.current?.focus({ preventScroll: true });
   }, [isLoading]);
 
   const submit = useCallback(
@@ -204,8 +248,9 @@ export function PortalClient() {
       if (!question || isLoading) return;
 
       const turnIndex = messages.filter((m) => m.role === "user").length;
+      // A new question always brings the conversation back to the bottom.
+      stickToBottomRef.current = true;
 
-      setErrorMessage(null);
       capturePortalEvent("portal_query", {
         question_length: question.length,
         turn_index: turnIndex,
@@ -268,7 +313,14 @@ export function PortalClient() {
       </div>
 
       {/* Scroll region */}
-      <div className="scrollbar-soft min-h-0 flex-1 overflow-y-auto px-5 py-5">
+      <p role="status" className="sr-only">
+        {srStatus}
+      </p>
+      <div
+        ref={scrollerRef}
+        onScroll={onScrollerScroll}
+        className="scrollbar-soft min-h-0 flex-1 overflow-y-auto px-5 py-5"
+      >
         <div className="flex flex-col gap-6">
           {showEmptyState ? (
             <EmptyStateWithSampledPrompts onPick={submit} />
@@ -297,6 +349,8 @@ export function PortalClient() {
                 : undefined;
               return (
                 <ol
+                  aria-label="Conversation"
+                  aria-busy={isLoading}
                   // Horizontal divider appears above a user turn at every
                   // pair boundary (i.e., any user turn that isn't the
                   // first li). Within a pair (user → archive answer), no
@@ -351,9 +405,6 @@ export function PortalClient() {
                       <AssistantTurnLoading />
                     </li>
                   ) : null}
-                  <li aria-hidden>
-                    <div ref={scrollAnchorRef} />
-                  </li>
                 </ol>
               );
             })()
@@ -362,9 +413,20 @@ export function PortalClient() {
           {errorMessage ? (
             <div
               role="alert"
-              className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-red-800 dark:text-red-200"
             >
-              {errorMessage}
+              <span>{errorMessage}</span>
+              {messages.some((m) => m.role === "user") ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void regenerate()}
+                >
+                  <RotateCcwIcon aria-hidden className="size-3.5" />
+                  Try again
+                </Button>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -383,15 +445,25 @@ export function PortalClient() {
           </p>
           <div aria-hidden className="h-px flex-1 bg-border/70" />
           {hasInput && !isLoading ? (
-            <kbd
+            // Matches onKeyDown: plain Enter sends, Shift+Enter adds a line.
+            <p
               aria-hidden
-              className="inline-flex items-center gap-0.5 rounded-md border border-border/70 bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] font-medium tracking-[0.08em] text-muted-foreground"
+              className="font-mono text-[10px] tracking-[0.08em] text-muted-foreground"
             >
-              <span className="text-[11px] leading-none">⌘</span>
-              <span>↵</span>
-            </kbd>
+              <kbd className="rounded-md border border-border/70 bg-muted/50 px-1.5 py-0.5 font-medium">
+                ↵
+              </kbd>{" "}
+              send ·{" "}
+              <kbd className="rounded-md border border-border/70 bg-muted/50 px-1.5 py-0.5 font-medium">
+                ⇧↵
+              </kbd>{" "}
+              new line
+            </p>
           ) : null}
         </div>
+        <p id="portal-input-help" className="sr-only">
+          Press Enter to send, Shift+Enter for a new line.
+        </p>
         <form onSubmit={onFormSubmit} className="flex items-end gap-2">
           <textarea
             ref={textareaRef}
@@ -400,22 +472,34 @@ export function PortalClient() {
             onKeyDown={onKeyDown}
             placeholder="A person, a neighborhood, an era — type your question…"
             rows={2}
+            maxLength={MAX_QUESTION_CHARS}
             disabled={isLoading}
             aria-label="Ask the archive a question"
+            aria-describedby="portal-input-help"
             className={cn(
               "min-h-10 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground",
               "focus:outline-none disabled:opacity-50",
             )}
           />
-          <Button
-            type="submit"
-            size="sm"
-            disabled={isLoading || !hasInput}
-            aria-label="Ask"
-          >
-            <SendHorizontalIcon className="size-3.5" />
-            <span>Ask</span>
-          </Button>
+          {isLoading ? (
+            // While an answer is coming, the send button becomes Stop. What
+            // has streamed so far stays on screen.
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => void stop()}
+              aria-label="Stop answering"
+            >
+              <SquareIcon aria-hidden className="size-3" />
+              <span>Stop</span>
+            </Button>
+          ) : (
+            <Button type="submit" size="sm" disabled={!hasInput} aria-label="Ask">
+              <SendHorizontalIcon className="size-3.5" />
+              <span>Ask</span>
+            </Button>
+          )}
         </form>
       </div>
     </div>
@@ -426,20 +510,27 @@ export function PortalClient() {
 // Subcomponents
 // ---------------------------------------------------------------------------
 
+const subscribeNoop = () => () => {};
+
 /**
  * Hook — returns a `PromptGroup[]` that is deterministic on the first
- * render (so SSR and client's first render agree) and replaced with a
- * session-stable random sample on mount.
+ * render (so SSR and client's first render agree) and switches to a
+ * mount-stable random sample once hydrated.
  *
- * Pattern: the initial `useState` value runs on both the server and the
- * client's first render, so it must be deterministic — we return the
- * `defaultSlice` (first N of each group's pool). The `useEffect` then
- * runs only on the client after hydration and sets the state to a random
- * sample. The sample is taken once per mount; subsequent re-renders (new
+ * Pattern: `useSyncExternalStore` reports `false` while rendering on the
+ * server and during hydration (getServerSnapshot) and `true` afterwards, so
+ * hydration sees the deterministic `defaultSlice` (first N of each group's
+ * pool) and React then re-renders with the random sample. The sample is
+ * drawn once per mount in a `useState` initializer; later re-renders (new
  * input characters, new turns) do not re-sample.
  */
 function useSampledPrompts(n: number): PromptGroup[] {
-  const [groups, setGroups] = useState<PromptGroup[]>(() =>
+  const hydrated = useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false,
+  );
+  const [defaults] = useState<PromptGroup[]>(() =>
     defaultSlice(n).map((g) => ({
       key: g.key,
       label: g.label,
@@ -447,10 +538,8 @@ function useSampledPrompts(n: number): PromptGroup[] {
       prompts: [...g.prompts],
     })),
   );
-  useEffect(() => {
-    setGroups(samplePerGroup(n));
-  }, [n]);
-  return groups;
+  const [sampled] = useState<PromptGroup[]>(() => samplePerGroup(n));
+  return hydrated ? sampled : defaults;
 }
 
 function EmptyStateWithSampledPrompts({
@@ -513,7 +602,7 @@ function EmptyState({
                       "w-full rounded-lg border border-border/50 bg-background px-3 py-2 text-left text-xs leading-relaxed text-foreground/85",
                       "transition-all hover:-translate-y-0.5 hover:bg-muted hover:text-foreground",
                       group.accent.hoverBorder,
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     )}
                   >
                     {prompt}
@@ -557,7 +646,7 @@ function UserTurn({ text }: { text: string }) {
 function UserTurnCoda({ text }: { text: string }) {
   return (
     <div className="flex justify-end">
-      <p className="max-w-[85%] text-right font-mono text-[10px] tracking-[0.14em] uppercase italic text-muted-foreground/85">
+      <p className="max-w-[85%] text-right font-mono text-[10px] tracking-[0.14em] uppercase italic text-muted-foreground">
         — on {compressQuestion(text)} —
       </p>
     </div>
@@ -621,7 +710,7 @@ function AssistantTurnLoading() {
 
 /**
  * "The archive · N voices ───" speaker label. Mono-tracked uppercase per
- * the Transcript Pane precedent; `text-primary` coral on "The archive"
+ * the Transcript Pane precedent; `text-primary-ink` coral on "The archive"
  * mirrors how the Player renders the interviewee's name. `N voices` is the
  * active citation count — hidden when 0 (refusal answers don't count as
  * "voices") or during loading.
@@ -635,7 +724,7 @@ function ArchiveSpeakerLabel({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <p className="font-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-primary">
+      <p className="font-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-primary-ink">
         The archive
       </p>
       {!loading && voiceCount > 0 ? (
@@ -695,7 +784,7 @@ function FollowUps({
               className={cn(
                 "rounded-full border border-border bg-background px-3 py-1.5 text-left text-xs text-foreground/80",
                 "transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-muted hover:text-foreground",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               )}
             >
               {prompt}

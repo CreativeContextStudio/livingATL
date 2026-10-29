@@ -31,52 +31,60 @@ import { cn } from "@/lib/utils";
  *   - `src/app/player/[catalog]/page.tsx::AboutThisRecording` (compact
  *     editorial card with uppercase eyebrow and mt-auto footer rule)
  */
-export function PortalContextRail() {
+/**
+ * Page intro — breadcrumb, eyebrow, the page's h1, and the one-paragraph
+ * explainer. Split from the context rail so phones can show intro → chat →
+ * rail details (the full rail above the chat pushed the input off-screen).
+ */
+export function PortalIntro() {
   return (
-    <div className="flex flex-col gap-5">
-      {/* Header: breadcrumb + eyebrow stripe + compact two-tier hero. */}
-      <div className="flex flex-col gap-4">
-        <nav
-          aria-label="Breadcrumb"
-          className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground"
-        >
-          <ol className="flex items-center gap-2">
-            <li>
-              <Link
-                href="/"
-                className="rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-              >
-                livingATL
-              </Link>
-            </li>
-            <li aria-hidden className="text-muted-foreground/60">
-              /
-            </li>
-            <li aria-current="page" className="text-foreground">
-              Portal
-            </li>
-          </ol>
-        </nav>
+    <div className="flex flex-col gap-4">
+      <nav
+        aria-label="Breadcrumb"
+        className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground"
+      >
+        <ol className="flex items-center gap-2">
+          <li>
+            <Link
+              href="/"
+              className="rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              livingATL
+            </Link>
+          </li>
+          <li aria-hidden className="text-muted-foreground">
+            /
+          </li>
+          <li aria-current="page" className="text-foreground">
+            Portal
+          </li>
+        </ol>
+      </nav>
 
-        <div className="flex items-center gap-3">
-          <div aria-hidden className="h-1.5 w-16 rounded-full bg-primary" />
-          <p className="font-mono text-[10px] tracking-[0.22em] uppercase text-muted-foreground">
-            Ask the archive
-          </p>
-        </div>
-
-        <h1 className="font-heading text-2xl font-bold leading-[1.1] tracking-tight text-foreground lg:text-3xl">
-          Fifty years of Atlanta voices, answering back.
-        </h1>
-
-        <p className="text-sm leading-relaxed text-foreground/80">
-          Ask about a person, a neighborhood, an era, an event. The Portal
-          answers from the Living Atlanta oral history collection and cites
-          the recordings and timestamps it drew from. If the archive
-          doesn&rsquo;t cover your question, it will say so.
+      <div className="flex items-center gap-3">
+        <div aria-hidden className="h-1.5 w-16 rounded-full bg-primary" />
+        <p className="font-mono text-[10px] tracking-[0.22em] uppercase text-muted-foreground">
+          Ask the archive
         </p>
       </div>
 
+      <h1 className="font-heading text-2xl font-bold leading-[1.1] tracking-tight text-foreground lg:text-3xl">
+        Fifty years of Atlanta voices, answering back.
+      </h1>
+
+      <p className="text-sm leading-relaxed text-foreground/80">
+        Ask about a person, a neighborhood, an era, an event. The Portal
+        answers from the Living Atlanta oral history collection and cites
+        the recordings and timestamps it drew from. If the archive
+        doesn&rsquo;t cover your question, it will say so.
+      </p>
+    </div>
+  );
+}
+
+export function PortalContextRail() {
+  return (
+    <div className="flex flex-col gap-5">
       {/* Collection span — horizontal ruler with year anchors, a single
           peach tick for the WRFG broadcast origin band (mid-to-late 1970s),
           and a faint progress fill. Reads as "here's the temporal shape of
@@ -135,7 +143,7 @@ function CollectionSpan() {
         <p className="font-mono text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground">
           The tapes
         </p>
-        <p className="font-mono text-[10px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground/80">
+        <p className="font-mono text-[10px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
           {SPAN_END - SPAN_START} years
         </p>
       </div>
@@ -205,7 +213,7 @@ function AtAGlance() {
         <p className="font-mono text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground">
           At a glance
         </p>
-        <p className="font-mono text-[10px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground/80">
+        <p className="font-mono text-[10px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
           03 · Facts
         </p>
       </div>
@@ -219,7 +227,7 @@ function AtAGlance() {
               <p className="font-heading text-base font-semibold leading-tight tracking-tight text-foreground">
                 {s.value}
               </p>
-              <p className="font-mono text-[9px] tracking-[0.16em] uppercase text-muted-foreground/80">
+              <p className="font-mono text-[9px] tracking-[0.16em] uppercase text-muted-foreground">
                 {s.tail}
               </p>
             </article>
@@ -293,7 +301,7 @@ function KeepExploring() {
               className={cn(
                 "group flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5",
                 "transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-muted/40",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               )}
             >
               <span

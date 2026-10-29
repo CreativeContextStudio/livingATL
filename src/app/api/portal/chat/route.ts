@@ -1,6 +1,7 @@
 import "server-only";
 
 import { openai } from "@ai-sdk/openai";
+import * as Sentry from "@sentry/nextjs";
 import {
   embed,
   generateText,
@@ -13,12 +14,18 @@ import {
 } from "ai";
 import { z } from "zod";
 
+import { canRequestViewArchive } from "@/lib/access-request";
 import { getSynthesisModel } from "@/lib/ai/provider";
 import {
   buildSystemPrompt,
   NO_MATERIAL_REPLY,
 } from "@/lib/ai/portal-prompt";
+import {
+  MAX_BODY_BYTES,
+  sanitizePortalMessages,
+} from "@/lib/portal/sanitize-messages";
 import { retrieveRelevantChunks } from "@/lib/queries/portal";
+import { clientIp, createRateLimiter } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -34,8 +41,9 @@ export const runtime = "nodejs";
  *     completes — a tiny second LLM call tuned to propose three short
  *     follow-up questions based on the final answer)
  *
- * Launch gate: returns 403 when NEXT_PUBLIC_LAUNCH_ENABLED !== "true".
- * Required backstop per PRD §8.8 in case the proxy is bypassed.
+ * Access: returns 403 `preview_mode` unless the visitor can view the archive
+ * (src/lib/access.ts — gate cookie when the demo gate is on, launch flag
+ * otherwise). Required backstop per PRD §8.8 in case the proxy is bypassed.
  */
 
 // Retrieval tuning knobs. K=16 at threshold 0.25 on 2026-04-20 — bumped
@@ -47,6 +55,26 @@ export const runtime = "nodejs";
 // at K=12 so we're not expecting the extra noise to break refusals.
 const RETRIEVE_TOP_K = 16;
 const SIMILARITY_THRESHOLD = 0.25;
+
+// Output caps. The longest answer in the 15-question live eval was ~1,600
+// characters (~400 tokens), so 1,200 leaves headroom without letting one
+// request run up an unbounded bill.
+const ANSWER_MAX_OUTPUT_TOKENS = 1200;
+const FOLLOWUPS_MAX_OUTPUT_TOKENS = 300;
+
+// Per-instance backstop; the Vercel Firewall rule on this path is the real
+// limit (see src/lib/rate-limit.ts).
+const checkRateLimit = createRateLimiter([
+  { limit: 8, windowMs: 60_000 },
+  { limit: 60, windowMs: 60 * 60_000 },
+]);
+
+/** Generic client-facing error text; the real error goes to Sentry. */
+function reportStreamError(error: unknown): string {
+  Sentry.captureException(error);
+  console.error("[portal-chat] stream error", error);
+  return "Something went wrong while answering.";
+}
 
 export type PortalCitation = {
   index: number;
@@ -93,40 +121,44 @@ function truncateExcerpt(text: string, max = 320): string {
   return `${clean.slice(0, max).trimEnd()}…`;
 }
 
-function extractLastUserText(messages: UIMessage[]): string {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i];
-    if (msg.role !== "user") continue;
-    const text = msg.parts
-      .filter(
-        (p): p is { type: "text"; text: string } =>
-          p.type === "text" && typeof (p as { text?: unknown }).text === "string",
-      )
-      .map((p) => p.text)
-      .join(" ")
-      .trim();
-    if (text) return text;
-  }
-  return "";
-}
-
 export async function POST(req: Request): Promise<Response> {
-  if (process.env.NEXT_PUBLIC_LAUNCH_ENABLED !== "true") {
+  if (!(await canRequestViewArchive())) {
     return Response.json({ reason: "preview_mode" }, { status: 403 });
   }
 
-  let body: { messages?: UIMessage[] };
+  const limited = checkRateLimit(clientIp(req));
+  if (!limited.ok) {
+    return Response.json(
+      { error: "rate_limited" },
+      {
+        status: 429,
+        headers: { "Retry-After": String(limited.retryAfterSeconds) },
+      },
+    );
+  }
+
+  const declaredLength = Number(req.headers.get("content-length") ?? 0);
+  if (declaredLength > MAX_BODY_BYTES) {
+    return Response.json({ error: "payload_too_large" }, { status: 413 });
+  }
+  const rawBody = await req.text();
+  if (rawBody.length > MAX_BODY_BYTES) {
+    return Response.json({ error: "payload_too_large" }, { status: 413 });
+  }
+
+  let body: { messages?: unknown };
   try {
-    body = (await req.json()) as { messages?: UIMessage[] };
+    body = JSON.parse(rawBody) as { messages?: unknown };
   } catch {
     return Response.json({ error: "invalid_json" }, { status: 400 });
   }
 
-  const uiMessages = Array.isArray(body.messages) ? body.messages : [];
-  const question = extractLastUserText(uiMessages);
-  if (!question) {
-    return Response.json({ error: "empty_question" }, { status: 400 });
+  // Never forward client message objects as-is — see sanitize-messages.ts.
+  const sanitized = sanitizePortalMessages(body?.messages);
+  if (!sanitized.ok) {
+    return Response.json({ error: sanitized.error }, { status: sanitized.status });
   }
+  const { messages: uiMessages, question } = sanitized;
 
   // Embed the question.
   const { embedding } = await embed({
@@ -139,7 +171,6 @@ export async function POST(req: Request): Promise<Response> {
   const relevant = retrieved.filter((c) => c.similarity >= SIMILARITY_THRESHOLD);
 
   if (process.env.NODE_ENV !== "production") {
-    // eslint-disable-next-line no-console
     console.log(
       "[portal-retrieval]",
       JSON.stringify({
@@ -225,6 +256,7 @@ export async function POST(req: Request): Promise<Response> {
   });
 
   const stream = createUIMessageStream<PortalUIMessage>({
+    onError: reportStreamError,
     execute: async ({ writer }) => {
       // Emit citations immediately so the panel can render before the first
       // text token arrives. `id` lets us reconcile this part if we ever
@@ -240,9 +272,15 @@ export async function POST(req: Request): Promise<Response> {
         model: getSynthesisModel(),
         system: buildSystemPrompt(relevant),
         messages: modelMessages,
+        maxOutputTokens: ANSWER_MAX_OUTPUT_TOKENS,
       });
 
-      writer.merge(result.toUIMessageStream({ sendReasoning: false }));
+      writer.merge(
+        result.toUIMessageStream({
+          sendReasoning: false,
+          onError: reportStreamError,
+        }),
+      );
 
       // `execute` must stay open until the follow-ups are written, otherwise
       // the stream closes before the second call returns. Awaiting
@@ -267,9 +305,10 @@ export async function POST(req: Request): Promise<Response> {
         const followUpsGen = await generateText({
           model: getSynthesisModel(),
           system:
-            "You are a follow-up question generator for the Living Atlanta oral-history archive (Atlanta 1914–1977). Given an answer to a visitor's question, propose exactly three short follow-up questions the visitor could ask next. Each must be specific, under 90 characters, answerable from the collection, and distinct in angle from the others. No citation markers.",
+            "You are a follow-up question generator for the Living Atlanta oral-history archive (Atlanta 1914–1977). Given an answer to a visitor's question, propose exactly three short follow-up questions the visitor could ask next. Each must be specific, under 90 characters, answerable from the collection, and distinct in angle from the others — favor different framings (a deeper dive on a named person, a different neighborhood, a move across eras, a contrast between speakers). If the answer says the archive does not have material on the topic, pivot to topics the collection does cover (Sweet Auburn businesses, the 1906 Race Massacre, the streetcar era, segregated schools, church life). No citation markers.",
           prompt: `ANSWER:\n${stripCitationMarkers(answerText)}\n\nReturn three follow-up questions as the \`followUps\` array.`,
           experimental_output: Output.object({ schema: followUpsSchema }),
+          maxOutputTokens: FOLLOWUPS_MAX_OUTPUT_TOKENS,
         });
         const followUps = followUpsGen.experimental_output?.followUps ?? [];
         writer.write({
@@ -278,7 +317,7 @@ export async function POST(req: Request): Promise<Response> {
           data: followUps,
         });
       } catch (err) {
-        // eslint-disable-next-line no-console
+        Sentry.captureException(err);
         console.error("[portal-followups] generation failed", err);
         writer.write({
           type: "data-followups",

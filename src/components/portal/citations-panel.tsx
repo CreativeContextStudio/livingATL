@@ -45,7 +45,7 @@ export function CitationsPanel({
           "inline-flex items-center gap-1 self-start rounded-md px-1 py-0.5",
           "font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground",
           "transition-colors hover:text-foreground",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         )}
       >
         <ChevronDownIcon className="size-3" />
@@ -73,7 +73,7 @@ export function CitationsPanel({
       <ol className="flex flex-col gap-2">
         {citations.map((citation) => {
           const timestamp = formatTimestamp(citation.startTime);
-          const href = `/player/${encodeURIComponent(citation.catalogNumber)}?t=${timestamp}`;
+          const href = `/player/${encodeURIComponent(citation.catalogNumber)}?t=${timestamp}&from=portal`;
           const attribution = citation.intervieweeName ?? "unnamed interviewee";
           return (
             <li key={citation.index}>
@@ -87,7 +87,7 @@ export function CitationsPanel({
                     source: "panel",
                   });
                 }}
-                className="group flex flex-col gap-1 rounded-md border border-border/50 p-3 transition-colors hover:border-primary/40 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                className="group flex flex-col gap-1 rounded-md border border-border/50 p-3 transition-colors hover:border-primary/40 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <div className="flex items-start gap-2">
                   <span

@@ -24,7 +24,7 @@ import type { PortalCitation } from "@/app/api/portal/chat/route";
  */
 export function CitationChip({ citation }: { citation: PortalCitation }) {
   const timestamp = formatTimestamp(citation.startTime);
-  const href = `/player/${encodeURIComponent(citation.catalogNumber)}?t=${timestamp}`;
+  const href = `/player/${encodeURIComponent(citation.catalogNumber)}?t=${timestamp}&from=portal`;
   const label = citation.intervieweeName
     ? `${citation.intervieweeName} at ${timestamp}`
     : `${citation.recordingTitle} at ${timestamp}`;
@@ -48,7 +48,7 @@ export function CitationChip({ citation }: { citation: PortalCitation }) {
         // flow (the pseudo-element overlays; a modest inset avoids stealing
         // taps from adjacent words). Removed at md where a cursor is precise.
         "after:absolute after:-inset-1.5 after:content-[''] md:after:hidden",
-        "hover:border-primary/40 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+        "hover:border-primary/40 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
       )}
     >
       {citation.index}

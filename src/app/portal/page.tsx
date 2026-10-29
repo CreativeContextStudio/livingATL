@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 
 import { PortalClient } from "./portal-client";
-import { PortalContextRail } from "@/components/portal/portal-context-rail";
+import {
+  PortalContextRail,
+  PortalIntro,
+} from "@/components/portal/portal-context-rail";
+import { requireArchiveAccess } from "@/lib/access-request";
 
 /**
  * AI Portal — PRD §7.4.
@@ -26,7 +30,10 @@ export const metadata: Metadata = {
     "Ask questions about Atlanta history and get answers grounded in the Living Atlanta oral history collection (1914–1977). Every answer cites the recording and timestamp it came from.",
 };
 
-export default function PortalPage() {
+export default async function PortalPage() {
+  // PRD §8.8 backstop — the proxy is the first line; see src/lib/access.ts.
+  await requireArchiveAccess();
+
   return (
     <main
       className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-6 py-8 lg:py-10"
@@ -44,17 +51,26 @@ export default function PortalPage() {
           // (3.5rem) + main's `lg:py-10` top+bottom (5rem). On mobile the
           // grid has no height constraint — it stacks, and the chat card's
           // own `h-[70dvh]` bounds it.
+          //
+          // DOM order is intro → chat → rail so phones read the heading, then
+          // reach the conversation without scrolling past the whole rail.
+          // On lg the grid places intro + rail in the left column (rail
+          // scrolls) and the chat across both rows on the right.
           "grid grid-cols-1 gap-8",
-          "lg:h-[calc(100dvh-12rem)] lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-10",
+          "lg:h-[calc(100dvh-12rem)] lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:grid-rows-[auto_minmax(0,1fr)] lg:gap-x-10 lg:gap-y-5",
         ].join(" ")}
       >
-        <aside className="min-h-0 lg:h-full lg:overflow-y-auto lg:pr-1 lg:pb-2">
-          <PortalContextRail />
-        </aside>
+        <div className="lg:col-start-1 lg:row-start-1">
+          <PortalIntro />
+        </div>
 
-        <div className="flex min-w-0 min-h-0 flex-col lg:h-full lg:overflow-hidden">
+        <div className="flex min-w-0 min-h-0 flex-col lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-full lg:overflow-hidden">
           <PortalClient />
         </div>
+
+        <aside className="min-h-0 lg:col-start-1 lg:row-start-2 lg:h-full lg:overflow-y-auto lg:pr-1 lg:pb-2">
+          <PortalContextRail />
+        </aside>
       </div>
     </main>
   );

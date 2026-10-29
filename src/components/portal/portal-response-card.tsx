@@ -92,10 +92,9 @@ export function PortalResponseCard({ text, citations, loading }: Props) {
       : "AI-generated · archive did not surface a match";
 
   return (
-    <div
-      className="flex w-full flex-col gap-3"
-      aria-live={loading ? "polite" : undefined}
-    >
+    // Announcements are handled once, by the persistent role="status" in
+    // portal-client — a live region that unmounts mid-stream announces nothing.
+    <div className="flex w-full flex-col gap-3">
       {loading ? (
         <div
           className="flex flex-col gap-2.5"
@@ -125,7 +124,7 @@ export function PortalResponseCard({ text, citations, loading }: Props) {
           <>
             <span
               aria-hidden
-              className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground/70"
+              className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground"
             >
               ·
             </span>

@@ -21,7 +21,7 @@ import { FooterYear } from "./footer-year";
 export function SiteFooter() {
   return (
     <footer
-      className="z-[var(--z-sticky)] w-full border-t-2 border-border bg-card/85 backdrop-blur pb-[env(safe-area-inset-bottom)]"
+      className="z-[var(--z-sticky)] w-full print:hidden border-t-2 border-border bg-card/85 backdrop-blur pb-[env(safe-area-inset-bottom)]"
       style={{ height: "calc(var(--footer-h) + env(safe-area-inset-bottom))" }}
     >
       <div className="mx-auto flex h-[var(--footer-h)] w-full max-w-7xl items-center justify-between gap-3 px-6 text-[11px] text-muted-foreground sm:text-xs">

@@ -29,12 +29,17 @@ import {
   formatSpeakerName,
   titleForCard,
 } from "@/lib/format";
-import { safeDecodeCatalog } from "@/lib/player";
+import { formatTimestamp, safeDecodeCatalog } from "@/lib/player";
 import { cn } from "@/lib/utils";
 import {
   canRequestViewArchive,
   requireArchiveAccess,
 } from "@/lib/access-request";
+import { parseClipRange } from "@/lib/clips";
+import { archiveIsPublic } from "@/lib/access";
+import { headers } from "next/headers";
+import { nonceFromCsp } from "@/lib/csp";
+import { siteUrl } from "@/lib/site-url";
 
 /**
  * Audio Player page — PRD §7.2.
@@ -52,8 +57,10 @@ type RouteParams = { catalog: string };
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<RouteParams>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<Metadata> {
   // Don't resolve (and leak) the recording title for a visitor the page
   // itself would redirect away.
@@ -64,12 +71,31 @@ export async function generateMetadata({
   const data = await getPlayerData(catalog);
   if (!data) return { title: "Recording not found" };
   const interviewee = data.speakers.find((s) => s.role === "interviewee");
+  const title = interviewee
+    ? `${formatSpeakerName(interviewee.name)} · ${titleForCard(data.title)}`
+    : data.title;
+  const description = data.briefOverview ?? data.aiSummary ?? undefined;
+  // Clip links get a card quoting the clip; plain links quote the recording.
+  const sp = await searchParams;
+  const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+  const clip = parseClipRange(first(sp.t), first(sp.end));
+  const card = `/player/${encodeURIComponent(catalog)}/card${
+    clip ? `?t=${formatTimestamp(clip.start)}&end=${formatTimestamp(clip.end)}` : ""
+  }`;
+  const indexable = archiveIsPublic();
   return {
-    title: interviewee
-      ? `${formatSpeakerName(interviewee.name)} · ${titleForCard(data.title)}`
-      : data.title,
-    description: data.briefOverview ?? data.aiSummary ?? undefined,
-    robots: { index: false, follow: false },
+    title,
+    description,
+    alternates: { canonical: `/player/${encodeURIComponent(catalog)}` },
+    openGraph: {
+      type: "website",
+      title,
+      description,
+      images: [{ url: card, width: 1200, height: 630 }],
+    },
+    twitter: { card: "summary_large_image", title, description, images: [card] },
+    // Indexable only once the archive is public (launched, no demo gate).
+    robots: indexable ? { index: true, follow: true } : { index: false, follow: false },
   };
 }
 
@@ -131,8 +157,38 @@ export default async function PlayerPage({
       ? `${data.briefMoments.length} moment${data.briefMoments.length === 1 ? "" : "s"} authored`
       : null);
 
+  // Structured data for search engines (schema.org AudioObject). Rendered as
+  // a JSON data block; the CSP nonce is attached for consistency.
+  const nonce = nonceFromCsp((await headers()).get("content-security-policy"));
+  const intervieweeSpeaker = data.speakers.find((s) => s.role === "interviewee");
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "AudioObject",
+    name: titleForCard(data.title),
+    description: data.briefOverview ?? data.aiSummary ?? undefined,
+    url: new URL(`/player/${encodeURIComponent(data.catalogNumber)}`, siteUrl()).toString(),
+    encodingFormat: "audio/mpeg",
+    ...(data.durationSeconds ? { duration: `PT${Math.round(data.durationSeconds)}S` } : {}),
+    ...(data.recordingDate ? { dateCreated: data.recordingDate } : {}),
+    inLanguage: "en",
+    identifier: data.catalogNumber,
+    ...(intervieweeSpeaker
+      ? { creator: { "@type": "Person", name: formatSpeakerName(intervieweeSpeaker.name) } }
+      : {}),
+    isPartOf: { "@type": "Collection", name: data.collection ?? "Living Atlanta" },
+    ...(data.rightsHolder ? { copyrightHolder: { "@type": "Organization", name: data.rightsHolder } } : {}),
+  };
+
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-6 sm:py-10 lg:py-14">
+      <script
+        type="application/ld+json"
+        nonce={nonce}
+        // JSON with `<` escaped so a quote containing "</script>" can't break out.
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
+        }}
+      />
       {/* Breadcrumb — tiny mono trail anchoring the page in the collection.
           Unobtrusive at rest; hover picks up the foreground color on the
           linked crumbs. Current page (catalog number) stays unlinked with

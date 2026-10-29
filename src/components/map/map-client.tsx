@@ -100,6 +100,9 @@ export type MapClientProps = {
   neighborhoods: NeighborhoodGeometry[];
   counts: Record<string, number>;
   advisoryByNeighborhood: Record<string, boolean>;
+  /** Pre-selected neighborhood — `/map?neighborhood=X` deep links (e.g.
+   *  from a place page) open with its preview showing. */
+  initialNeighborhood?: string;
 };
 
 export function MapClient({
@@ -108,13 +111,14 @@ export function MapClient({
   neighborhoods,
   counts,
   advisoryByNeighborhood,
+  initialNeighborhood,
 }: MapClientProps) {
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const [ready, setReady] = useState(false);
   const [activeNeighborhood, setActiveNeighborhood] = useState<string | null>(
-    null,
+    initialNeighborhood && counts[initialNeighborhood] ? initialNeighborhood : null,
   );
 
   // Below `lg` the preview can't sit in a side column, so a selected

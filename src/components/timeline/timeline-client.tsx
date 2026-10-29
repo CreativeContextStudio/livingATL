@@ -441,6 +441,46 @@ export function TimelineClient({
     );
   }, [laneMode, plottableMoments]);
 
+  // Moments with identical years in the same lane drew exactly on top of
+  // each other, leaving the lower one unreachable. Spread exact duplicates
+  // vertically in 5% steps (~11px, wider than a dot): alternating ± in
+  // mid-band lanes, inward only for lanes at the band's edges (clamping
+  // there collapsed duplicates back together). Independent of the view, so
+  // marks don't jump while panning.
+  const stackOffset = useMemo(() => {
+    const seen = new Map<string, number>();
+    const out = new Map<string, number>();
+    for (const m of plottableMoments) {
+      const laneKey = recordingLanes
+        ? m.recordingId
+        : String(laneFor(`${m.recordingId}:${m.momentIndex}`));
+      const key = `${laneKey}|${m.eraStartYear}|${m.eraEndYear}`;
+      const n = seen.get(key) ?? 0;
+      seen.set(key, n + 1);
+      if (n === 0) continue;
+      const base = recordingLanes
+        ? (() => {
+            const e = recordingLanes.get(m.recordingId);
+            return !e || e.total === 1 ? 40 : (e.index / Math.max(1, e.total - 1)) * 80 + 5;
+          })()
+        : (laneFor(`${m.recordingId}:${m.momentIndex}`) / (MOMENT_LANES - 1)) * 80;
+      const step = 5;
+      const offset =
+        base < 12 ? n * step : base > 83 ? -n * step : Math.ceil(n / 2) * step * (n % 2 ? 1 : -1);
+      out.set(momentSelectionId(m), offset);
+    }
+    return out;
+  }, [plottableMoments, recordingLanes]);
+
+  // Lane view: one "recorded" marker per recording, at its interview year.
+  const recordedYearByRecording = useMemo(() => {
+    const out = new Map<string, number>();
+    for (const m of plottableMoments) {
+      if (m.recordedYear != null) out.set(m.recordingId, m.recordedYear);
+    }
+    return out;
+  }, [plottableMoments]);
+
   // -----------------------------------------------------------------------
   // Hover / click handlers
   // -----------------------------------------------------------------------
@@ -1020,9 +1060,25 @@ export function TimelineClient({
                   );
                 })
               : null}
+            {laneMode && recordingLanes
+              ? [...recordingLanes.entries()].map(([recordingId, entry]) => {
+                  const recorded = recordedYearByRecording.get(recordingId);
+                  if (recorded == null) return null;
+                  const spread = Math.max(1, entry.total - 1);
+                  const top = entry.total === 1 ? 40 : (entry.index / spread) * 80 + 5;
+                  return (
+                    <span
+                      key={`recorded-${recordingId}`}
+                      aria-hidden
+                      title={`${entry.name}: interview recorded ${recorded}`}
+                      className="pointer-events-auto absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-sm border-2 border-foreground/60 bg-card"
+                      style={{ left: `${xPercent(recorded, view)}%`, top: `${top}%` }}
+                    />
+                  );
+                })
+              : null}
             {plottableMoments.map((m) => {
               const year = momentAnchorYear(m)!;
-              const left = xPercent(year, view);
               let top: number;
               if (recordingLanes) {
                 const entry = recordingLanes.get(m.recordingId);
@@ -1038,51 +1094,95 @@ export function TimelineClient({
                 top = (lane / (MOMENT_LANES - 1)) * 80;
               }
               const id = momentSelectionId(m);
+              top = Math.min(95, Math.max(2, top + (stackOffset.get(id) ?? 0)));
               const isPinnedMarker = pinnedId === id;
-              // Multi-theme dots render as a small conic pie so secondary
-              // themes show up at scan time. Single-theme dots stay solid.
-              const dotBackground = themeDotBackground(m.themes);
+              const background = themeDotBackground(m.themes);
               // Filter fade — non-matching moments drop to 15% and stop
               // accepting pointer events so they don't distract. Pinned
               // moment overrides the fade so the reader's focus stays.
               const isMatch = !filterActive || matchesFilter(m, filter);
               const filteredOut = filterActive && !isMatch && !isPinnedMarker;
+              // PRD §7.3.1: a single-year moment is a dot; a ranged memory
+              // is a bar from its start year to its end year.
+              const isSpan =
+                m.eraStartYear != null &&
+                m.eraEndYear != null &&
+                m.eraEndYear > m.eraStartYear;
+              const shared = {
+                type: "button" as const,
+                "data-selected": isPinnedMarker || undefined,
+                "aria-pressed": isPinnedMarker,
+                "aria-label": `${m.title}. ${m.intervieweeName ?? m.recordingTitle}${m.eraLabel ? ` · ${m.eraLabel}` : ""}`,
+                "data-timeline-marker": "",
+                tabIndex: -1,
+                "aria-hidden": filteredOut || undefined,
+                onMouseEnter: (evt: React.MouseEvent) => canHover && onMomentEnter(m, evt),
+                onFocus: (evt: React.FocusEvent<HTMLButtonElement>) => onMomentEnter(m, focusPoint(evt)),
+                onBlur: onHoverLeave,
+                onClick: () => onMomentClick(m),
+              };
+              if (!isSpan) {
+                return (
+                  <button
+                    {...shared}
+                    key={id}
+                    className={cn(
+                      "absolute block size-2.5 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full p-0 transition-[top,transform,opacity] duration-200 ease-out hover:z-10 hover:scale-[1.6] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      // Invisible 26px hit area on touch screens (dots are 10px;
+                      // WCAG 2.5.8 minimum is 24px). Larger areas overlap in dense
+                      // clusters and a tap lands on a neighbouring moment.
+                      "pointer-coarse:after:absolute pointer-coarse:after:-inset-2 pointer-coarse:after:rounded-full pointer-coarse:after:content-['']",
+                      filteredOut
+                        ? "opacity-15 pointer-events-none"
+                        : "pointer-events-auto",
+                      !filteredOut &&
+                        (m.highlight
+                          ? "opacity-100 ring-[1.5px] ring-primary ring-offset-1 ring-offset-card"
+                          : "opacity-55 hover:opacity-90"),
+                      isPinnedMarker &&
+                        "z-10 scale-[1.8] ring-2 ring-primary ring-offset-1 ring-offset-card opacity-100",
+                    )}
+                    style={{ left: `${xPercent(year, view)}%`, top: `${top}%`, background }}
+                  />
+                );
+              }
+              // Clip the bar to the visible window; a clipped end shows an
+              // arrow so the reader knows the span continues off-screen.
+              const rawLeft = xPercent(m.eraStartYear!, view);
+              const rawRight = xPercent(m.eraEndYear!, view);
+              const left = Math.max(0, rawLeft);
+              const right = Math.min(100, rawRight);
               return (
                 <button
+                  {...shared}
                   key={id}
-                  type="button"
-                  data-selected={isPinnedMarker || undefined}
-                  aria-pressed={isPinnedMarker}
                   className={cn(
-                    "absolute block size-2.5 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full p-0 transition-[top,transform,opacity] duration-200 ease-out hover:z-10 hover:scale-[1.6] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    // Invisible 26px hit area on touch screens (dots are 10px;
-                    // WCAG 2.5.8 minimum is 24px). Larger areas overlap in dense
-                    // clusters and a tap lands on a neighbouring moment.
-                    "pointer-coarse:after:absolute pointer-coarse:after:-inset-2 pointer-coarse:after:rounded-full pointer-coarse:after:content-['']",
-                    filteredOut
-                      ? "opacity-15 pointer-events-none"
-                      : "pointer-events-auto",
-                    !filteredOut &&
-                      (m.highlight
-                        ? "opacity-100 ring-[1.5px] ring-primary ring-offset-1 ring-offset-card"
-                        : "opacity-55 hover:opacity-90"),
+                    "absolute block h-1.5 -translate-y-1/2 cursor-pointer rounded-full p-0 transition-[top,height,opacity] duration-200 ease-out hover:z-10 hover:h-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    // Taller invisible hit area on touch screens.
+                    "pointer-coarse:after:absolute pointer-coarse:after:-inset-y-2.5 pointer-coarse:after:inset-x-0 pointer-coarse:after:content-['']",
+                    filteredOut ? "opacity-15 pointer-events-none" : "pointer-events-auto",
+                    !filteredOut && (m.highlight ? "opacity-90" : "opacity-45 hover:opacity-90"),
                     isPinnedMarker &&
-                      "z-10 scale-[1.8] ring-2 ring-primary ring-offset-1 ring-offset-card opacity-100",
+                      "z-10 h-2.5 opacity-100 ring-2 ring-primary ring-offset-1 ring-offset-card",
                   )}
                   style={{
                     left: `${left}%`,
+                    width: `${Math.max(0.4, right - left)}%`,
                     top: `${top}%`,
-                    background: dotBackground,
+                    background,
                   }}
-                  aria-label={`${m.title}. ${m.intervieweeName ?? m.recordingTitle}${m.eraLabel ? ` · ${m.eraLabel}` : ""}`}
-                  data-timeline-marker=""
-                  tabIndex={-1}
-                  aria-hidden={filteredOut || undefined}
-                  onMouseEnter={(evt) => canHover && onMomentEnter(m, evt)}
-                  onFocus={(evt) => onMomentEnter(m, focusPoint(evt))}
-                  onBlur={onHoverLeave}
-                  onClick={() => onMomentClick(m)}
-                />
+                >
+                  {rawLeft < 0 ? (
+                    <span aria-hidden className="absolute -left-2.5 top-1/2 -translate-y-1/2 text-[11px] leading-none text-muted-foreground">‹</span>
+                  ) : null}
+                  {rawRight > 100 ? (
+                    <span aria-hidden className="absolute -right-2.5 top-1/2 -translate-y-1/2 text-[11px] leading-none text-muted-foreground">›</span>
+                  ) : null}
+                  {/* PRD §7.3.1 rule 3: highlight = accent dot at the start anchor. */}
+                  {m.highlight && rawLeft >= 0 ? (
+                    <span aria-hidden className="absolute left-0 top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary ring-2 ring-card" />
+                  ) : null}
+                </button>
               );
             })}
           </div>

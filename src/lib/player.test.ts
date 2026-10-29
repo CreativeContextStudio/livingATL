@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatSpokenTime, playableAudioUrl } from "./player";
+import { contentNotesFor, formatSpokenTime, playableAudioUrl } from "./player";
 
 describe("formatSpokenTime", () => {
   it.each([
@@ -29,5 +29,25 @@ describe("playableAudioUrl", () => {
 
   it("passes null through", () => {
     expect(playableAudioUrl(null)).toBeNull();
+  });
+});
+
+describe("contentNotesFor", () => {
+  const spans = [
+    { start: 100, end: 160, category: "racial_violence", severity: "narrative" },
+    { start: 150, end: 200, category: "racial_violence", severity: "graphic" },
+    { start: 120, end: 130, category: "period_racial_slurs", severity: "historical_quotation" },
+    { start: 300, end: 400, category: "kkk_activity", severity: "narrative" },
+  ];
+  it("keeps overlapping spans, one per category at the strongest severity", () => {
+    expect(contentNotesFor(spans, 125, 155)).toEqual([
+      { category: "racial_violence", severity: "graphic" },
+      { category: "period_racial_slurs", severity: "historical_quotation" },
+    ]);
+  });
+  it("treats ranges as half-open and ignores non-overlapping spans", () => {
+    expect(contentNotesFor(spans, 200, 300)).toEqual([]);
+    expect(contentNotesFor(spans, 0, 100)).toEqual([]);
+    expect(contentNotesFor([], 0, 1000)).toEqual([]);
   });
 });

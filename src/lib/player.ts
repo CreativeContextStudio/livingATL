@@ -156,6 +156,34 @@ export function humanSeverity(raw: string | undefined | null): string {
   return SEVERITY_LABELS[raw] ?? raw.replace(/_/g, " ");
 }
 
+/** Mildest → strongest, as the pipeline's four-tier severity enum. */
+const SEVERITY_ORDER = ["historical_quotation", "narrative", "graphic", "gratuitous"];
+
+export type ContentNote = { category: string; severity: string };
+
+/**
+ * Flagged spans (`sensitivity_review.flagged_spans`, seconds) that overlap
+ * `[start, end)`, reduced to one note per category at its strongest
+ * severity, strongest first. Used for Portal citations (F-flagged).
+ */
+export function contentNotesFor(
+  spans: ReadonlyArray<{ start: number; end: number; category: string; severity?: string | null }>,
+  start: number,
+  end: number,
+): ContentNote[] {
+  const rank = (s: string) => SEVERITY_ORDER.indexOf(s);
+  const byCategory = new Map<string, string>();
+  for (const span of spans) {
+    if (!(span.start < end && span.end > start) || !span.category) continue;
+    const severity = span.severity ?? "";
+    const prev = byCategory.get(span.category);
+    if (prev === undefined || rank(severity) > rank(prev)) byCategory.set(span.category, severity);
+  }
+  return [...byCategory]
+    .map(([category, severity]) => ({ category, severity }))
+    .sort((a, b) => rank(b.severity) - rank(a.severity) || a.category.localeCompare(b.category));
+}
+
 /**
  * Guarded `decodeURIComponent`. A malformed path segment (e.g. `/player/abc%`
  * with a truncated escape sequence) makes the raw call throw `URIError`,

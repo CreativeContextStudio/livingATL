@@ -512,3 +512,11 @@ html[data-theme="geist"] samp {
     scroll-behavior: auto !important;
   }
 }
+
+/* Printable story cards (src/app/cards): letter pages, small margins. */
+@media print {
+  @page {
+    size: letter;
+    margin: 0.4in;
+  }
+}

@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { getAIAdvisoryText } from "@/lib/content-advisory";
+import { reportHref } from "@/lib/reports";
 
 /**
  * "AI advisory" inline link — renders a small underlined text button that
@@ -26,7 +27,14 @@ import { getAIAdvisoryText } from "@/lib/content-advisory";
  * boundary and stays non-dismissible — this one is platform disclosure,
  * not a gate.
  */
-export function AIAdvisoryLink({ className }: { className?: string }) {
+export function AIAdvisoryLink({
+  className,
+  catalogNumber,
+}: {
+  className?: string;
+  /** Prefills the report form with this recording (Player only). */
+  catalogNumber?: string;
+}) {
   const [open, setOpen] = useState(false);
   const text = getAIAdvisoryText();
 
@@ -58,13 +66,13 @@ export function AIAdvisoryLink({ className }: { className?: string }) {
           </DialogHeader>
 
           <div className="flex flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
-            {/* Placeholder route — wire up /contact page content next.
+            {/* Opens the /contact report form as AI-summary feedback.
                 Clicking this navigates, which also closes the dialog. */}
             <Link
-              href="/contact"
+              href={reportHref({ kind: "ai_summary", catalogNumber })}
               className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              Contact us
+              Send feedback
             </Link>
             <Button onClick={() => setOpen(false)}>Close</Button>
           </div>

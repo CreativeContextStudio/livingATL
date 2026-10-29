@@ -8,8 +8,10 @@ import { SiteFooter } from "@/components/shell/site-footer";
 import { SiteHeader } from "@/components/shell/site-header";
 import { GATE_COOKIE, canViewArchive, resolveAccess } from "@/lib/access";
 import { nonceFromCsp } from "@/lib/csp";
+import { siteUrl } from "@/lib/site-url";
 import { THEME_COOKIE, resolveTheme } from "@/lib/theme";
 import "./globals.css";
+import { ListeningQueueProvider } from "@/components/queue/listening-queue";
 
 /**
  * Atlanta Brand System fonts (Style Guide §3):
@@ -45,6 +47,7 @@ const jetBrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: siteUrl(),
   title: {
     default: "livingATL. Atlanta oral history, made findable",
     template: "%s · livingATL",
@@ -86,22 +89,24 @@ export default async function RootLayout({
     >
       <body className="min-h-dvh flex flex-col">
         <CSPProvider nonce={nonce}>
-          <a
-            href="#main"
-            className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[60] focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            Skip to content
-          </a>
-          <SiteHeader initialTheme={theme} navEnabled={navEnabled} />
-          <div
-            id="main"
-            tabIndex={-1}
-            className="flex flex-1 flex-col focus:outline-none"
-          >
-            {children}
-          </div>
-          <SiteFooter />
-          <PostHogPageviewProvider />
+          <ListeningQueueProvider>
+            <a
+              href="#main"
+              className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[60] focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              Skip to content
+            </a>
+            <SiteHeader initialTheme={theme} navEnabled={navEnabled} />
+            <div
+              id="main"
+              tabIndex={-1}
+              className="flex flex-1 flex-col focus:outline-none"
+            >
+              {children}
+            </div>
+            <SiteFooter />
+            <PostHogPageviewProvider />
+          </ListeningQueueProvider>
         </CSPProvider>
       </body>
     </html>

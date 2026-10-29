@@ -42,7 +42,7 @@ export function MapLoader({
       <MapFilterBar facets={facets} filter={filter} />
       {/* Keyed on theme: Mapbox basemap styles can't be swapped without
           re-adding every custom layer, so a theme switch remounts the map. */}
-      <MapClient key={theme} {...mapProps} />
+      <MapClient key={theme} {...mapProps} initialNeighborhood={filter.neighborhood} />
     </div>
   );
 }

@@ -13,6 +13,7 @@ import {
   formatSpeakerName,
   titleForCard,
 } from "@/lib/format";
+import { placeHref } from "@/lib/places";
 import { cn } from "@/lib/utils";
 import type { BrowserRecording } from "@/lib/queries/recordings";
 
@@ -84,6 +85,12 @@ export function NeighborhoodPreview({
               ? ` · ${total} across all filters`
               : ""}
           </p>
+          <Link
+            href={placeHref(activeNeighborhood)}
+            className="mt-1 self-start text-xs font-medium text-primary-ink underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            About {activeNeighborhood} →
+          </Link>
         </div>
         <Button
           variant="ghost"

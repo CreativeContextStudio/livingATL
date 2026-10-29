@@ -18,6 +18,7 @@ import type {
   TimelineHistoricalEvent,
   TimelineMoment,
 } from "@/lib/queries/timeline";
+import { MomentQueueButtons } from "@/components/queue/queue-buttons";
 
 /**
  * Interactive Timeline — persistent detail folio (PRD §7.3, Phase 2).
@@ -199,6 +200,8 @@ function FolioMomentBody({
               <PlayIcon aria-hidden className="size-3.5" />
               Play from {formatTimestamp(moment.startTime)}
             </Link>
+            {/* Listen without leaving the Timeline (F-queue). */}
+            <MomentQueueButtons moment={moment} />
           </div>
         </aside>
       </div>

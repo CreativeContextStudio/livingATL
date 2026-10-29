@@ -12,6 +12,7 @@ import type {
   TranscriptSegment,
 } from "@/lib/queries/player";
 import { usePlayer, usePlayerTime } from "./player-context";
+import { SelectionClipButton } from "./selection-clip-button";
 import { TranscriptSegmentRow } from "./transcript-segment";
 
 /**
@@ -86,6 +87,7 @@ export function TranscriptPane({
   flaggedSpans = [],
   searchQuery = "",
   focusedMatchSegmentIndex = -1,
+  followAlong = true,
 }: {
   segments: TranscriptSegment[];
   speakers?: PlayerSpeaker[];
@@ -95,6 +97,8 @@ export function TranscriptPane({
   /** Segment index of the currently-focused search match, or -1 for none.
    *  When this changes, the pane scrolls that segment into view. */
   focusedMatchSegmentIndex?: number;
+  /** "Follow along" (F-resume): when false the pane never auto-scrolls. */
+  followAlong?: boolean;
 }) {
   const { seekAndPlay } = usePlayer();
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -173,7 +177,15 @@ export function TranscriptPane({
   // `segment.scrollIntoView(...)` because the native API walks every
   // scrollable ancestor and will scroll the page body too — we only want
   // the transcript's own overflow container to move.
+  // Turning "Follow along" back on should snap to the playhead right away,
+  // not wait out the manual-scroll suspension. Declared before the scroll
+  // effect so it runs first in the same commit.
   useEffect(() => {
+    if (followAlong) lastUserScrollAtRef.current = Number.NEGATIVE_INFINITY;
+  }, [followAlong]);
+
+  useEffect(() => {
+    if (!followAlong) return;
     const lastManual = lastUserScrollAtRef.current;
     const now = performance.now();
     if (now - lastManual < AUTO_SCROLL_SUSPEND_MS) return;
@@ -206,7 +218,7 @@ export function TranscriptPane({
     const target =
       anchorRect.top - containerRect.top + container.scrollTop;
     container.scrollTo({ top: Math.max(0, target), behavior });
-  }, [activeIndex]);
+  }, [activeIndex, followAlong]);
 
   // Scroll to the focused search match whenever it changes. Treating this
   // as a user-initiated scroll also suspends the playback auto-scroll for
@@ -292,6 +304,7 @@ export function TranscriptPane({
           ))}
         </ol>
       </div>
+      <SelectionClipButton containerRef={viewportRef} segments={segments} />
     </ScrollArea>
   );
 }

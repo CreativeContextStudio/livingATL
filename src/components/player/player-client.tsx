@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { PanelLeftOpenIcon } from "lucide-react";
+import { PanelLeftOpenIcon, ScrollTextIcon } from "lucide-react";
 import type WaveSurfer from "wavesurfer.js";
 import type RegionsPlugin from "wavesurfer.js/dist/plugins/regions.js";
 
 import { AdvisoryGate } from "./advisory-gate";
 import { AISummaryCard } from "./ai-summary";
 import { ChapterScrubber, ChapterCountsLabel } from "./chapter-scrubber";
+import { ClipBanner } from "./clip-banner";
 import { EndOfPlaybackCard } from "./end-of-playback-card";
 import { KeyQuotesList } from "./key-quotes";
 import { MetadataSidebar } from "./metadata-sidebar";
@@ -19,9 +20,11 @@ import {
   type PlayerState,
 } from "./player-context";
 import { RelatedRecordings } from "./related-recordings";
+import { ResumeBanner } from "./resume-banner";
 import { Transport } from "./transport";
 import { TranscriptPane } from "./transcript-pane";
 import { TranscriptSearch } from "./transcript-search";
+import { useFollowAlong } from "./use-follow-along";
 
 // wavesurfer.js is ~200KB and only needed after the advisory gate clears.
 // Dynamic-import with `ssr: false` keeps it out of the Player page's
@@ -125,6 +128,7 @@ export function PlayerClient({
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Transcript search — case-insensitive substring match over segment text.
+  const [followAlong, setFollowAlong] = useFollowAlong();
   // `focusedMatchPosition` is a 0-indexed position within `matchSegmentIndices`;
   // the segment itself is `matchSegmentIndices[focusedMatchPosition]`.
   const [transcriptQuery, setTranscriptQuery] = useState("");
@@ -471,6 +475,8 @@ export function PlayerClient({
                 </div>
               ) : null}
             </div>
+            <ClipBanner />
+            <ResumeBanner catalogNumber={data.catalogNumber} />
             <EndOfPlaybackCard
               related={related[0] ?? null}
               recordingId={data.id}
@@ -544,9 +550,21 @@ export function PlayerClient({
                   column. On narrow screens this stacks vertically. The
                   transcript is always open — no accordion. */}
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                <h2 className="font-heading text-xs font-semibold tracking-[0.14em] self-start uppercase">
-                  Transcript
-                </h2>
+                <div className="flex items-center gap-3 self-start">
+                  <h2 className="font-heading text-xs font-semibold tracking-[0.14em] uppercase">
+                    Transcript
+                  </h2>
+                  <Button
+                    size="xs"
+                    variant={followAlong ? "secondary" : "ghost"}
+                    aria-pressed={followAlong}
+                    onClick={() => setFollowAlong(!followAlong)}
+                    title="Scroll the transcript with the recording"
+                  >
+                    <ScrollTextIcon aria-hidden />
+                    Follow along
+                  </Button>
+                </div>
                 <div className="flex flex-col gap-1 sm:w-72 sm:items-end md:w-80">
                   <TranscriptSearch
                     query={transcriptQuery}
@@ -571,6 +589,7 @@ export function PlayerClient({
                 flaggedSpans={data.flaggedSpans}
                 searchQuery={transcriptQuery}
                 focusedMatchSegmentIndex={focusedMatchSegmentIndex}
+                followAlong={followAlong}
               />
             </section>
 
@@ -579,7 +598,7 @@ export function PlayerClient({
                 skimming "will I commit 68 minutes" is better served by the
                 storyteller's own words than by a machine summary of them. */}
             <KeyQuotesList quotes={data.keyQuotes} />
-            <AISummaryCard summary={data.aiSummary} />
+            <AISummaryCard summary={data.aiSummary} catalogNumber={data.catalogNumber} />
           </div>
         </div>
 

@@ -114,6 +114,17 @@ export default async function BrowsePage({
           Filter by era, neighborhood, or theme; search across storytellers,
           titles, and summaries.
         </p>
+        <p className="text-sm text-muted-foreground">
+          New here? Start with a{" "}
+          <Link href="/paths" className="font-medium text-primary-ink underline-offset-4 hover:underline">
+            listening path
+          </Link>{" "}
+          or explore by{" "}
+          <Link href="/places" className="font-medium text-primary-ink underline-offset-4 hover:underline">
+            neighborhood
+          </Link>
+          .
+        </p>
       </header>
 
       <section className="flex flex-col gap-4">

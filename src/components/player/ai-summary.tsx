@@ -14,7 +14,13 @@ import { AIAdvisoryLink } from "./ai-advisory-link";
  * height — no internal scroll, no flex absorption. Listeners reach it
  * by scrolling the page past transcript + key quotes.
  */
-export function AISummaryCard({ summary }: { summary: string | null }) {
+export function AISummaryCard({
+  summary,
+  catalogNumber,
+}: {
+  summary: string | null;
+  catalogNumber: string;
+}) {
   if (!summary) return null;
 
   return (
@@ -38,7 +44,7 @@ export function AISummaryCard({ summary }: { summary: string | null }) {
         >
           ·
         </span>
-        <AIAdvisoryLink />
+        <AIAdvisoryLink catalogNumber={catalogNumber} />
       </div>
     </div>
   );

@@ -152,9 +152,16 @@ export const TranscriptSegmentRow = memo(
               ))}
             </div>
           ) : null}
+          {/* Clicking the words seeks too (F-resume). Mouse convenience
+              only — the timestamp button is the keyboard path — and a click
+              that ends a text selection (used for clip sharing) is ignored. */}
           <p
+            onClick={() => {
+              if (window.getSelection()?.isCollapsed === false) return;
+              onSeek(segment.start);
+            }}
             className={cn(
-              "flex-1",
+              "flex-1 cursor-pointer",
               // Player UX Move 5: interviewee gets slightly heavier type so
               // the storyteller's own words read as the foreground voice. The
               // interviewer stays at the default size — conversation

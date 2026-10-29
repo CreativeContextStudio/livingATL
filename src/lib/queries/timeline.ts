@@ -5,6 +5,7 @@ import { unstable_cache } from "next/cache";
 
 import { db } from "@/db";
 import type { ContentAdvisory } from "@/lib/queries/recordings";
+import { playableAudioUrl } from "@/lib/player";
 
 /**
  * Interactive Timeline data shape (PRD §7.3, §7.3.1).
@@ -42,6 +43,10 @@ export type TimelineMoment = {
   recordingTitle: string;
   intervieweeName: string | null;
   contentAdvisory: ContentAdvisory | null;
+  /** Same-origin audio for the listening queue (F-queue). */
+  audioUrl: string | null;
+  /** Year the interview was recorded (lane-view "recorded" marker). */
+  recordedYear: number | null;
   momentIndex: number;
   startTime: number;
   endTime: number;
@@ -105,6 +110,8 @@ async function _fetchTimelineDataInner(): Promise<TimelineData> {
     catalog_number: string;
     title: string;
     content_advisory: ContentAdvisory | null;
+    audio_url: string | null;
+    recorded_year: number | null;
     interviewee_name: string | null;
     moment_index: number;
     start_time: number;
@@ -124,6 +131,8 @@ async function _fetchTimelineDataInner(): Promise<TimelineData> {
       r.catalog_number,
       r.title,
       r.content_advisory,
+      r.audio_url,
+      extract(year from r.recording_date)::int AS recorded_year,
       (
         SELECT min(s.name) FROM public.recording_speakers rs
         JOIN public.speakers s ON s.id = rs.speaker_id
@@ -161,6 +170,8 @@ async function _fetchTimelineDataInner(): Promise<TimelineData> {
     recordingTitle: row.title,
     intervieweeName: row.interviewee_name,
     contentAdvisory: (row.content_advisory ?? null) as ContentAdvisory | null,
+    audioUrl: playableAudioUrl(row.audio_url),
+    recordedYear: row.recorded_year,
     momentIndex: row.moment_index,
     startTime: row.start_time,
     endTime: row.end_time,
@@ -304,6 +315,7 @@ async function _fetchTimelineDataInner(): Promise<TimelineData> {
  */
 export const fetchTimelineData = unstable_cache(
   _fetchTimelineDataInner,
-  ["timeline-data"],
+  // v2: moments carry audioUrl — a new key so cached v1 payloads aren't reused.
+  ["timeline-data-v3"],
   { tags: ["facets", "timeline"], revalidate: 3600 },
 );

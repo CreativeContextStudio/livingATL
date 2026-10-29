@@ -47,7 +47,7 @@ export function SiteHeader({
   const pathname = usePathname() ?? "/";
 
   return (
-    <header className="sticky top-0 z-20 w-full border-b border-border/60 bg-background/85 backdrop-blur">
+    <header className="sticky top-0 z-20 w-full print:hidden border-b border-border/60 bg-background/85 backdrop-blur">
       <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between px-6">
         <Link
           href="/"

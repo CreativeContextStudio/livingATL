@@ -1,6 +1,7 @@
 "use client";
 
-import { PanelLeftCloseIcon } from "lucide-react";
+import Link from "next/link";
+import { PanelLeftCloseIcon, PrinterIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,9 @@ import {
   formatRecordingDate,
   formatSpeakerName,
 } from "@/lib/format";
+import { placeHref } from "@/lib/places";
 import { cn } from "@/lib/utils";
+import { ReportLink } from "./report-link";
 import type {
   PlayerData,
   TaggedHistoricalEvent,
@@ -136,6 +139,17 @@ export function MetadataSidebar({
           items={data.historicalEvents}
         />
       ) : null}
+
+      <div className="flex flex-col gap-2 border-t border-border/70 pt-4">
+        <Link
+          href={`/cards?recording=${encodeURIComponent(data.catalogNumber)}`}
+          className="inline-flex items-center gap-1.5 self-start text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <PrinterIcon aria-hidden className="size-3.5" />
+          Print story cards
+        </Link>
+        <ReportLink catalogNumber={data.catalogNumber} />
+      </div>
     </aside>
   );
 }
@@ -186,16 +200,26 @@ function FacetList({
         {values.map((v) => {
           let className: string | undefined;
           let display = v;
+          // Themes open the Timeline filtered to that theme; neighborhoods
+          // open their place page (F-places).
+          let href: string | undefined;
           if (variant === "theme") {
             const s = themeStyle(v);
             className = cn(s.border, s.bg, s.text);
             display = v.replace(/_/g, " ");
+            href = `/timeline?themes=${encodeURIComponent(v)}`;
           } else if (variant === "neighborhood") {
             const s = neighborhoodStyle(v);
             className = cn(s.border, s.bg, s.text);
+            href = placeHref(v);
           }
           return (
-            <Badge key={v} variant="outline" className={className}>
+            <Badge
+              key={v}
+              variant="outline"
+              className={cn(className, href && "hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring")}
+              render={href ? <Link href={href} /> : undefined}
+            >
               {display}
             </Badge>
           );

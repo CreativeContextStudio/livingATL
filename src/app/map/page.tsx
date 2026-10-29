@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { MapLoader } from "@/components/map/map-loader";
 import {
@@ -87,7 +88,11 @@ export default async function MapPage({
         <p className="text-sm leading-relaxed text-muted-foreground">
           {filtered.length} of {totalRecordings} recordings mapped by the
           neighborhoods their storytellers describe. Click a pin to see who spoke
-          about that place.
+          about that place, or{" "}
+          <Link href="/places" className="text-primary-ink underline-offset-4 hover:underline">
+            browse all neighborhoods
+          </Link>
+          .
         </p>
       </header>
 

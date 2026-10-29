@@ -3,16 +3,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { usePathname, useSearchParams } from "next/navigation";
-import { MinusIcon, PlusIcon, RotateCcwIcon } from "lucide-react";
+import { MinusIcon, PlusIcon, RotateCcwIcon, SparklesIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import {
-  THEME_FAMILIES,
+  FAMILY_KEYS,
   familyColorVar,
   familyForEventCategory,
   isFamilyKey,
   isThemeKey,
-  themeDotBackground,
   themeKeyToFamily,
   type FamilyKey,
   type ThemeKey,
@@ -27,10 +26,8 @@ import {
 } from "@/lib/timeline-scale";
 import {
   TimelineDetailFolio,
-  type FolioCorpus,
   type FolioSelection,
 } from "@/components/timeline/detail-folio";
-import { TimelineDetailTether } from "@/components/timeline/detail-tether";
 import {
   HoverTooltip,
   type HoverTip,
@@ -49,98 +46,60 @@ import type {
 import { useMediaQuery } from "@/lib/use-media-query";
 
 /**
- * Interactive Timeline — Phase 2 + P3 (zoom / pan).
+ * Interactive Timeline — PRD §7.3 (2026-10-29 simplification).
  *
- * Three horizontal bands over a shared year axis:
- *   1. Historical events (top) — vertical ticks + span bars.
- *   2. Axis — decade ticks, major-year labels, end caps.
- *   3. Moments (bottom) — theme-colored dots, y-jittered across 10 lanes
- *      to de-crowd clusters.
+ * One chart over a shared year axis, top to bottom:
+ *   1. Moments — one dot per moment at the year it BEGINS, stacked into
+ *      tidy columns (grouped by theme family, filter matches at the base)
+ *      so the chart reads as the collection's shape at a glance.
+ *   2. Span track — the hovered or selected moment's full era as a bar,
+ *      so ranges appear on demand instead of 500 overlapping stripes.
+ *   3. Axis — adaptive year labels.
+ *   4. Historical events — a thin row of ticks (ranges as faint lines).
  *
- * Viewport: `view = [start, end]`. Default view is the dense era
- * 1890–1950 (per creative-tech P1 recommendation) clamped to the data's
- * actual bounds. Users can zoom via mouse wheel at the cursor position,
- * +/- keys, or on-canvas zoom controls; pan via click-drag or arrow
- * keys. View state round-trips through `?start=<y>&end=<y>` URL params
- * so zoom/pan are shareable and survive reload.
+ * The selected moment opens in a sticky panel beside the chart on desktop
+ * (the chart never moves) and in a bottom sheet on phones. With nothing
+ * selected the panel suggests highlights in view.
  *
- * Detail surface: persistent `TimelineDetailFolio` docks above the
- * canvas. Hover previews via the cheap `HoverTooltip`; click pins into
- * the folio. `TimelineDetailTether` connects the folio anchor to the
- * active marker's x-position inside the canvas.
- *
- * Lanes-on-zoom (moments grouping into per-recording lanes when zoomed
- * in far enough) is tracked as P3b — follow-up once the zoom/pan feel
- * is settled.
+ * View: `[start, end]`, default the whole collection; `?start=&end=` and
+ * the filter round-trip through the URL. Drag pans; pinch or Ctrl/⌘ +
+ * wheel zooms (a plain wheel scrolls the page); a horizontal trackpad
+ * swipe pans; +/−/0 and the buttons work too.
  */
 
 // ---------------------------------------------------------------------------
-// Layout / viewport constants
+// Layout constants (px)
 // ---------------------------------------------------------------------------
 
-const MOMENT_LANES = 10;
-const DEFAULT_VIEW: [number, number] = [1910, 1960];
-/** Drag threshold — mouse has to move this many pixels before we
- *  treat it as a pan rather than a click. */
 const DRAG_CLICK_THRESHOLD_PX = 3;
-/** When the view shows less than this many years, moments reorganize
- *  from jittered de-crowding into per-recording lanes. Picked so the
- *  transition happens once the viewer has committed to exploring a
- *  specific window rather than scanning the archive at large. */
-const LANE_MODE_THRESHOLD_YEARS = 25;
-/** If more visible recordings than this, lane-mode still groups by
- *  recording but suppresses left-edge labels (they'd overlap). */
-const LANE_LABEL_CAP = 15;
+const TOP_PAD = 14;
+const SPAN_TRACK = 18;
+const AXIS_BAND = 28;
+const EVENT_ROW = 26;
+const MIN_LABEL_GAP_PX = 46;
+const SUGGESTION_COUNT = 5;
+/** Phones open on the dense core: the whole 130 years in ~360px stacks
+ *  dots on top of each other. "Show the whole collection" still works. */
+const NARROW_DEFAULT_VIEW: [number, number] = [1905, 1955];
+
+const FAMILY_ORDER = new Map<string, number>(FAMILY_KEYS.map((k, i) => [k, i]));
 
 // ---------------------------------------------------------------------------
 // Pure helpers
 // ---------------------------------------------------------------------------
 
-function laneFor(key: string): number {
-  let hash = 0;
-  for (let i = 0; i < key.length; i++) {
-    hash = (hash * 31 + key.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash) % MOMENT_LANES;
-}
-
-function momentAnchorYear(m: TimelineMoment): number | null {
-  if (m.eraStartYear != null && m.eraEndYear != null) {
-    return (m.eraStartYear + m.eraEndYear) / 2;
-  }
+/** Year a moment is plotted at: where it begins. */
+function momentStartYear(m: TimelineMoment): number | null {
   return m.eraStartYear ?? m.eraEndYear ?? null;
 }
 
-function eventAnchorYear(e: TimelineHistoricalEvent): number | null {
-  return e.year ?? e.yearStart ?? null;
+function momentFamily(m: TimelineMoment): FamilyKey | null {
+  const primary = m.themes.find((t): t is ThemeKey => isThemeKey(t));
+  return primary ? themeKeyToFamily(primary) : null;
 }
 
-/** Decade-granularity ticks across a view range. */
-function decadeTicks(view: [number, number]): number[] {
-  const [start, end] = view;
-  const first = Math.ceil(start / 10) * 10;
-  const ticks: number[] = [];
-  for (let y = first; y <= end; y += 10) ticks.push(y);
-  return ticks;
-}
-
-/** Quarter-century bands — used for background rhythm shading. */
-function quarterCenturyBands(
-  view: [number, number],
-): Array<{ start: number; end: number; index: number }> {
-  const [start, end] = view;
-  const first = Math.floor(start / 25) * 25;
-  const bands: Array<{ start: number; end: number; index: number }> = [];
-  let idx = 0;
-  for (let y = first; y < end; y += 25) {
-    bands.push({
-      start: Math.max(y, start),
-      end: Math.min(y + 25, end),
-      index: idx,
-    });
-    idx += 1;
-  }
-  return bands;
+function eventStartYear(e: TimelineHistoricalEvent): number | null {
+  return e.yearStart ?? e.year ?? null;
 }
 
 function momentSelectionId(m: TimelineMoment): string {
@@ -152,29 +111,31 @@ function eventSelectionId(e: TimelineHistoricalEvent): string {
   return `event:${e.category}:${anchor}:${e.label}`;
 }
 
-function tipAnchorYear(tip: HoverTip | null): number | null {
-  if (!tip) return null;
-  return tip.kind === "moment"
-    ? momentAnchorYear(tip.moment)
-    : eventAnchorYear(tip.event);
+function eraText(m: TimelineMoment): string {
+  const s = m.eraStartYear;
+  const e = m.eraEndYear;
+  if (s != null && e != null && e !== s) return `${s}–${e}`;
+  return String(s ?? e ?? "");
 }
 
-function pinnedAnchorYear(sel: FolioSelection | null): number | null {
-  if (!sel) return null;
-  return sel.kind === "moment"
-    ? momentAnchorYear(sel.moment)
-    : eventAnchorYear(sel.event);
+/** Year labels: the smallest of 10/20/25/50-year steps that keeps labels
+ *  at least MIN_LABEL_GAP_PX apart on this (piecewise) scale. */
+function yearLabels(view: [number, number], widthPx: number): number[] {
+  for (const step of [10, 20, 25, 50]) {
+    const first = Math.ceil(view[0] / step) * step;
+    const years: number[] = [];
+    for (let y = first; y <= view[1]; y += step) years.push(y);
+    let minGap = Infinity;
+    for (let i = 1; i < years.length; i++) {
+      const gap = ((xPercent(years[i], view) - xPercent(years[i - 1], view)) / 100) * widthPx;
+      minGap = Math.min(minGap, gap);
+    }
+    if (minGap >= MIN_LABEL_GAP_PX || step === 50) return years;
+  }
+  return [];
 }
 
-// ---------------------------------------------------------------------------
-// View math
-// ---------------------------------------------------------------------------
-// `xPercent`, `clampView`, `zoomAtPct`, `panByPixels`, and `panByFraction`
-// live in `@/lib/timeline-scale` so the piecewise-linear scale is in one
-// place. See that file for the weighted-year math that underpins the
-// non-uniform axis spacing.
-
-/** Read ?start=&end= from URL params, falling back to DEFAULT_VIEW. */
+/** Read ?start=&end= from URL params, falling back to the full range. */
 function viewFromSearchParams(
   params: URLSearchParams | null,
   bounds: [number, number],
@@ -182,37 +143,32 @@ function viewFromSearchParams(
   if (params) {
     const s = Number(params.get("start"));
     const e = Number(params.get("end"));
-    if (Number.isFinite(s) && Number.isFinite(e) && s < e) {
+    if (params.has("start") && params.has("end") && Number.isFinite(s) && Number.isFinite(e) && s < e) {
       return clampView([s, e], bounds);
     }
   }
-  return clampView(DEFAULT_VIEW, bounds);
+  return bounds;
 }
 
-/** Read filter state from URL params. Drops unknown theme/family keys so
- *  a stale query string can't corrupt the render. */
-function filterFromSearchParams(
-  params: URLSearchParams | null,
-): TimelineFilter {
+/** Read filter state from URL params. Drops unknown keys so a stale query
+ *  string can't corrupt the render. `families` is still read so older
+ *  shared links keep working; the UI now selects whole families through
+ *  the Theme menu. */
+function filterFromSearchParams(params: URLSearchParams | null): TimelineFilter {
   if (!params) return EMPTY_FILTER;
-  const themes = (params.get("themes") ?? "")
-    .split(",")
-    .map((t) => t.trim())
-    .filter((t): t is ThemeKey => isThemeKey(t));
-  const neighborhoods = (params.get("neighborhoods") ?? "")
-    .split(",")
-    .map((n) => n.trim())
-    .filter((n) => n.length > 0);
-  const families = (params.get("families") ?? "")
-    .split(",")
-    .map((f) => f.trim())
-    .filter((f): f is FamilyKey => isFamilyKey(f));
-  const highlightOnly = params.get("highlight") === "1";
-  return { themes, neighborhoods, families, highlightOnly };
+  const list = (k: string) =>
+    (params.get(k) ?? "")
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+  return {
+    themes: list("themes").filter((t): t is ThemeKey => isThemeKey(t)),
+    neighborhoods: list("neighborhoods"),
+    families: list("families").filter((f): f is FamilyKey => isFamilyKey(f)),
+    highlightOnly: params.get("highlight") === "1",
+  };
 }
 
-/** Moment matches the active filter? OR-within-field semantics. */
-/** Screen point a hover preview anchors to. */
 type Point = { clientX: number; clientY: number };
 
 /** Keyboard focus has no cursor — anchor the preview to the marker itself. */
@@ -222,20 +178,14 @@ function focusPoint(evt: React.FocusEvent<HTMLElement>): Point {
 }
 
 /**
- * Roving focus across the markers currently on screen, in left-to-right
- * (year) order, ties broken top-to-bottom. `from = null` focuses the first.
+ * Roving focus across the markers on screen, in left-to-right (year)
+ * order, ties broken top-to-bottom. `from = null` focuses the first.
  * Filtered-out markers are `aria-hidden` and skipped.
  */
-function stepMarkerFocus(
-  canvas: HTMLElement,
-  from: HTMLElement | null,
-  dir: 1 | -1,
-): void {
+function stepMarkerFocus(canvas: HTMLElement, from: HTMLElement | null, dir: 1 | -1): void {
   const bounds = canvas.getBoundingClientRect();
   const markers = Array.from(
-    canvas.querySelectorAll<HTMLElement>(
-      '[data-timeline-marker]:not([aria-hidden="true"])',
-    ),
+    canvas.querySelectorAll<HTMLElement>('[data-timeline-marker]:not([aria-hidden="true"])'),
   )
     .map((el) => ({ el, r: el.getBoundingClientRect() }))
     .filter(({ r }) => r.right >= bounds.left && r.left <= bounds.right)
@@ -249,385 +199,273 @@ function stepMarkerFocus(
   next?.focus({ preventScroll: true });
 }
 
+/** OR within a field, AND across fields. */
 function matchesFilter(m: TimelineMoment, filter: TimelineFilter): boolean {
   if (filter.highlightOnly && !m.highlight) return false;
-  if (filter.themes.length > 0) {
-    const hit = m.themes.some((t) =>
-      filter.themes.includes(t as ThemeKey),
-    );
-    if (!hit) return false;
+  if (filter.themes.length > 0 && !m.themes.some((t) => filter.themes.includes(t as ThemeKey))) {
+    return false;
   }
-  if (filter.neighborhoods.length > 0) {
-    const hit = m.neighborhoods.some((n) => filter.neighborhoods.includes(n));
-    if (!hit) return false;
+  if (
+    filter.neighborhoods.length > 0 &&
+    !m.neighborhoods.some((n) => filter.neighborhoods.includes(n))
+  ) {
+    return false;
   }
-  if (filter.families.length > 0) {
-    const hit = m.themes.some((t) => {
-      if (!isThemeKey(t)) return false;
-      return filter.families.includes(themeKeyToFamily(t));
-    });
-    if (!hit) return false;
+  if (
+    filter.families.length > 0 &&
+    !m.themes.some((t) => isThemeKey(t) && filter.families.includes(themeKeyToFamily(t)))
+  ) {
+    return false;
   }
   return true;
 }
 
-/** Historical event matches the active filter? Events only respond to
- *  the family filter — themes/neighborhoods/highlightOnly don't apply to
- *  historical context and would over-filter the band. */
-function matchesEventFilter(
-  e: TimelineHistoricalEvent,
-  filter: TimelineFilter,
-): boolean {
+/** Historical events only respond to a family filter (legacy links). */
+function matchesEventFilter(e: TimelineHistoricalEvent, filter: TimelineFilter): boolean {
   if (filter.families.length === 0) return true;
   const family = familyForEventCategory(e.category);
   return family != null && filter.families.includes(family);
 }
 
+type PlacedDot = { m: TimelineMoment; x: number; y: number; match: boolean };
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function TimelineClient({
-  data,
-  corpus,
-}: {
-  data: TimelineData;
-  corpus: FolioCorpus;
-}) {
+export function TimelineClient({ data }: { data: TimelineData }) {
   const { moments, historicalEvents, yearRange } = data;
-  // Memoize bounds so our clampView calls don't see a fresh array identity
-  // on every render (same numeric pair, stable reference).
-  const bounds = useMemo<[number, number]>(
-    () => [yearRange[0], yearRange[1]],
-    [yearRange],
-  );
+  const bounds = useMemo<[number, number]>(() => [yearRange[0], yearRange[1]], [yearRange]);
 
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [view, setView] = useState<[number, number]>(() =>
-    viewFromSearchParams(searchParams, bounds),
-  );
-  const [filter, setFilter] = useState<TimelineFilter>(() =>
-    filterFromSearchParams(searchParams),
-  );
+  const [view, setView] = useState<[number, number]>(() => viewFromSearchParams(searchParams, bounds));
+  const [filter, setFilter] = useState<TimelineFilter>(() => filterFromSearchParams(searchParams));
   const [pinned, setPinned] = useState<FolioSelection | null>(null);
   const [hoverTip, setHoverTip] = useState<HoverTip | null>(null);
-  // Tracks whether we've applied the URL hydration pass yet. Guards
-  // the URL-sync effect from overwriting URL params with defaults
-  // before the initial hydration completes.
   const hydratedRef = useRef(false);
 
-  // On client mount, re-read URL params directly. `useSearchParams()`
-  // can return null during SSR, which would leave state at defaults
-  // even when the URL carries explicit state. This effect is the
-  // backstop — it reads `window.location.search` once on mount so
-  // shareable URLs like `/timeline?themes=...` land with the correct
-  // state applied.
+  // `useSearchParams()` can be empty during SSR; re-read the real URL once
+  // on mount so shared links (`/timeline?themes=…`) land with their state.
   useEffect(() => {
     if (hydratedRef.current) return;
     const params = new URLSearchParams(window.location.search);
-    setView(viewFromSearchParams(params, bounds));
+    const narrow = window.innerWidth < 640 && !(params.has("start") && params.has("end"));
+    setView(narrow ? clampView(NARROW_DEFAULT_VIEW, bounds) : viewFromSearchParams(params, bounds));
     setFilter(filterFromSearchParams(params));
     hydratedRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const canHover = useMediaQuery("(hover: hover)");
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const isWide = useMediaQuery("(min-width: 640px)");
+  const dotSize = isWide ? 9 : 8;
+
+  // Measured canvas width — dot columns are laid out in pixels.
   const canvasRef = useRef<HTMLDivElement>(null);
-  const dragStateRef = useRef<{
-    startClientX: number;
-    startView: [number, number];
-    canvasWidth: number;
-  } | null>(null);
-  // Render-visible mirror of "pointer is down on the canvas" — only drives
-  // the grab/grabbing cursor. The pan math reads dragStateRef (no re-render
-  // per pointermove); this flips just twice per gesture.
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const dragStateRef = useRef<{ startClientX: number; startView: [number, number]; canvasWidth: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  // didDragRef persists briefly after pointer-up so marker onClick can
-  // check whether the gesture was a click vs a pan. Reset on next frame.
   const didDragRef = useRef(false);
 
+  const filterActive = !isEmptyFilter(filter);
   const pinnedId = pinned?.id ?? null;
-  const hoverId = hoverTip
-    ? hoverTip.kind === "moment"
-      ? momentSelectionId(hoverTip.moment)
-      : eventSelectionId(hoverTip.event)
-    : null;
 
-  const tetherYear = useMemo(
-    () => tipAnchorYear(hoverTip) ?? pinnedAnchorYear(pinned),
-    [hoverTip, pinned],
-  );
+  // -----------------------------------------------------------------------
+  // Layout: stack dots into pixel columns
+  // -----------------------------------------------------------------------
 
-  const plottableMoments = useMemo(
-    () =>
-      moments.filter((m) => {
-        const year = momentAnchorYear(m);
-        return year != null && year >= view[0] && year <= view[1];
-      }),
-    [moments, view],
-  );
+  // Pass 1: bucket visible moments into pixel columns (height-independent).
+  const columns = useMemo(() => {
+    const out = new Map<number, PlacedDot[]>();
+    let matchCount = 0;
+    const narrators = new Set<string>();
+    if (width === 0) return { out, matchCount, narratorCount: 0, tallest: 0 };
+    const pitch = dotSize + 2;
+    for (const m of moments) {
+      const year = momentStartYear(m);
+      if (year == null || year < view[0] || year > view[1]) continue;
+      const col = Math.round(((xPercent(year, view) / 100) * width) / pitch);
+      const match = !filterActive || matchesFilter(m, filter);
+      if (match) {
+        matchCount += 1;
+        narrators.add(m.intervieweeName ?? m.recordingId);
+      }
+      const list = out.get(col) ?? [];
+      list.push({ m, x: col * pitch, y: 0, match });
+      out.set(col, list);
+    }
+    for (const list of out.values()) {
+      list.sort(
+        (a, b) =>
+          Number(b.match) - Number(a.match) ||
+          (FAMILY_ORDER.get(momentFamily(a.m) ?? "") ?? 9) - (FAMILY_ORDER.get(momentFamily(b.m) ?? "") ?? 9) ||
+          Number(b.m.highlight) - Number(a.m.highlight) ||
+          (momentStartYear(a.m) ?? 0) - (momentStartYear(b.m) ?? 0) ||
+          momentSelectionId(a.m).localeCompare(momentSelectionId(b.m)),
+      );
+    }
+    const tallest = Math.max(0, ...[...out.values()].map((c) => c.length));
+    return { out, matchCount, narratorCount: narrators.size, tallest };
+  }, [moments, view, width, filter, filterActive, dotSize]);
+
+  // The chart grows to fit the tallest column (so dots stay separate and
+  // tappable) between a floor and a cap; beyond the cap the vertical step
+  // shrinks and dots overlap slightly rather than leave the chart.
+  const pitch = dotSize + 2;
+  const chrome = TOP_PAD + SPAN_TRACK + AXIS_BAND + EVENT_ROW;
+  const [minH, maxH] = isWide ? [380, 540] : [320, 560];
+  const canvasHeight = Math.min(maxH, Math.max(minH, columns.tallest * pitch + chrome));
+  const baseline = canvasHeight - EVENT_ROW - AXIS_BAND - SPAN_TRACK;
+  const stackArea = baseline - TOP_PAD;
+
+  // Pass 2: vertical positions.
+  const placed = useMemo(() => {
+    const step = Math.min(pitch, stackArea / Math.max(1, columns.tallest));
+    const dots: PlacedDot[] = [];
+    for (const list of columns.out.values()) {
+      list.forEach((d, i) => dots.push({ ...d, y: baseline - step * i - dotSize / 2 - 1 }));
+    }
+    return { dots, matchCount: columns.matchCount, narratorCount: columns.narratorCount };
+  }, [columns, pitch, stackArea, baseline, dotSize]);
 
   const plottableEvents = useMemo(
     () =>
       historicalEvents.filter((e) => {
-        const start = e.yearStart ?? e.year;
-        return (
-          start != null &&
-          start <= view[1] &&
-          (e.yearEnd ?? e.year ?? start) >= view[0]
-        );
+        const start = eventStartYear(e);
+        return start != null && start <= view[1] && (e.yearEnd ?? e.year ?? start) >= view[0];
       }),
     [historicalEvents, view],
   );
 
-  const ticks = useMemo(() => decadeTicks(view), [view]);
-  const bands2 = useMemo(() => quarterCenturyBands(view), [view]);
-
-  // Filter match stats. Pinned moment is always considered "matching"
-  // for count purposes so the stats reflect what the viewer sees.
-  const filterActive = !isEmptyFilter(filter);
-  const matchingVisibleMoments = useMemo(
+  const labels = useMemo(
     () =>
-      filterActive
-        ? plottableMoments.filter((m) => matchesFilter(m, filter))
-        : plottableMoments,
-    [filterActive, plottableMoments, filter],
+      width
+        ? yearLabels(view, width).filter((y) => {
+            const px = (xPercent(y, view) / 100) * width;
+            return px > 18 && px < width - 18;
+          })
+        : [],
+    [view, width],
   );
-  const familyFilterActive = filter.families.length > 0;
-  const matchingVisibleEvents = useMemo(
+
+  // The moment whose era the span track shows: hover wins, else the pin.
+  const spanMoment: TimelineMoment | null =
+    hoverTip?.kind === "moment"
+      ? hoverTip.moment
+      : pinned?.kind === "moment"
+        ? pinned.moment
+        : null;
+
+  // Panel suggestions: highlights in view (matching the filter).
+  const suggestions = useMemo(
     () =>
-      familyFilterActive
-        ? plottableEvents.filter((e) => matchesEventFilter(e, filter))
-        : plottableEvents,
-    [familyFilterActive, plottableEvents, filter],
+      placed.dots
+        .filter((d) => d.match && d.m.highlight)
+        .map((d) => d.m)
+        .sort((a, b) => (momentStartYear(a) ?? 0) - (momentStartYear(b) ?? 0))
+        .filter((_, i, all) => all.length <= SUGGESTION_COUNT || i % Math.ceil(all.length / SUGGESTION_COUNT) === 0)
+        .slice(0, SUGGESTION_COUNT),
+    [placed.dots],
   );
-  const matchingNarratorCount = useMemo(() => {
-    const ids = new Set<string>();
-    for (const m of matchingVisibleMoments) ids.add(m.recordingId);
-    return ids.size;
-  }, [matchingVisibleMoments]);
-
-  // Lane mode — when zoomed in tight enough, reorganize moments from
-  // jittered clusters into per-recording lanes so a narrator's arc reads
-  // as a continuous thread across the visible years.
-  const laneMode = view[1] - view[0] <= LANE_MODE_THRESHOLD_YEARS;
-  const recordingLanes = useMemo(() => {
-    if (!laneMode) return null;
-    type LaneEntry = { firstYear: number; name: string };
-    const byRecording = new Map<string, LaneEntry>();
-    for (const m of plottableMoments) {
-      const year = momentAnchorYear(m);
-      if (year == null) continue;
-      const existing = byRecording.get(m.recordingId);
-      if (existing) {
-        if (year < existing.firstYear) existing.firstYear = year;
-      } else {
-        byRecording.set(m.recordingId, {
-          firstYear: year,
-          name: m.intervieweeName ?? m.recordingTitle,
-        });
-      }
-    }
-    const sorted = [...byRecording.entries()].sort(
-      ([, a], [, b]) => a.firstYear - b.firstYear,
-    );
-    const total = sorted.length;
-    return new Map(
-      sorted.map(([rid, data], idx) => [
-        rid,
-        { index: idx, total, name: data.name, firstYear: data.firstYear },
-      ]),
-    );
-  }, [laneMode, plottableMoments]);
-
-  // Moments with identical years in the same lane drew exactly on top of
-  // each other, leaving the lower one unreachable. Spread exact duplicates
-  // vertically in 5% steps (~11px, wider than a dot): alternating ± in
-  // mid-band lanes, inward only for lanes at the band's edges (clamping
-  // there collapsed duplicates back together). Independent of the view, so
-  // marks don't jump while panning.
-  const stackOffset = useMemo(() => {
-    const seen = new Map<string, number>();
-    const out = new Map<string, number>();
-    for (const m of plottableMoments) {
-      const laneKey = recordingLanes
-        ? m.recordingId
-        : String(laneFor(`${m.recordingId}:${m.momentIndex}`));
-      const key = `${laneKey}|${m.eraStartYear}|${m.eraEndYear}`;
-      const n = seen.get(key) ?? 0;
-      seen.set(key, n + 1);
-      if (n === 0) continue;
-      const base = recordingLanes
-        ? (() => {
-            const e = recordingLanes.get(m.recordingId);
-            return !e || e.total === 1 ? 40 : (e.index / Math.max(1, e.total - 1)) * 80 + 5;
-          })()
-        : (laneFor(`${m.recordingId}:${m.momentIndex}`) / (MOMENT_LANES - 1)) * 80;
-      const step = 5;
-      const offset =
-        base < 12 ? n * step : base > 83 ? -n * step : Math.ceil(n / 2) * step * (n % 2 ? 1 : -1);
-      out.set(momentSelectionId(m), offset);
-    }
-    return out;
-  }, [plottableMoments, recordingLanes]);
-
-  // Lane view: one "recorded" marker per recording, at its interview year.
-  const recordedYearByRecording = useMemo(() => {
-    const out = new Map<string, number>();
-    for (const m of plottableMoments) {
-      if (m.recordedYear != null) out.set(m.recordingId, m.recordedYear);
-    }
-    return out;
-  }, [plottableMoments]);
 
   // -----------------------------------------------------------------------
-  // Hover / click handlers
+  // Hover / click
   // -----------------------------------------------------------------------
 
-  // Touch "hover" is an emulated mouseenter after a tap with no matching
-  // leave, so the preview stuck on screen. Phones get the bottom sheet
-  // instead; previews stay for real hover and for keyboard focus.
-  const canHover = useMediaQuery("(hover: hover)");
-  const isDesktop = useMediaQuery("(min-width: 1024px)");
-
-  const onMomentEnter = useCallback(
-    (m: TimelineMoment, evt: Point) => {
-      setHoverTip({
-        kind: "moment",
-        moment: m,
-        x: evt.clientX,
-        y: evt.clientY,
-      });
-    },
-    [],
-  );
-  const onEventEnter = useCallback(
-    (e: TimelineHistoricalEvent, evt: Point) => {
-      setHoverTip({
-        kind: "event",
-        event: e,
-        x: evt.clientX,
-        y: evt.clientY,
-      });
-    },
-    [],
-  );
+  const onMomentEnter = useCallback((m: TimelineMoment, evt: Point) => {
+    setHoverTip({ kind: "moment", moment: m, x: evt.clientX, y: evt.clientY });
+  }, []);
+  const onEventEnter = useCallback((e: TimelineHistoricalEvent, evt: Point) => {
+    setHoverTip({ kind: "event", event: e, x: evt.clientX, y: evt.clientY });
+  }, []);
   const onHoverLeave = useCallback(() => setHoverTip(null), []);
 
-  // Suppress click if the gesture turned into a drag.
-  const onMomentClick = useCallback((m: TimelineMoment) => {
-    if (didDragRef.current) return;
+  const pinMoment = useCallback((m: TimelineMoment) => {
     const id = momentSelectionId(m);
-    setPinned((prev) =>
-      prev?.id === id ? null : { kind: "moment", id, moment: m },
-    );
+    setPinned((prev) => (prev?.id === id ? null : { kind: "moment", id, moment: m }));
   }, []);
+  const onMomentClick = useCallback(
+    (m: TimelineMoment) => {
+      if (didDragRef.current) return;
+      pinMoment(m);
+    },
+    [pinMoment],
+  );
   const onEventClick = useCallback((e: TimelineHistoricalEvent) => {
     if (didDragRef.current) return;
     const id = eventSelectionId(e);
-    setPinned((prev) =>
-      prev?.id === id ? null : { kind: "event", id, event: e },
-    );
+    setPinned((prev) => (prev?.id === id ? null : { kind: "event", id, event: e }));
   }, []);
-
   const onClearPin = useCallback(() => setPinned(null), []);
-
-  /** Toggle a top-level family in the filter. Repurposes the legend swatch
-   *  row (was static display) into a click-target so the 5 color tags
-   *  double as sort controls. OR semantics within the field. */
-  const onToggleFamily = useCallback((family: FamilyKey) => {
-    setFilter((prev) => {
-      const active = prev.families.includes(family);
-      return {
-        ...prev,
-        families: active
-          ? prev.families.filter((k) => k !== family)
-          : [...prev.families, family],
-      };
-    });
-  }, []);
 
   // -----------------------------------------------------------------------
   // View controls
   // -----------------------------------------------------------------------
 
-  const onZoomIn = useCallback(() => {
-    setView((prev) => zoomAtPct(prev, 0.5, true, bounds));
-  }, [bounds]);
-  const onZoomOut = useCallback(() => {
-    setView((prev) => zoomAtPct(prev, 0.5, false, bounds));
-  }, [bounds]);
-  const onResetView = useCallback(() => {
-    setView(clampView(DEFAULT_VIEW, bounds));
-  }, [bounds]);
+  const onZoomIn = useCallback(() => setView((prev) => zoomAtPct(prev, 0.5, true, bounds)), [bounds]);
+  const onZoomOut = useCallback(() => setView((prev) => zoomAtPct(prev, 0.5, false, bounds)), [bounds]);
+  const onResetView = useCallback(() => setView(bounds), [bounds]);
 
-  // Wheel-zoom, anchored on cursor x. Non-passive so we can preventDefault
-  // and stop the page from scrolling when the cursor is over the canvas.
+  // Pinch / Ctrl-or-⌘ + wheel zooms at the cursor; a horizontal trackpad
+  // swipe pans. A plain vertical wheel is left alone so the page scrolls.
   useEffect(() => {
     const el = canvasRef.current;
     if (!el) return;
     const onWheel = (evt: WheelEvent) => {
-      // Only intercept horizontal/vertical wheel that looks like zoom intent.
-      // Trackpad pinch reports ctrlKey; mouse wheel is just deltaY.
-      if (evt.deltaY === 0 && evt.deltaX === 0) return;
-      evt.preventDefault();
       const rect = el.getBoundingClientRect();
-      const pct = Math.max(
-        0,
-        Math.min(1, (evt.clientX - rect.left) / rect.width),
-      );
-      const delta = evt.deltaY !== 0 ? evt.deltaY : evt.deltaX;
-      setView((prev) => zoomAtPct(prev, pct, delta < 0, bounds));
+      if (evt.ctrlKey || evt.metaKey) {
+        if (evt.deltaY === 0) return;
+        evt.preventDefault();
+        const pct = Math.max(0, Math.min(1, (evt.clientX - rect.left) / rect.width));
+        setView((prev) => zoomAtPct(prev, pct, evt.deltaY < 0, bounds));
+      } else if (Math.abs(evt.deltaX) > Math.abs(evt.deltaY)) {
+        evt.preventDefault();
+        setView((prev) => panByPixels(prev, -evt.deltaX, rect.width, bounds));
+      }
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
   }, [bounds]);
 
-  // Drag-pan via pointer events.
-  //
-  // Deliberately NOT using `setPointerCapture` on the canvas — doing so
-  // redirects subsequent pointer events (including pointerup) to the
-  // canvas, which suppresses click events on child buttons (moment dots
-  // and event bars). Instead we attach document-level pointermove /
-  // pointerup listeners after pointerdown so pan continues even when
-  // the cursor leaves the canvas, while child button clicks still fire
-  // their own synthesized click event.
+  // Drag-pan. Document-level move/up listeners (no pointer capture, which
+  // would swallow the markers' click events).
   const onPointerDown = useCallback(
     (evt: React.PointerEvent<HTMLDivElement>) => {
-      if (evt.button !== 0) return; // primary button only
-      if (!canvasRef.current) return;
-      const rect = canvasRef.current.getBoundingClientRect();
+      if (evt.button !== 0 || !canvasRef.current) return;
       dragStateRef.current = {
         startClientX: evt.clientX,
         startView: view,
-        canvasWidth: rect.width,
+        canvasWidth: canvasRef.current.getBoundingClientRect().width,
       };
       didDragRef.current = false;
       setIsDragging(true);
     },
     [view],
   );
-
-  // Document-level pan listeners. Always mounted; no-op when
-  // `dragStateRef.current` is null (i.e. the user hasn't pressed down
-  // yet). This avoids re-binding on every pointerdown.
   useEffect(() => {
     const onMove = (evt: PointerEvent) => {
       const state = dragStateRef.current;
       if (!state) return;
       const dx = evt.clientX - state.startClientX;
-      if (Math.abs(dx) > DRAG_CLICK_THRESHOLD_PX) {
-        didDragRef.current = true;
-      }
+      if (Math.abs(dx) > DRAG_CLICK_THRESHOLD_PX) didDragRef.current = true;
       setView(panByPixels(state.startView, dx, state.canvasWidth, bounds));
     };
     const onUp = () => {
+      if (!dragStateRef.current) return;
       dragStateRef.current = null;
       setIsDragging(false);
-      // Let the drag flag persist just long enough for the click event
-      // to see it. Reset on the next frame so future clicks fire
-      // normally.
+      // Keep the drag flag for this frame's click event, then reset.
       requestAnimationFrame(() => {
         didDragRef.current = false;
       });
@@ -642,9 +480,8 @@ export function TimelineClient({
     };
   }, [bounds]);
 
-  // Keyboard — document-level. Arrow L/R pan, +/- zoom, 0/Home reset,
-  // Escape unpins. Skipped when a text input is focused so typing
-  // doesn't pan the timeline.
+  // Keyboard: arrows pan, +/− zoom, 0/Home reset, Escape unpins. Only
+  // while the canvas (or a marker in it) has focus.
   useEffect(() => {
     const onKeyDown = (evt: KeyboardEvent) => {
       const canvas = canvasRef.current;
@@ -652,25 +489,19 @@ export function TimelineClient({
       const onMarker = !!active?.hasAttribute("data-timeline-marker");
       if (evt.key === "Escape") {
         if (pinned) setPinned(null);
-        // Leave marker navigation: hand focus back to the canvas.
         if (onMarker) canvas?.focus({ preventScroll: true });
         return;
       }
-      // Never take browser shortcuts (Cmd/Ctrl +/−/0 zoom, Alt+← back, …).
       if (evt.metaKey || evt.ctrlKey || evt.altKey) return;
-      // Pan/zoom keys only apply while the canvas (or one of its markers)
-      // has focus — not while typing in filters, using tabs, or reading.
       if (!canvas || !active || !canvas.contains(active)) return;
-
       if (onMarker) {
         if (evt.key === "ArrowLeft" || evt.key === "ArrowRight") {
           evt.preventDefault();
           stepMarkerFocus(canvas, active, evt.key === "ArrowRight" ? 1 : -1);
         }
-        return; // Enter/Space activate the marker button natively.
+        return;
       }
-      if (active !== canvas) return; // zoom buttons etc. handle their own keys
-
+      if (active !== canvas) return;
       switch (evt.key) {
         case "Enter":
         case "ArrowDown":
@@ -698,530 +529,326 @@ export function TimelineClient({
         case "0":
         case "Home":
           evt.preventDefault();
-          setView(clampView(DEFAULT_VIEW, bounds));
+          setView(bounds);
           break;
       }
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [view, bounds, pinned]);
+  }, [bounds, pinned]);
 
-  // Sync view + filter → URL, debounced. Clears params when they match
-  // default state so the canonical URL is clean. Skipped until the
-  // hydration effect has run so initial URL params aren't clobbered
-  // by defaults. Uses `history.replaceState`, which Next's router picks
-  // up for `useSearchParams` without a server round-trip — `router.replace`
-  // re-rendered the page on the server (and re-sent every moment) on each
-  // pan/zoom.
+  // View + filter → URL (debounced, replaceState so no server round-trip).
+  // Default state leaves the URL clean.
   useEffect(() => {
     if (!hydratedRef.current) return;
     const timer = setTimeout(() => {
-      const defaulted = clampView(DEFAULT_VIEW, bounds);
-      const isDefaultView =
-        Math.abs(view[0] - defaulted[0]) < 0.5 &&
-        Math.abs(view[1] - defaulted[1]) < 0.5;
+      const isFull = Math.abs(view[0] - bounds[0]) < 0.5 && Math.abs(view[1] - bounds[1]) < 0.5;
       const params = new URLSearchParams(searchParams?.toString() ?? "");
-      if (isDefaultView) {
-        params.delete("start");
-        params.delete("end");
-      } else {
-        params.set("start", String(Math.round(view[0])));
-        params.set("end", String(Math.round(view[1])));
-      }
-      if (filter.themes.length > 0) {
-        params.set("themes", filter.themes.join(","));
-      } else {
-        params.delete("themes");
-      }
-      if (filter.neighborhoods.length > 0) {
-        params.set("neighborhoods", filter.neighborhoods.join(","));
-      } else {
-        params.delete("neighborhoods");
-      }
-      if (filter.families.length > 0) {
-        params.set("families", filter.families.join(","));
-      } else {
-        params.delete("families");
-      }
-      if (filter.highlightOnly) {
-        params.set("highlight", "1");
-      } else {
-        params.delete("highlight");
-      }
+      const put = (k: string, v: string | null) => (v ? params.set(k, v) : params.delete(k));
+      put("start", isFull ? null : String(Math.round(view[0])));
+      put("end", isFull ? null : String(Math.round(view[1])));
+      put("themes", filter.themes.join(",") || null);
+      put("neighborhoods", filter.neighborhoods.join(",") || null);
+      put("families", filter.families.join(",") || null);
+      put("highlight", filter.highlightOnly ? "1" : null);
       const qs = params.toString();
       window.history.replaceState(null, "", qs ? `${pathname}?${qs}` : pathname);
     }, 200);
     return () => clearTimeout(timer);
-    // intentionally omitting `searchParams` — we read a snapshot once on
-    // mount and own view/filter params thereafter. Including it would
-    // create a feedback loop with the URL write above.
+    // `searchParams` intentionally omitted — read once on mount, owned after.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, filter, bounds, pathname]);
 
-  // Full-view check for disabling zoom-out / reset buttons
   const viewSpan = view[1] - view[0];
-  const dataSpan = bounds[1] - bounds[0];
-  const isFullView = viewSpan >= dataSpan - 0.5;
+  const isFullView = viewSpan >= bounds[1] - bounds[0] - 0.5;
   const isMinView = viewSpan <= MIN_VIEW_SPAN + 0.5;
-  const isDefaultView =
-    Math.abs(view[0] - clampView(DEFAULT_VIEW, bounds)[0]) < 0.5 &&
-    Math.abs(view[1] - clampView(DEFAULT_VIEW, bounds)[1]) < 0.5;
+  const pct = (year: number) => xPercent(year, view);
+
+  // -----------------------------------------------------------------------
+  // Render
+  // -----------------------------------------------------------------------
+
+  const zoomControls = (
+    <div className="flex items-center gap-2">
+      <span className="font-mono text-[11px] tabular-nums text-muted-foreground" aria-live="polite">
+        {Math.round(view[0])}–{Math.round(view[1])}
+      </span>
+      <div className="flex items-center rounded-md border border-border bg-background">
+        <ZoomButton label="Zoom out" hint="−" onClick={onZoomOut} disabled={isFullView}>
+          <MinusIcon aria-hidden className="size-3.5" />
+        </ZoomButton>
+        <ZoomButton label="Show the whole collection" hint="0" onClick={onResetView} disabled={isFullView}>
+          <RotateCcwIcon aria-hidden className="size-3.5" />
+        </ZoomButton>
+        <ZoomButton label="Zoom in" hint="+" onClick={onZoomIn} disabled={isMinView}>
+          <PlusIcon aria-hidden className="size-3.5" />
+        </ZoomButton>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Below lg the folio sits above the canvas, so a tapped marker's
-          detail landed off-screen. There it keeps the collection overview
-          and the selection opens in a bottom sheet (same pattern as Map). */}
-      <TimelineDetailFolio
-        selected={isDesktop ? pinned : null}
-        onClear={onClearPin}
-        corpus={corpus}
-      />
-      <DialogPrimitive.Root
-        open={!isDesktop && pinned != null}
-        onOpenChange={(open) => {
-          if (!open) onClearPin();
-        }}
-      >
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+      <div className="flex min-w-0 flex-col gap-2">
+        <div className="overflow-hidden rounded-2xl border border-border bg-card">
+          <TimelineFilterBar
+            filter={filter}
+            onChange={setFilter}
+            moments={moments}
+            matchingMomentCount={placed.matchCount}
+            matchingNarratorCount={placed.narratorCount}
+            trailing={zoomControls}
+          />
+
+          <p id="timeline-canvas-help" className="sr-only">
+            Left and right arrows pan, plus and minus zoom, 0 shows the whole collection. Press
+            Enter or Down arrow to move through the points on screen; left and right arrows then
+            step between them in year order, Enter opens one, and Escape returns here.
+          </p>
+          <div
+            ref={canvasRef}
+            tabIndex={0}
+            role="group"
+            aria-roledescription="timeline"
+            aria-label={`Timeline, ${Math.round(view[0])} to ${Math.round(view[1])}`}
+            aria-describedby="timeline-canvas-help"
+            className={cn(
+              "relative overflow-hidden touch-pan-y select-none sm:touch-none",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+              isDragging ? "cursor-grabbing" : "cursor-grab",
+            )}
+            style={{ height: canvasHeight }}
+            onMouseLeave={onHoverLeave}
+            onPointerDown={onPointerDown}
+          >
+            {/* Year gridlines through the moments area */}
+            <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0" style={{ height: baseline }}>
+              {labels.map((y) => (
+                <div key={`grid-${y}`} className="absolute inset-y-0 w-px bg-border/50" style={{ left: `${pct(y)}%` }} />
+              ))}
+            </div>
+
+            {/* Moments */}
+            {placed.dots.map(({ m, x, y, match }) => {
+              const id = momentSelectionId(m);
+              const isPinned = pinnedId === id;
+              const filteredOut = !match && !isPinned;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  data-timeline-marker=""
+                  tabIndex={-1}
+                  aria-pressed={isPinned}
+                  aria-hidden={filteredOut || undefined}
+                  aria-label={`${m.title}. ${m.intervieweeName ?? m.recordingTitle} · ${m.eraLabel ?? eraText(m)}${m.highlight ? " · highlight" : ""}`}
+                  className={cn(
+                    "absolute rounded-full p-0 transition-[opacity,transform] duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    // Small extra touch margin only: in a tall stack a larger one
+                    // reaches past the neighbor's center and steals its taps.
+                    "pointer-coarse:after:absolute pointer-coarse:after:-inset-0.5 pointer-coarse:after:rounded-full pointer-coarse:after:content-['']",
+                    filteredOut ? "pointer-events-none opacity-15" : "cursor-pointer hover:z-10 hover:scale-150",
+                    isPinned && "z-20 scale-150 ring-2 ring-primary ring-offset-1 ring-offset-card",
+                  )}
+                  style={{
+                    left: x - dotSize / 2,
+                    top: y - dotSize / 2,
+                    width: dotSize,
+                    height: dotSize,
+                    background: m.highlight
+                      ? `radial-gradient(circle, var(--card) 0 ${dotSize / 5}px, ${familyColorVar(momentFamily(m))} ${dotSize / 5 + 0.5}px)`
+                      : familyColorVar(momentFamily(m)),
+                  }}
+                  onMouseEnter={(evt) => canHover && onMomentEnter(m, evt)}
+                  onFocus={(evt) => onMomentEnter(m, focusPoint(evt))}
+                  onBlur={onHoverLeave}
+                  onClick={() => onMomentClick(m)}
+                />
+              );
+            })}
+
+            {/* Span track — the hovered/selected moment's era */}
+            <div aria-hidden className="pointer-events-none absolute inset-x-0" style={{ top: baseline + 4, height: SPAN_TRACK - 6 }}>
+              {spanMoment ? <SpanBar moment={spanMoment} view={view} pinned={hoverTip == null} /> : null}
+            </div>
+
+            {/* Axis */}
+            <div aria-hidden className="pointer-events-none absolute inset-x-0" style={{ top: baseline + SPAN_TRACK, height: AXIS_BAND }}>
+              <div className="absolute inset-x-0 top-0 h-px bg-foreground/50" />
+              {labels.map((y) => (
+                <div key={`label-${y}`} className="absolute top-0 -translate-x-1/2" style={{ left: `${pct(y)}%` }}>
+                  <div className="mx-auto h-1.5 w-px bg-foreground/50" />
+                  <div className="mt-0.5 font-mono text-[11px] tabular-nums text-muted-foreground">{y}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Historical events — thin tick row */}
+            <div className="pointer-events-none absolute inset-x-0" style={{ top: baseline + SPAN_TRACK + AXIS_BAND, height: EVENT_ROW }}>
+              <div aria-hidden className="absolute inset-x-0 top-1/2 h-px bg-border" />
+              {plottableEvents.map((e) => {
+                const start = eventStartYear(e)!;
+                const end = e.yearEnd ?? start;
+                const id = eventSelectionId(e);
+                const isPinned = pinnedId === id;
+                const filteredOut = !matchesEventFilter(e, filter) && !isPinned;
+                return (
+                  <span key={id}>
+                    {end > start ? (
+                      <span
+                        aria-hidden
+                        className="absolute top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-foreground/10"
+                        style={{ left: `${Math.max(0, pct(start))}%`, width: `${Math.min(100, pct(end)) - Math.max(0, pct(start))}%` }}
+                      />
+                    ) : null}
+                    <button
+                      type="button"
+                      data-timeline-marker=""
+                      tabIndex={-1}
+                      aria-pressed={isPinned}
+                      aria-hidden={filteredOut || undefined}
+                      aria-label={`Historical event: ${e.label} (${end > start ? `${start}–${end}` : start})`}
+                      className={cn(
+                        "absolute top-1/2 h-3 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-full p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        "after:absolute after:-inset-x-1.5 after:-inset-y-1 after:content-['']",
+                        filteredOut ? "pointer-events-none opacity-15" : "pointer-events-auto cursor-pointer hover:h-5 hover:bg-primary",
+                        isPinned ? "h-5 w-[3px] bg-primary" : "bg-foreground/30",
+                      )}
+                      style={{ left: `${pct(start)}%` }}
+                      onMouseEnter={(evt) => canHover && onEventEnter(e, evt)}
+                      onFocus={(evt) => onEventEnter(e, focusPoint(evt))}
+                      onBlur={onHoverLeave}
+                      onClick={() => onEventClick(e)}
+                    />
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+        <p className="px-1 text-xs leading-relaxed text-muted-foreground">
+          Each dot is a moment from an interview, placed at the year it begins; dots with a light
+          center are highlights. Ticks under the axis are historical events.{" "}
+          <span className="hidden sm:inline">Drag to pan; pinch or Ctrl/⌘ + scroll to zoom.</span>
+          <span className="sm:hidden">Drag to pan; use − and + to zoom.</span>
+        </p>
+      </div>
+
+      {/* Desktop: sticky side panel. The chart never moves on selection. */}
+      {isDesktop ? (
+        <aside aria-label="Selected moment" className="sticky top-20 max-h-[calc(100dvh-6rem)] overflow-y-auto rounded-2xl border border-border bg-card">
+          {pinned ? (
+            <TimelineDetailFolio selected={pinned} onClear={onClearPin} />
+          ) : (
+            <Suggestions moments={suggestions} onPick={pinMoment} />
+          )}
+        </aside>
+      ) : null}
+
+      {/* Phones/tablets: bottom sheet. */}
+      <DialogPrimitive.Root open={!isDesktop && pinned != null} onOpenChange={(open) => !open && onClearPin()}>
         <DialogPrimitive.Portal>
           <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/20 supports-backdrop-filter:backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 lg:hidden" />
           <DialogPrimitive.Popup className="fixed inset-x-0 bottom-0 z-50 flex max-h-[80dvh] flex-col overflow-y-auto rounded-t-2xl border-t border-border bg-background pb-[env(safe-area-inset-bottom)] shadow-xl outline-none data-open:animate-in data-open:slide-in-from-bottom data-closed:animate-out data-closed:slide-out-to-bottom lg:hidden">
             <DialogPrimitive.Title className="sr-only">
-              {pinned?.kind === "moment"
-                ? pinned.moment.title
-                : pinned?.kind === "event"
-                  ? pinned.event.label
-                  : "Timeline detail"}
+              {pinned?.kind === "moment" ? pinned.moment.title : pinned?.kind === "event" ? pinned.event.label : "Timeline detail"}
             </DialogPrimitive.Title>
-            <div
-              aria-hidden
-              className="mx-auto mt-2 h-1.5 w-10 shrink-0 rounded-full bg-foreground/20"
-            />
-            <TimelineDetailFolio
-              selected={pinned}
-              onClear={onClearPin}
-              corpus={corpus}
-            />
+            <div aria-hidden className="mx-auto mt-2 h-1.5 w-10 shrink-0 rounded-full bg-foreground/20" />
+            {pinned ? <TimelineDetailFolio selected={pinned} onClear={onClearPin} /> : null}
           </DialogPrimitive.Popup>
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>
 
       {hoverTip ? <HoverTooltip tip={hoverTip} /> : null}
+    </div>
+  );
+}
 
-      <div className="relative w-full overflow-hidden rounded-2xl border border-border bg-card">
-        {/* Row 1: filter bar */}
-        <TimelineFilterBar
-          filter={filter}
-          onChange={setFilter}
-          moments={moments}
-          matchingMomentCount={matchingVisibleMoments.length}
-          matchingNarratorCount={matchingNarratorCount}
-          totalMomentCount={moments.length}
-        />
+// ---------------------------------------------------------------------------
+// Pieces
+// ---------------------------------------------------------------------------
 
-        {/* Row 2: family filter swatches (click to narrow canvas by
-            family) + interaction controls. The 5 swatches double as the
-            color legend and the top-level sort controls. */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border/60 px-4 py-2 text-[10px] font-mono tracking-[0.12em] uppercase text-muted-foreground sm:px-6">
-          <span className="flex items-center gap-1 normal-case tracking-normal">
-            {THEME_FAMILIES.map((f) => {
-              const isActive = filter.families.includes(f.key);
-              const anyActive = filter.families.length > 0;
-              return (
-                <button
-                  key={f.key}
-                  type="button"
-                  aria-pressed={isActive}
-                  onClick={() => onToggleFamily(f.key)}
-                  title={
-                    isActive
-                      ? `Turn off ${f.label} filter`
-                      : `Filter by ${f.label}`
-                  }
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    isActive
-                      ? "bg-muted text-foreground"
-                      : anyActive
-                        ? "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-                  )}
-                >
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "inline-block size-2 rounded-full transition-opacity",
-                      !isActive && anyActive ? "opacity-40" : "opacity-100",
-                    )}
-                    style={{ backgroundColor: familyColorVar(f.key) }}
-                  />
-                  <span>{f.label}</span>
-                </button>
-              );
-            })}
-          </span>
-          <span className="ml-auto flex items-center gap-2 normal-case tracking-normal">
-            <span>
-              {familyFilterActive
-                ? `${matchingVisibleEvents.length}/${plottableEvents.length}`
-                : `${plottableEvents.length}/${historicalEvents.length}`}{" "}
-              events
-            </span>
-            <span className="text-muted-foreground">·</span>
-            <span>{Math.round(view[0])}–{Math.round(view[1])}</span>
-            <span className="text-muted-foreground">·</span>
-            <span>{laneMode ? "lanes" : "jitter"}</span>
-            <span className="hidden text-muted-foreground sm:inline">·</span>
-            <span className="hidden sm:inline">scroll to zoom · drag to pan · +/− · 0</span>
-            {/* Touch devices have no hover/scroll-zoom — tell them how to drive
-                the canvas: tap a marker for the detail folio above, drag to
-                pan, use the +/− buttons to zoom. */}
-            <span className="sm:hidden">tap a point for details · drag to pan · +/−</span>
-          </span>
-        </div>
+function ZoomButton({
+  label,
+  hint,
+  onClick,
+  disabled,
+  children,
+}: {
+  label: string;
+  hint: string;
+  onClick: () => void;
+  disabled: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={`${label} (${hint})`}
+      className="inline-flex size-8 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40 pointer-coarse:size-11"
+    >
+      {children}
+    </button>
+  );
+}
 
-        {/* Canvas — the three bands + axis, plus drag-pan pointer handlers
-            and the floating zoom controls. */}
-        <p id="timeline-canvas-help" className="sr-only">
-          Left and right arrows pan, plus and minus zoom, 0 resets the view.
-          Press Enter or Down arrow to move through the points on screen; left
-          and right arrows then step between them in year order, Enter opens
-          one, and Escape returns here.
+/** The hovered/selected moment's era, clipped to the view, years at the ends. */
+function SpanBar({ moment, view, pinned }: { moment: TimelineMoment; view: [number, number]; pinned: boolean }) {
+  const start = moment.eraStartYear ?? moment.eraEndYear;
+  const end = moment.eraEndYear ?? start;
+  if (start == null || end == null) return null;
+  const rawLeft = xPercent(start, view);
+  const rawRight = xPercent(end, view);
+  if (rawRight < 0 || rawLeft > 100) return null;
+  const left = Math.max(0, rawLeft);
+  const right = Math.min(100, rawRight);
+  const color = familyColorVar(momentFamily(moment));
+  const single = end <= start;
+  const label = "absolute top-1/2 -translate-y-1/2 whitespace-nowrap font-mono text-[10px] leading-none tabular-nums text-foreground";
+  return (
+    <div className={cn("absolute inset-y-0", pinned ? "opacity-100" : "opacity-80")} style={{ left: `${left}%`, width: `${Math.max(0.6, right - left)}%` }}>
+      <div className={cn("absolute top-1/2 -translate-y-1/2 rounded-full", single ? "left-1/2 h-3 w-1 -translate-x-1/2" : "inset-x-0 h-1.5")} style={{ background: color }} />
+      <span className={cn(label, "right-full mr-1.5")}>{rawLeft < 0 ? `‹ ${start}` : start}</span>
+      {single ? null : <span className={cn(label, "left-full ml-1.5")}>{rawRight > 100 ? `${end} ›` : end}</span>}
+    </div>
+  );
+}
+
+/** Empty panel: a few highlights in the current view as starting points. */
+function Suggestions({ moments, onPick }: { moments: TimelineMoment[]; onPick: (m: TimelineMoment) => void }) {
+  return (
+    <div className="flex flex-col gap-3 p-5">
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        Select a dot to read the moment and listen to it. Or start with a highlight:
+      </p>
+      {moments.length > 0 ? (
+        <ul className="flex flex-col gap-1">
+          {moments.map((m) => (
+            <li key={momentSelectionId(m)}>
+              <button
+                type="button"
+                onClick={() => onPick(m)}
+                className="flex w-full items-start gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span aria-hidden className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: familyColorVar(momentFamily(m)) }} />
+                <span className="flex min-w-0 flex-col">
+                  <span className="font-mono text-[11px] tabular-nums text-muted-foreground">{eraText(m)}</span>
+                  <span className="line-clamp-2 text-sm font-medium leading-snug">{m.title}</span>
+                  <span className="truncate text-xs text-muted-foreground">{m.intervieweeName ?? m.recordingTitle}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <SparklesIcon aria-hidden className="size-3.5" />
+          No highlights in this view.
         </p>
-        <div
-          ref={canvasRef}
-          // One tab stop for the whole canvas; markers use roving focus
-          // (tabIndex -1, arrow keys) instead of hundreds of tab stops.
-          tabIndex={0}
-          role="group"
-          aria-roledescription="timeline"
-          aria-label={`Timeline, ${Math.round(view[0])} to ${Math.round(view[1])}`}
-          aria-describedby="timeline-canvas-help"
-          className={cn(
-            "relative h-[360px] overflow-hidden touch-pan-y select-none sm:h-[480px] sm:touch-none",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-            isDragging ? "cursor-grabbing" : "cursor-grab",
-          )}
-          onMouseLeave={onHoverLeave}
-          onPointerDown={onPointerDown}
-        >
-          {/* Quarter-century shading */}
-          <div aria-hidden className="pointer-events-none absolute inset-0">
-            {bands2.map((b) => {
-              const left = xPercent(b.start, view);
-              const width = xPercent(b.end, view) - left;
-              return (
-                <div
-                  key={`band-${b.start}`}
-                  className={cn(
-                    "absolute inset-y-0",
-                    b.index % 2 === 0 ? "bg-muted/35" : "bg-transparent",
-                  )}
-                  style={{ left: `${left}%`, width: `${width}%` }}
-                />
-              );
-            })}
-            {bands2.slice(1).map((b) => (
-              <div
-                key={`band-div-${b.start}`}
-                className="absolute inset-y-0 w-px bg-border/30"
-                style={{ left: `${xPercent(b.start, view)}%` }}
-              />
-            ))}
-          </div>
-
-          {/* Tether */}
-          <TimelineDetailTether
-            year={tetherYear}
-            yearRange={view}
-            isPinned={pinned != null && hoverTip == null}
-          />
-
-          {/* Historical events band — one bar per event, tinted by
-              theme family (Justice/Place/Daily Life/Institutions/Culture)
-              via category lookup. Unmapped categories fall back to a
-              neutral muted tone. Family filter fades non-matches to 15%
-              so the band's gestalt survives. */}
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-[28%]">
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-border/40" />
-            {plottableEvents.map((e) => {
-              const start = e.year ?? e.yearStart!;
-              const end = e.yearEnd ?? e.year ?? e.yearStart!;
-              const left = xPercent(start, view);
-              const width = Math.max(
-                0.2,
-                xPercent(end, view) - xPercent(start, view),
-              );
-              const isRange = e.yearStart != null && e.yearEnd != null;
-              const weight = Math.min(0.6, 0.28 + e.recordingCount * 0.05);
-              const id = eventSelectionId(e);
-              const isPinnedMarker = pinnedId === id;
-              const isHoverMarker = hoverId === id;
-              const family = familyForEventCategory(e.category);
-              const fillVar = family
-                ? familyColorVar(family)
-                : "var(--color-muted-foreground)";
-              const isMatch = matchesEventFilter(e, filter);
-              const filteredOut =
-                filter.families.length > 0 && !isMatch && !isPinnedMarker;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  data-selected={(isPinnedMarker || isHoverMarker) || undefined}
-                  aria-pressed={isPinnedMarker}
-                  className={cn(
-                    "absolute top-[8%] h-[84%] cursor-pointer rounded-sm border transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60",
-                    filteredOut
-                      ? "pointer-events-none opacity-15"
-                      : "pointer-events-auto",
-                    !filteredOut &&
-                      (isRange
-                        ? "opacity-70 hover:opacity-95"
-                        : "opacity-80 hover:opacity-100"),
-                    !filteredOut &&
-                      (isPinnedMarker || isHoverMarker) &&
-                      "opacity-100",
-                    isPinnedMarker &&
-                      "ring-2 ring-primary ring-offset-1 ring-offset-card",
-                  )}
-                  style={{
-                    left: `${left}%`,
-                    width: isRange ? `${width}%` : "2px",
-                    backgroundColor: `color-mix(in oklab, ${fillVar} ${Math.round(weight * 100)}%, transparent)`,
-                    borderColor: `color-mix(in oklab, ${fillVar} 30%, transparent)`,
-                  }}
-                  aria-label={`${e.label} (${
-                    isRange ? `${e.yearStart}–${e.yearEnd}` : e.year
-                  })`}
-                  data-timeline-marker=""
-                  tabIndex={-1}
-                  aria-hidden={filteredOut || undefined}
-                  onMouseEnter={(evt) => canHover && onEventEnter(e, evt)}
-                  onFocus={(evt) => onEventEnter(e, focusPoint(evt))}
-                  onBlur={onHoverLeave}
-                  onClick={() => onEventClick(e)}
-                />
-              );
-            })}
-          </div>
-
-          {/* Axis */}
-          <div className="pointer-events-none absolute inset-x-0 top-[30%] h-[8%]">
-            <div className="pointer-events-none absolute inset-x-0 top-1/2 h-[2px] -translate-y-1/2 bg-foreground/70" />
-            <div className="pointer-events-none absolute top-1/2 left-0 h-3 w-0.5 -translate-y-1/2 bg-foreground/70" />
-            <div className="pointer-events-none absolute top-1/2 right-0 h-3 w-0.5 -translate-y-1/2 bg-foreground/70" />
-            {ticks.map((year) => {
-              const left = xPercent(year, view);
-              const isMajor = year % 20 === 0;
-              return (
-                <div
-                  key={`tick-${year}`}
-                  className="pointer-events-none absolute top-0 -translate-x-1/2"
-                  style={{ left: `${left}%` }}
-                >
-                  <div
-                    className={cn(
-                      "mx-auto w-px",
-                      isMajor ? "h-5 bg-foreground/70" : "h-2 bg-foreground/30",
-                    )}
-                  />
-                  {isMajor ? (
-                    <div className="mt-1 font-heading text-[13px] font-bold tracking-tight whitespace-nowrap text-center text-foreground">
-                      {year}
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Moments band — in jitter mode dots spread across 10 visual
-              lanes via a deterministic hash. In lane mode (zoomed in to
-              ≤25y) dots stack into per-recording lanes sorted by earliest
-              visible moment, with interviewee names on the left. */}
-          <div className="pointer-events-none absolute inset-x-0 top-[40%] h-[60%] pb-2">
-            {/* Lane labels — only render when there are few enough lanes
-                to keep each label legible. */}
-            {laneMode && recordingLanes && recordingLanes.size <= LANE_LABEL_CAP
-              ? [...recordingLanes.values()].map((entry) => {
-                  const spread = Math.max(1, entry.total - 1);
-                  const top =
-                    entry.total === 1 ? 40 : (entry.index / spread) * 80 + 5;
-                  return (
-                    <span
-                      key={`lane-label-${entry.name}-${entry.index}`}
-                      className="pointer-events-none absolute left-2 max-w-[140px] -translate-y-1/2 truncate whitespace-nowrap rounded bg-card/80 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground backdrop-blur-sm"
-                      style={{ top: `${top}%` }}
-                      title={entry.name}
-                    >
-                      {entry.name}
-                    </span>
-                  );
-                })
-              : null}
-            {laneMode && recordingLanes
-              ? [...recordingLanes.entries()].map(([recordingId, entry]) => {
-                  const recorded = recordedYearByRecording.get(recordingId);
-                  if (recorded == null) return null;
-                  const spread = Math.max(1, entry.total - 1);
-                  const top = entry.total === 1 ? 40 : (entry.index / spread) * 80 + 5;
-                  return (
-                    <span
-                      key={`recorded-${recordingId}`}
-                      aria-hidden
-                      title={`${entry.name}: interview recorded ${recorded}`}
-                      className="pointer-events-auto absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-sm border-2 border-foreground/60 bg-card"
-                      style={{ left: `${xPercent(recorded, view)}%`, top: `${top}%` }}
-                    />
-                  );
-                })
-              : null}
-            {plottableMoments.map((m) => {
-              const year = momentAnchorYear(m)!;
-              let top: number;
-              if (recordingLanes) {
-                const entry = recordingLanes.get(m.recordingId);
-                if (entry) {
-                  const spread = Math.max(1, entry.total - 1);
-                  top =
-                    entry.total === 1 ? 40 : (entry.index / spread) * 80 + 5;
-                } else {
-                  top = 50;
-                }
-              } else {
-                const lane = laneFor(`${m.recordingId}:${m.momentIndex}`);
-                top = (lane / (MOMENT_LANES - 1)) * 80;
-              }
-              const id = momentSelectionId(m);
-              top = Math.min(95, Math.max(2, top + (stackOffset.get(id) ?? 0)));
-              const isPinnedMarker = pinnedId === id;
-              const background = themeDotBackground(m.themes);
-              // Filter fade — non-matching moments drop to 15% and stop
-              // accepting pointer events so they don't distract. Pinned
-              // moment overrides the fade so the reader's focus stays.
-              const isMatch = !filterActive || matchesFilter(m, filter);
-              const filteredOut = filterActive && !isMatch && !isPinnedMarker;
-              // PRD §7.3.1: a single-year moment is a dot; a ranged memory
-              // is a bar from its start year to its end year.
-              const isSpan =
-                m.eraStartYear != null &&
-                m.eraEndYear != null &&
-                m.eraEndYear > m.eraStartYear;
-              const shared = {
-                type: "button" as const,
-                "data-selected": isPinnedMarker || undefined,
-                "aria-pressed": isPinnedMarker,
-                "aria-label": `${m.title}. ${m.intervieweeName ?? m.recordingTitle}${m.eraLabel ? ` · ${m.eraLabel}` : ""}`,
-                "data-timeline-marker": "",
-                tabIndex: -1,
-                "aria-hidden": filteredOut || undefined,
-                onMouseEnter: (evt: React.MouseEvent) => canHover && onMomentEnter(m, evt),
-                onFocus: (evt: React.FocusEvent<HTMLButtonElement>) => onMomentEnter(m, focusPoint(evt)),
-                onBlur: onHoverLeave,
-                onClick: () => onMomentClick(m),
-              };
-              if (!isSpan) {
-                return (
-                  <button
-                    {...shared}
-                    key={id}
-                    className={cn(
-                      "absolute block size-2.5 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full p-0 transition-[top,transform,opacity] duration-200 ease-out hover:z-10 hover:scale-[1.6] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      // Invisible 26px hit area on touch screens (dots are 10px;
-                      // WCAG 2.5.8 minimum is 24px). Larger areas overlap in dense
-                      // clusters and a tap lands on a neighbouring moment.
-                      "pointer-coarse:after:absolute pointer-coarse:after:-inset-2 pointer-coarse:after:rounded-full pointer-coarse:after:content-['']",
-                      filteredOut
-                        ? "opacity-15 pointer-events-none"
-                        : "pointer-events-auto",
-                      !filteredOut &&
-                        (m.highlight
-                          ? "opacity-100 ring-[1.5px] ring-primary ring-offset-1 ring-offset-card"
-                          : "opacity-55 hover:opacity-90"),
-                      isPinnedMarker &&
-                        "z-10 scale-[1.8] ring-2 ring-primary ring-offset-1 ring-offset-card opacity-100",
-                    )}
-                    style={{ left: `${xPercent(year, view)}%`, top: `${top}%`, background }}
-                  />
-                );
-              }
-              // Clip the bar to the visible window; a clipped end shows an
-              // arrow so the reader knows the span continues off-screen.
-              const rawLeft = xPercent(m.eraStartYear!, view);
-              const rawRight = xPercent(m.eraEndYear!, view);
-              const left = Math.max(0, rawLeft);
-              const right = Math.min(100, rawRight);
-              return (
-                <button
-                  {...shared}
-                  key={id}
-                  className={cn(
-                    "absolute block h-1.5 -translate-y-1/2 cursor-pointer rounded-full p-0 transition-[top,height,opacity] duration-200 ease-out hover:z-10 hover:h-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    // Taller invisible hit area on touch screens.
-                    "pointer-coarse:after:absolute pointer-coarse:after:-inset-y-2.5 pointer-coarse:after:inset-x-0 pointer-coarse:after:content-['']",
-                    filteredOut ? "opacity-15 pointer-events-none" : "pointer-events-auto",
-                    !filteredOut && (m.highlight ? "opacity-90" : "opacity-45 hover:opacity-90"),
-                    isPinnedMarker &&
-                      "z-10 h-2.5 opacity-100 ring-2 ring-primary ring-offset-1 ring-offset-card",
-                  )}
-                  style={{
-                    left: `${left}%`,
-                    width: `${Math.max(0.4, right - left)}%`,
-                    top: `${top}%`,
-                    background,
-                  }}
-                >
-                  {rawLeft < 0 ? (
-                    <span aria-hidden className="absolute -left-2.5 top-1/2 -translate-y-1/2 text-[11px] leading-none text-muted-foreground">‹</span>
-                  ) : null}
-                  {rawRight > 100 ? (
-                    <span aria-hidden className="absolute -right-2.5 top-1/2 -translate-y-1/2 text-[11px] leading-none text-muted-foreground">›</span>
-                  ) : null}
-                  {/* PRD §7.3.1 rule 3: highlight = accent dot at the start anchor. */}
-                  {m.highlight && rawLeft >= 0 ? (
-                    <span aria-hidden className="absolute left-0 top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary ring-2 ring-card" />
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Floating zoom controls — bottom-right of the canvas. */}
-          <div className="pointer-events-auto absolute bottom-3 right-3 z-10 flex items-center gap-1 rounded-lg border border-border bg-card/90 p-1 shadow-sm backdrop-blur">
-            <button
-              type="button"
-              onClick={onZoomOut}
-              disabled={isFullView}
-              aria-label="Zoom out"
-              title="Zoom out (−)"
-              className="inline-flex size-7 min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-0 md:min-w-0"
-            >
-              <MinusIcon aria-hidden className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={onResetView}
-              disabled={isDefaultView}
-              aria-label="Reset view"
-              title="Reset view (0)"
-              className="inline-flex size-7 min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-0 md:min-w-0"
-            >
-              <RotateCcwIcon aria-hidden className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={onZoomIn}
-              disabled={isMinView}
-              aria-label="Zoom in"
-              title="Zoom in (+)"
-              className="inline-flex size-7 min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-0 md:min-w-0"
-            >
-              <PlusIcon aria-hidden className="size-3.5" />
-            </button>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { XIcon, PlayIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatTimestamp } from "@/lib/player";
 import { MOMENT_HIGHLIGHT_PIP_CLASS } from "@/components/shared/moment-chip";
-import { themeColorVar, themeLabel } from "@/lib/theme-colors";
+import { familyColorVar, isThemeKey, themeKeyToFamily, themeLabel } from "@/lib/theme-colors";
 import { neighborhoodColor } from "@/lib/neighborhood-colors";
 import {
   Dialog,
@@ -21,54 +21,30 @@ import type {
 import { MomentQueueButtons } from "@/components/queue/queue-buttons";
 
 /**
- * Interactive Timeline — persistent detail folio (PRD §7.3, Phase 2).
- *
- * Docked above the canvas. Renders the full editorial payload for the
- * currently pinned marker so the user can read the summary at their own
- * pace. Click-only — hover previews are handled by the lightweight
- * `HoverTooltip` to keep 500+ markers smooth.
- *
- * Two display modes:
- *   - `empty`  — no pinned selection. Shows an archive overview + prompt.
- *   - `pinned` — user clicked a marker. Amber pip in the kicker row,
- *                Clear button visible, full editorial body.
- *
- * The folio has a fixed height so the canvas below it never reflows on
- * selection change. Memoized at the bottom of this file so hover state
- * changes in the parent don't re-render the heavy tree.
+ * Interactive Timeline — detail panel for the selected moment or
+ * historical event (PRD §7.3). A single vertical column: it sits in the
+ * sticky side panel beside the chart on desktop and in the bottom sheet
+ * on phones. Click-only — hover previews are the lightweight
+ * `HoverTooltip`. Memoized so hover state in the parent doesn't
+ * re-render it.
  */
 
 export type FolioSelection =
   | { kind: "moment"; id: string; moment: TimelineMoment }
   | { kind: "event"; id: string; event: TimelineHistoricalEvent };
 
-export type FolioCorpus = {
-  momentCount: number;
-  narratorCount: number;
-  yearRange: [number, number];
-};
-
 type Props = {
-  selected: FolioSelection | null;
+  selected: FolioSelection;
   onClear: () => void;
-  corpus: FolioCorpus;
 };
 
-function TimelineDetailFolioImpl({ selected, onClear, corpus }: Props) {
-  const mode: "empty" | "pinned" = selected ? "pinned" : "empty";
-
+function TimelineDetailFolioImpl({ selected, onClear }: Props) {
   return (
-    <section
-      aria-live="polite"
-      data-mode={mode}
-      className="relative flex min-h-[260px] flex-col overflow-hidden rounded-2xl border border-border bg-card p-5 sm:p-6 lg:h-[320px]"
-    >
-      {selected?.kind === "moment" ? (
+    <section aria-live="polite" className="relative flex flex-col p-5">
+      {selected.kind === "moment" ? (
         <FolioMomentBody moment={selected.moment} onClear={onClear} />
-      ) : selected?.kind === "event" ? (
-        <FolioEventBody event={selected.event} onClear={onClear} />
       ) : (
-        <FolioEmptyBody corpus={corpus} />
+        <FolioEventBody event={selected.event} onClear={onClear} />
       )}
     </section>
   );
@@ -83,7 +59,7 @@ function ClearPinButton({ onClear }: { onClear: () => void }) {
       type="button"
       onClick={onClear}
       aria-label="Clear pinned selection"
-      className="absolute right-4 top-4 inline-flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:right-5 sm:top-5"
+      className="absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <XIcon aria-hidden className="size-3.5" />
     </button>
@@ -122,88 +98,58 @@ function FolioMomentBody({
   return (
     <>
       <ClearPinButton onClear={onClear} />
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-hidden lg:grid-cols-[4fr_1fr]">
-        {/* Left: editorial body — 80% of the row. Title and summary sized
-            so typical content fits the fixed folio height; anything beyond
-            the clamp overflows into the "read more" dialog. */}
-        <div className="flex min-w-0 flex-col gap-2 overflow-hidden pr-10">
-          {/* Year promoted to top of card (replaces the old "MOMENT"
-              kicker). Era label sits inline so "1891 · 1880s-c. 1900"
-              reads as a single dateline. */}
-          <div className="flex items-baseline gap-3">
-            <p className="font-heading text-3xl font-bold tracking-tight text-primary-ink sm:text-4xl">
-              {anchorYear}
-            </p>
-            {yearLabel && yearLabel !== anchorYear ? (
-              <p className="font-mono text-[11px] tracking-[0.12em] uppercase text-muted-foreground">
-                {yearLabel}
-              </p>
-            ) : null}
-          </div>
-          <h2 className="flex items-start gap-2 font-heading text-base font-bold leading-tight tracking-tight sm:text-lg">
-            {moment.highlight ? (
-              <span
-                aria-hidden
-                className={cn(MOMENT_HIGHLIGHT_PIP_CLASS, "mt-2 shrink-0")}
-              />
-            ) : null}
-            <span title={moment.title} className="line-clamp-2 min-w-0">
-              {moment.title}
-            </span>
-          </h2>
-          <p className="font-mono text-[11px] tracking-[0.12em] uppercase text-muted-foreground line-clamp-1">
-            From {byline}&rsquo;s interview
-          </p>
-          {moment.summary ? (
-            <div className="flex min-h-0 flex-col">
-              <p className="border-l-[3px] border-primary/60 pl-4 text-sm leading-relaxed text-foreground/90 line-clamp-[5]">
-                {moment.summary}
-              </p>
-              <button
-                type="button"
-                onClick={() => setDetailOpen(true)}
-                className="mt-1.5 ml-4 self-start font-mono text-[11px] tracking-[0.12em] uppercase text-primary-ink transition-colors hover:text-primary-ink/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-sm"
-                aria-label={`Read full summary for ${moment.title}`}
-              >
-                … read more
-              </button>
-            </div>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-baseline gap-2 pr-10">
+          <p className="font-heading text-3xl font-bold tracking-tight text-primary-ink">{anchorYear}</p>
+          {yearLabel && yearLabel !== anchorYear ? (
+            <p className="font-mono text-[11px] tracking-[0.12em] uppercase text-muted-foreground">{yearLabel}</p>
           ) : null}
         </div>
-
-        {/* Right: structured aside — 20% of the row. */}
-        <aside className="flex min-w-0 flex-col gap-3 overflow-hidden border-t border-border/60 pt-4 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
-          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto scrollbar-soft pr-1">
-            {themes.length > 0 ? (
-              <ThemeTagRow label="Themes" themes={themes} />
+        <div className="flex flex-col gap-1">
+          <h2 className="flex items-start gap-2 font-heading text-lg font-bold leading-snug tracking-tight">
+            {moment.highlight ? (
+              <span aria-hidden className={cn(MOMENT_HIGHLIGHT_PIP_CLASS, "mt-2.5 shrink-0")} />
             ) : null}
-            {neighborhoods.length > 0 ? (
-              <NeighborhoodTagRow label="Neighborhoods" neighborhoods={neighborhoods} />
-            ) : null}
-            {advisoryNote ? (
-              <span
-                title={advisoryNote}
-                className="inline-flex self-start rounded-md border border-[color:var(--color-warning)]/40 bg-[color:var(--color-warning)]/15 px-2 py-0.5 font-mono text-[10px] tracking-[0.18em] uppercase text-[color:var(--color-warning-ink)]"
-              >
-                Advisory
-              </span>
-            ) : null}
-          </div>
-          <div className="flex shrink-0 flex-col gap-1">
-            <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
-              In the recording
-            </span>
-            <Link
-              href={`/player/${encodeURIComponent(moment.catalogNumber)}?t=${playFrom}`}
-              className="inline-flex items-center gap-2 self-start rounded-lg bg-primary px-3 py-2 font-heading text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            <span className="min-w-0">{moment.title}</span>
+          </h2>
+          <p className="text-sm text-muted-foreground">From {byline}&rsquo;s interview</p>
+        </div>
+        {moment.summary ? (
+          <div className="flex flex-col">
+            <p className="border-l-[3px] border-primary/60 pl-3 text-sm leading-relaxed text-foreground/90 line-clamp-[8]">
+              {moment.summary}
+            </p>
+            <button
+              type="button"
+              onClick={() => setDetailOpen(true)}
+              className="mt-1.5 ml-3 self-start font-mono text-[11px] tracking-[0.12em] uppercase text-primary-ink transition-colors hover:text-primary-ink/80 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={`Read more: ${moment.title}`}
             >
-              <PlayIcon aria-hidden className="size-3.5" />
-              Play from {formatTimestamp(moment.startTime)}
-            </Link>
-            {/* Listen without leaving the Timeline (F-queue). */}
-            <MomentQueueButtons moment={moment} />
+              Read more
+            </button>
           </div>
-        </aside>
+        ) : null}
+        <div className="flex flex-col gap-2">
+          <Link
+            href={`/player/${encodeURIComponent(moment.catalogNumber)}?t=${playFrom}`}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 font-heading text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <PlayIcon aria-hidden className="size-3.5" />
+            Open in Player at {formatTimestamp(moment.startTime)}
+          </Link>
+          {/* Listen without leaving the Timeline (F-queue). */}
+          <MomentQueueButtons moment={moment} />
+        </div>
+        {themes.length > 0 ? <ThemeTagRow label="Themes" themes={themes} /> : null}
+        {neighborhoods.length > 0 ? (
+          <NeighborhoodTagRow label="Neighborhoods" neighborhoods={neighborhoods} />
+        ) : null}
+        {advisoryNote ? (
+          <p className="rounded-md border border-[color:var(--color-warning)]/40 bg-[color:var(--color-warning)]/10 px-3 py-2 text-xs leading-relaxed text-foreground/85">
+            <span className="font-semibold text-[color:var(--color-warning-ink)]">Content advisory. </span>
+            {advisoryNote}
+          </p>
+        ) : null}
       </div>
 
       <MomentDetailDialog
@@ -222,7 +168,6 @@ function FolioEventBody({
   event: TimelineHistoricalEvent;
   onClear: () => void;
 }) {
-  const [detailOpen, setDetailOpen] = useState(false);
   const when = eventWhenLabel(event);
   const kindLabel = event.category.replace(/_/g, " ");
   const referencedSummary =
@@ -233,79 +178,23 @@ function FolioEventBody({
   return (
     <>
       <ClearPinButton onClear={onClear} />
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-hidden lg:grid-cols-[4fr_1fr]">
-        <div className="flex min-w-0 flex-col gap-2 overflow-hidden pr-10">
-          {/* Year promoted to top of card. */}
-          <p className="font-heading text-3xl font-bold tracking-tight text-primary-ink sm:text-4xl">
-            {when}
+      <div className="flex flex-col gap-3">
+        <p className="pr-10 font-heading text-3xl font-bold tracking-tight text-primary-ink">{when}</p>
+        <div className="flex flex-col gap-1">
+          <h2 className="font-heading text-lg font-bold leading-snug tracking-tight">{event.label}</h2>
+          <p className="font-mono text-[11px] tracking-[0.12em] uppercase text-muted-foreground">
+            Historical event · {kindLabel}
           </p>
-          <h2 className="font-heading text-base font-bold leading-tight tracking-tight sm:text-lg">
-            <span title={event.label} className="line-clamp-2 block">
-              {event.label}
-            </span>
-          </h2>
-          <p className="font-mono text-[11px] tracking-[0.12em] uppercase text-muted-foreground line-clamp-1">
-            {kindLabel}
-          </p>
-          <div className="flex min-h-0 flex-col">
-            <p className="border-l-[3px] border-primary/60 pl-4 text-sm leading-relaxed text-foreground/90 line-clamp-[5]">
-              {referencedSummary}
-            </p>
-            {event.recordingCatalogs.length > 0 ? (
-              <button
-                type="button"
-                onClick={() => setDetailOpen(true)}
-                className="mt-1.5 ml-4 self-start font-mono text-[11px] tracking-[0.12em] uppercase text-primary-ink transition-colors hover:text-primary-ink/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-sm"
-                aria-label={`See all narrators referencing ${event.label}`}
-              >
-                … see all narrators
-              </button>
-            ) : null}
-          </div>
         </div>
-
-        <aside className="flex min-w-0 flex-col gap-2 overflow-hidden border-t border-border/60 pt-4 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
-          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto scrollbar-soft pr-1">
-            <TagRow
-              label="Referenced in"
-              values={event.recordingCatalogs}
-              monospace
-            />
-          </div>
-        </aside>
+        <p className="border-l-[3px] border-primary/60 pl-3 text-sm leading-relaxed text-foreground/90">
+          {referencedSummary}
+        </p>
+        {event.recordingCatalogs.length > 0 ? (
+          <TagRow label="Referenced in" values={event.recordingCatalogs} monospace />
+        ) : null}
       </div>
 
-      <EventDetailDialog
-        event={event}
-        when={when}
-        kindLabel={kindLabel}
-        summary={referencedSummary}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-      />
     </>
-  );
-}
-
-function FolioEmptyBody({ corpus }: { corpus: FolioCorpus }) {
-  const [from, to] = corpus.yearRange;
-  return (
-    <div className="flex flex-1 flex-col justify-center gap-3">
-      <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted-foreground">
-        {corpus.momentCount} moments
-        <span className="mx-2 text-muted-foreground">·</span>
-        {corpus.narratorCount} narrators
-        <span className="mx-2 text-muted-foreground">·</span>c. {from}
-        –{to}
-      </p>
-      <h2 className="max-w-xl font-heading text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
-        Hover or click any dot to explore a specific moment.
-      </h2>
-      <p className="max-w-xl text-sm text-muted-foreground">
-        Move over a marker for a preview; click to pin it here and read at
-        your own pace. Press <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px]">Esc</kbd> to clear.
-      </p>
-    </div>
   );
 }
 
@@ -415,51 +304,6 @@ function MomentDetailDialog({
   );
 }
 
-/** Full-detail modal for a historical event. */
-function EventDetailDialog({
-  event,
-  when,
-  kindLabel,
-  summary,
-  open,
-  onOpenChange,
-}: {
-  event: TimelineHistoricalEvent;
-  when: string;
-  kindLabel: string;
-  summary: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[92vw] sm:max-w-2xl lg:max-w-3xl">
-        <div className="flex flex-col gap-4">
-          <p className="font-heading text-3xl font-bold tracking-tight text-primary-ink sm:text-4xl">
-            {when}
-          </p>
-          <DialogTitle className="font-heading text-xl font-bold leading-tight tracking-tight sm:text-2xl">
-            {event.label}
-          </DialogTitle>
-          <p className="font-mono text-[11px] tracking-[0.12em] uppercase text-muted-foreground">
-            {kindLabel}
-          </p>
-          <p className="border-l-[3px] border-primary/60 pl-4 text-base leading-relaxed text-foreground/90">
-            {summary}
-          </p>
-          {event.recordingCatalogs.length > 0 ? (
-            <TagRow
-              label="Referenced in"
-              values={event.recordingCatalogs}
-              monospace
-            />
-          ) : null}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -516,14 +360,8 @@ function NeighborhoodTagRow({
         {neighborhoods.map((n) => {
           const color = neighborhoodColor(n);
           return (
-            <li
-              key={n}
-              style={{
-                backgroundColor: `color-mix(in oklab, ${color} 20%, transparent)`,
-                color: color,
-              }}
-              className="rounded-md px-2 py-0.5 text-[11px] font-medium tracking-normal"
-            >
+            <li key={n} className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium tracking-normal text-foreground">
+              <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />
               {n}
             </li>
           );
@@ -544,16 +382,11 @@ function ThemeTagRow({ label, themes }: { label: string; themes: string[] }) {
       </span>
       <ul className="flex flex-wrap gap-1.5">
         {themes.map((t) => {
-          const color = themeColorVar(t);
+          // Same family color as the dot on the chart.
+          const color = familyColorVar(isThemeKey(t) ? themeKeyToFamily(t) : null);
           return (
-            <li
-              key={t}
-              style={{
-                backgroundColor: `color-mix(in oklab, ${color} 18%, transparent)`,
-                color: color,
-              }}
-              className="rounded-md px-2 py-0.5 text-[11px] font-medium tracking-normal"
-            >
+            <li key={t} className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium tracking-normal text-foreground">
+              <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />
               {themeLabel(t)}
             </li>
           );
@@ -563,13 +396,9 @@ function ThemeTagRow({ label, themes }: { label: string; themes: string[] }) {
   );
 }
 
-/** The "big" year: a single numeric anchor for display. Prefers the era
- *  midpoint when both start and end are set. */
+/** The "big" year: where the moment begins — the year its dot sits at on
+ *  the chart. The full era shows beside it. */
 function momentAnchorYearLabel(m: TimelineMoment): string {
-  if (m.eraStartYear != null && m.eraEndYear != null) {
-    const mid = Math.round((m.eraStartYear + m.eraEndYear) / 2);
-    return String(mid);
-  }
   if (m.eraStartYear != null) return String(m.eraStartYear);
   if (m.eraEndYear != null) return String(m.eraEndYear);
   return "—";

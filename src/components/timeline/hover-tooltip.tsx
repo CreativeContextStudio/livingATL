@@ -113,11 +113,8 @@ function EventHoverBody({ event }: { event: TimelineHistoricalEvent }) {
   );
 }
 
+/** Where the moment begins — the year its dot sits at on the chart. */
 function momentAnchorYearLabel(m: TimelineMoment): string {
-  if (m.eraStartYear != null && m.eraEndYear != null) {
-    const mid = Math.round((m.eraStartYear + m.eraEndYear) / 2);
-    return String(mid);
-  }
   return m.eraStartYear != null
     ? String(m.eraStartYear)
     : m.eraEndYear != null

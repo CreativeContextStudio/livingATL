@@ -7,10 +7,8 @@ import { fetchTimelineData } from "@/lib/queries/timeline";
 /**
  * Interactive Timeline — PRD §7.3.
  *
- * P1 scope: static horizontal timeline rendering every authored
- * brief-moment + every historical event across the corpus. Linear axis.
- * No zoom, no pan, no filters — those ship in P3. See `PHASE1_STATE.md`
- * for the full Timeline phase plan.
+ * Every authored brief-moment and every historical event on one zoomable
+ * year axis; see `components/timeline/timeline-client.tsx`.
  *
  * Launch-gate behavior: this route is intentionally NOT on either allowlist in
  * `src/proxy.ts`, so the proxy sends visitors without access to `/gate` or
@@ -39,39 +37,21 @@ export default async function TimelinePage() {
   const [yearFrom, yearTo] = data.yearRange;
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-12">
-      <header className="flex flex-col gap-3">
+    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
+      <header className="flex flex-col gap-2">
         <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted-foreground">
           Timeline
         </p>
-        <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-5xl">
-          A century of Atlanta.
+        <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
+          A century of Atlanta
         </h1>
-        <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted-foreground">
-          {data.moments.length} moments
-          <span className="mx-2 text-muted-foreground">·</span>
-          {narratorCount} narrators
-          <span className="mx-2 text-muted-foreground">·</span>
-          {data.historicalEvents.length} historical events
-          <span className="mx-2 text-muted-foreground">·</span>c. {yearFrom}
-          –{yearTo}
-        </p>
-        <p className="text-muted-foreground">
-          Every authored chapter of every interview, placed on the year it
-          describes. Hover any dot for a preview in the panel below; click
-          to pin it and read at your own pace. The vertical band at the top
-          is the historical record the narrators kept returning to.
+        <p className="max-w-3xl text-muted-foreground">
+          {data.moments.length} moments from {narratorCount} storytellers, placed on the years they
+          describe, from about {yearFrom} to {yearTo}. Select a dot to read the moment and hear it.
         </p>
       </header>
 
-      <TimelineClient
-        data={data}
-        corpus={{
-          momentCount: data.moments.length,
-          narratorCount,
-          yearRange: data.yearRange,
-        }}
-      />
+      <TimelineClient data={data} />
     </main>
   );
 }

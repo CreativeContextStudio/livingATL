@@ -6,7 +6,7 @@ import { CheckIcon, ChevronDownIcon, StarIcon, XIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import {
-  themeColorVar,
+  familyColorVar,
   themeLabel,
   type FamilyKey,
   type ThemeKey,
@@ -19,12 +19,12 @@ import {
 } from "@/components/timeline/filter-facets";
 
 /**
- * Timeline filter bar — replaces the old legend band.
- *
- * Three filter surfaces (themes / neighborhoods / highlights-only) plus a
- * clear-all affordance. Filtering fades non-matching moments on the
- * canvas rather than hiding them, so the viewer keeps the gestalt of
- * the full corpus while highlighted matches come forward.
+ * Timeline toolbar: Theme / Place / Highlights filters, a match count
+ * while filtering, clear-all, and a `trailing` slot (the zoom controls).
+ * Filtering fades non-matching moments on the canvas rather than hiding
+ * them, so the shape of the whole collection stays visible. The Theme
+ * menu doubles as the color key: its swatches are the family colors the
+ * dots use, and a family heading selects all of its themes.
  *
  * All state is lifted to `TimelineClient`; this component is pure
  * presentation + reporting changes via `onChange`.
@@ -64,7 +64,7 @@ export function TimelineFilterBar({
   moments,
   matchingMomentCount,
   matchingNarratorCount,
-  totalMomentCount,
+  trailing,
 }: {
   filter: TimelineFilter;
   onChange: (next: TimelineFilter) => void;
@@ -73,7 +73,7 @@ export function TimelineFilterBar({
   moments: TimelineMoment[];
   matchingMomentCount: number;
   matchingNarratorCount: number;
-  totalMomentCount: number;
+  trailing?: React.ReactNode;
 }) {
   const themeFacets = useMemo(() => computeThemeFacets(moments), [moments]);
   const neighborhoodFacets = useMemo(
@@ -85,6 +85,14 @@ export function TimelineFilterBar({
     const next = filter.themes.includes(key)
       ? filter.themes.filter((k) => k !== key)
       : [...filter.themes, key];
+    onChange({ ...filter, themes: next });
+  };
+  /** Family heading: select all of its themes, or clear them if all are on. */
+  const toggleFamily = (keys: ThemeKey[]) => {
+    const allOn = keys.every((k) => filter.themes.includes(k));
+    const next = allOn
+      ? filter.themes.filter((k) => !keys.includes(k))
+      : [...new Set([...filter.themes, ...keys])];
     onChange({ ...filter, themes: next });
   };
   const toggleNeighborhood = (name: string) => {
@@ -101,25 +109,13 @@ export function TimelineFilterBar({
   const anyActive = !isEmptyFilter(filter);
 
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border/60 px-4 py-3 text-[11px] font-mono tracking-[0.12em] uppercase text-muted-foreground sm:px-6">
-      {/* Live stats */}
-      <span className="flex items-center gap-1.5">
-        <span className="text-foreground">
-          {matchingMomentCount.toLocaleString()}
-        </span>
-        <span className="text-muted-foreground">/ {totalMomentCount.toLocaleString()}</span>
-        <span>moments</span>
-        <span className="mx-1 text-muted-foreground">·</span>
-        <span className="text-foreground">{matchingNarratorCount}</span>
-        <span>narrators</span>
-      </span>
-
-      {/* Filter pickers */}
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border/60 px-3 py-2.5 text-[11px] font-mono tracking-[0.12em] uppercase text-muted-foreground sm:px-4">
       <div className="flex flex-wrap items-center gap-2">
         <ThemeMultiSelect
           selected={filter.themes}
           facets={themeFacets}
           onToggle={toggleTheme}
+          onToggleFamily={toggleFamily}
         />
         <NeighborhoodMultiSelect
           selected={filter.neighborhoods}
@@ -127,19 +123,27 @@ export function TimelineFilterBar({
           onToggle={toggleNeighborhood}
         />
         <HighlightToggle active={filter.highlightOnly} onToggle={toggleHighlight} />
+        {anyActive ? (
+          <>
+            <span
+              className="normal-case tracking-normal"
+              aria-live="polite"
+              title={`${matchingMomentCount} moments from ${matchingNarratorCount} ${matchingNarratorCount === 1 ? "narrator" : "narrators"} in view`}
+            >
+              <span className="text-foreground">{matchingMomentCount}</span> in view
+            </span>
+            <button
+              type="button"
+              onClick={clearAll}
+              className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-[11px] uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <XIcon aria-hidden className="size-3" />
+              Clear
+            </button>
+          </>
+        ) : null}
       </div>
-
-      {/* Clear-all */}
-      {anyActive ? (
-        <button
-          type="button"
-          onClick={clearAll}
-          className="ml-auto inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <XIcon aria-hidden className="size-3" />
-          Clear filters
-        </button>
-      ) : null}
+      {trailing ? <div className="ml-auto">{trailing}</div> : null}
     </div>
   );
 }
@@ -194,10 +198,12 @@ function ThemeMultiSelect({
   selected,
   facets,
   onToggle,
+  onToggleFamily,
 }: {
   selected: ThemeKey[];
   facets: ReturnType<typeof computeThemeFacets>;
   onToggle: (key: ThemeKey) => void;
+  onToggleFamily: (keys: ThemeKey[]) => void;
 }) {
   const count = selected.length;
   const selectedSet = new Set(selected);
@@ -205,16 +211,22 @@ function ThemeMultiSelect({
   return (
     <Popover.Root>
       <Popover.Trigger
-        render={<FilterTriggerShell label="Themes" count={count} active={count > 0} />}
+        render={<FilterTriggerShell label="Theme" count={count} active={count > 0} />}
       />
       <Popover.Portal>
         <Popover.Positioner sideOffset={6} align="start" className="z-50">
           <Popover.Popup className="max-h-[360px] w-[min(92vw,300px)] overflow-y-auto rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-lg ring-1 ring-foreground/10">
             {facets.map(({ family, facets: familyFacets }) => (
               <div key={family.key} className="mb-2 flex flex-col gap-0.5 last:mb-0">
-                <div className="px-2 pt-1 pb-0.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                <button
+                  type="button"
+                  onClick={() => onToggleFamily(familyFacets.map((f) => f.key))}
+                  title={`Select all ${family.label} themes`}
+                  className="flex items-center gap-2 rounded-md px-2 pt-1 pb-0.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <span aria-hidden className="inline-block size-2.5 shrink-0 rounded-full" style={{ backgroundColor: familyColorVar(family.key) }} />
                   {family.label}
-                </div>
+                </button>
                 {familyFacets.map(({ key, count: facetCount }) => {
                   const checked = selectedSet.has(key);
                   return (
@@ -236,7 +248,7 @@ function ThemeMultiSelect({
                         className="inline-flex size-4 shrink-0 items-center justify-center rounded border border-border bg-background"
                         style={
                           checked
-                            ? { backgroundColor: themeColorVar(key), borderColor: themeColorVar(key) }
+                            ? { backgroundColor: familyColorVar(family.key), borderColor: familyColorVar(family.key) }
                             : undefined
                         }
                       >
@@ -244,11 +256,6 @@ function ThemeMultiSelect({
                           <CheckIcon aria-hidden className="size-3 text-background" />
                         ) : null}
                       </span>
-                      <span
-                        aria-hidden
-                        className="inline-block size-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: themeColorVar(key) }}
-                      />
                       <span className="flex-1 truncate">{themeLabel(key)}</span>
                       <span className="font-mono text-[10px] text-muted-foreground">
                         {facetCount}
@@ -280,7 +287,7 @@ function NeighborhoodMultiSelect({
   return (
     <Popover.Root>
       <Popover.Trigger
-        render={<FilterTriggerShell label="Places" count={count} active={count > 0} />}
+        render={<FilterTriggerShell label="Place" count={count} active={count > 0} />}
       />
       <Popover.Portal>
         <Popover.Positioner sideOffset={6} align="start" className="z-50">

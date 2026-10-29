@@ -1,15 +1,17 @@
 "use client";
 
-import posthog from "posthog-js";
+import type { PostHog } from "posthog-js";
 
 /**
- * Shared PostHog capture helper.
+ * Shared PostHog capture helper + lazy loader.
  *
- * Initialization itself lives in `src/instrumentation-client.ts` (the
- * Next.js 15+ canonical mount point, which also hosts Sentry.init). This
- * module is a thin typed wrapper that's safe to import from any client
- * file: it no-ops on the server and silently skips when the SDK isn't
- * initialized (no key set in env, DNT honored, etc.).
+ * `posthog-js` is ~100 KB gzipped, so it is not imported statically:
+ * `src/instrumentation-client.ts` calls `initPostHog()` (the Next.js 15+
+ * canonical mount point, which also hosts Sentry.init), which pulls the SDK
+ * in with a dynamic `import()` off the critical path. Calls made while it is
+ * loading are queued (bounded) and flushed on load, so the first `$pageview`
+ * isn't lost. Safe to import from any client file: no-ops on the server and
+ * when analytics is off (no key set in env); DNT is honored by the SDK.
  *
  * Event names + properties follow PRD §1 metrics. Add new event types to
  * the `AnalyticsEvent` union below as surfaces get wired, so call sites
@@ -32,29 +34,80 @@ export type AnalyticsEvent =
 
 type EventProps = Record<string, string | number | boolean | null | undefined>;
 
+type Status = "off" | "loading" | "ready";
+let status: Status = "off";
+let client: PostHog | null = null;
+const pending: Array<(ph: PostHog) => void> = [];
+/** Cap so a stalled SDK download can't grow memory without bound. */
+const MAX_PENDING = 50;
+
+/**
+ * Start loading + initializing PostHog. Called once from
+ * `instrumentation-client.ts` when NEXT_PUBLIC_POSTHOG_KEY is set.
+ */
+export function initPostHog(key: string, host: string | undefined): void {
+  if (typeof window === "undefined" || status !== "off") return;
+  status = "loading";
+  import("posthog-js")
+    .then(({ default: posthog }) => {
+      posthog.init(key, {
+        api_host: host ?? "https://us.i.posthog.com",
+        // Pageviews are captured explicitly on route change by
+        // `src/components/analytics/posthog-provider.tsx` — App Router
+        // client navigations don't fire a page-load event.
+        capture_pageview: false,
+        capture_pageleave: true,
+        respect_dnt: true,
+        persistence: "localStorage+cookie",
+        autocapture: false,
+        disable_session_recording: true,
+      });
+      client = posthog;
+      status = "ready";
+      pending.splice(0).forEach((fn) => fn(posthog));
+    })
+    .catch(() => {
+      // SDK failed to load (blocked, offline): drop queued events.
+      status = "off";
+      pending.length = 0;
+    });
+}
+
+/**
+ * Test seam: when a browser test defines `window.__analyticsSpy = []`, every
+ * event is also recorded there (PostHog traffic can't be observed reliably in
+ * headless runs). Undefined for real visitors, so this is a no-op in practice.
+ */
+function spy(event: string, props: EventProps): void {
+  const target = (window as Window & { __analyticsSpy?: unknown[] }).__analyticsSpy;
+  if (Array.isArray(target)) target.push({ event, props });
+}
+
+function withClient(fn: (ph: PostHog) => void): void {
+  if (typeof window === "undefined") return;
+  if (status === "ready" && client) fn(client);
+  else if (status === "loading" && pending.length < MAX_PENDING) pending.push(fn);
+}
+
 /**
  * Fire an analytics event. Safe to call from anywhere:
- *   - Server-side: no-op (PostHog is browser-only).
- *   - Client-side before PostHog has loaded: no-op.
- *   - Client-side after init: sends to PostHog.
- *
- * `__loaded` is the documented way to check init state without triggering
- * a warning from posthog-js. If the SDK wasn't initialized (missing key
- * or DNT set), we just drop the event — matches the spec that DNT visitors
- * should see zero analytics traffic.
+ *   - Server-side, or analytics off (no key): no-op.
+ *   - While the SDK is loading: queued, sent once it initializes.
+ *   - After init: sent. DNT visitors are opted out by the SDK itself
+ *     (`respect_dnt`), so they still see zero analytics traffic.
  */
 export function captureEvent(
   event: AnalyticsEvent,
   props: EventProps = {},
 ): void {
   if (typeof window === "undefined") return;
-  if (!posthog.__loaded) return;
-  posthog.capture(event, props);
+  spy(event, props);
+  withClient((ph) => ph.capture(event, props));
 }
 
 /** Alias used by the pageview provider to record `$pageview` explicitly. */
 export function capturePageview(path: string): void {
   if (typeof window === "undefined") return;
-  if (!posthog.__loaded) return;
-  posthog.capture("$pageview", { $current_url: path });
+  spy("$pageview", { $current_url: path });
+  withClient((ph) => ph.capture("$pageview", { $current_url: path }));
 }

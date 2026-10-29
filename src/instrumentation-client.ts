@@ -15,11 +15,19 @@
  *     App Router's client-side navigation doesn't fire a traditional
  *     page-load event. `respect_dnt: true` skips anyone with Do-Not-Track.
  *     If NEXT_PUBLIC_POSTHOG_KEY is missing (e.g. a stripped-down local
- *     build), init is skipped silently.
+ *     build), init is skipped silently. The SDK itself is loaded lazily
+ *     by `initPostHog()` so its ~100 KB isn't on every page's critical path.
  */
 
 import * as Sentry from "@sentry/nextjs";
-import posthog from "posthog-js";
+import { config as configureZod } from "zod";
+
+import { initPostHog } from "@/lib/analytics/posthog";
+
+// The CSP (src/lib/csp.ts) forbids eval. Zod v4 otherwise probes for it
+// with `Function("")` on first use, which the browser reports as a CSP
+// violation; jitless mode skips the probe (validation is unchanged).
+configureZod({ jitless: true });
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -35,17 +43,9 @@ Sentry.init({
 const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
 
-if (posthogKey) {
-  posthog.init(posthogKey, {
-    api_host: posthogHost ?? "https://us.i.posthog.com",
-    capture_pageview: false,
-    capture_pageleave: true,
-    respect_dnt: true,
-    persistence: "localStorage+cookie",
-    autocapture: false,
-    disable_session_recording: true,
-  });
-}
+// Loads posthog-js lazily (dynamic import) — see src/lib/analytics/posthog.ts
+// for the config and the pre-load event queue.
+if (posthogKey) initPostHog(posthogKey, posthogHost);
 
 // Next.js 15+ optional hook for capturing router-transition errors. Exporting
 // this lets Sentry instrument the App Router navigation spans.

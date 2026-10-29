@@ -3,7 +3,10 @@ import Link from "next/link";
 import { ArrowUpRightIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { fetchArchiveStats } from "@/lib/queries/recordings";
+import {
+  fetchArchiveStatsOrNull,
+  type ArchiveStats,
+} from "@/lib/queries/recordings";
 
 /**
  * About page. The public-facing identity page for livingATL — what the
@@ -33,13 +36,15 @@ export const metadata: Metadata = {
 };
 
 function buildStats(
-  processedRecordings: number,
-  distinctInterviewees: number,
+  archive: ArchiveStats | null,
 ): Array<{ label: string; value: string; tail: string }> {
   return [
     {
       label: "Processed",
-      value: `${processedRecordings} / ${distinctInterviewees}`,
+      // Null when the database is unreachable — static page still renders.
+      value: archive
+        ? `${archive.processedRecordings} / ${archive.distinctInterviewees}`
+        : "In progress",
       tail: "recordings · distinct storytellers",
     },
     {
@@ -88,9 +93,7 @@ const PRINCIPLES: Principle[] = [
 ];
 
 export default async function AboutPage() {
-  const { processedRecordings, distinctInterviewees } =
-    await fetchArchiveStats();
-  const STATS = buildStats(processedRecordings, distinctInterviewees);
+  const STATS = buildStats(await fetchArchiveStatsOrNull());
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-6 py-10 lg:gap-12 lg:py-14">
       <header className="flex flex-col gap-4">
@@ -111,7 +114,7 @@ export default async function AboutPage() {
           <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
             At a glance
           </p>
-          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground/80">
+          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
             03 · Data points
           </p>
         </div>
@@ -125,7 +128,7 @@ export default async function AboutPage() {
                 <p className="font-heading text-3xl font-semibold leading-tight tracking-tight text-foreground">
                   {s.value}
                 </p>
-                <p className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground/80">
+                <p className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
                   {s.tail}
                 </p>
               </article>
@@ -145,7 +148,7 @@ export default async function AboutPage() {
           <blockquote className="font-heading text-2xl leading-[1.15] font-bold tracking-tight text-foreground sm:text-3xl lg:text-xl lg:leading-snug xl:text-2xl">
             &ldquo;These are not &lsquo;old&rsquo; stories. They are from our
             elders. They are{" "}
-            <span className="text-primary">
+            <span className="text-primary-ink">
               a light to guide today&apos;s Atlanta
             </span>{" "}
             toward the future its communities want to build.&rdquo;
@@ -205,7 +208,7 @@ export default async function AboutPage() {
           <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
             Principles
           </p>
-          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground/80">
+          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
             03 · Editorial stance
           </p>
         </div>
@@ -221,7 +224,7 @@ export default async function AboutPage() {
                   <p className="font-mono text-[10px] font-semibold tracking-[0.22em] uppercase text-muted-foreground">
                     {p.label}
                   </p>
-                  <p className="font-mono text-[10px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground/60">
+                  <p className="font-mono text-[10px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
                     {p.index}
                   </p>
                 </div>
@@ -257,7 +260,7 @@ export default async function AboutPage() {
         </div>
         <Link
           href="/contact"
-          className="inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-border bg-background/80 px-4 py-2 font-mono text-[10px] tracking-[0.22em] uppercase text-foreground transition-colors hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:self-center"
+          className="inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-border bg-background/80 px-4 py-2 font-mono text-[10px] tracking-[0.22em] uppercase text-foreground transition-colors hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:self-center"
         >
           Contact
           <ArrowUpRightIcon aria-hidden className="size-3.5" />
@@ -269,7 +272,7 @@ export default async function AboutPage() {
           <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
             How it&apos;s built
           </p>
-          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground/80">
+          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
             04 · Pipeline stages
           </p>
         </div>
@@ -298,7 +301,7 @@ export default async function AboutPage() {
           ].map((s) => (
             <li key={s.step}>
               <article className="flex h-full flex-col gap-2 rounded-xl border border-border bg-card/50 p-5">
-                <p className="font-mono text-[10px] tabular-nums tracking-[0.22em] uppercase text-muted-foreground/60">
+                <p className="font-mono text-[10px] tabular-nums tracking-[0.22em] uppercase text-muted-foreground">
                   Stage {s.step}
                 </p>
                 <p className="font-heading text-base font-semibold leading-tight tracking-tight">

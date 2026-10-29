@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { PreviewHero } from "@/components/preview-hero";
-import { fetchArchiveStats } from "@/lib/queries/recordings";
+import { fetchArchiveStatsOrNull } from "@/lib/queries/recordings";
 
 /**
  * `/` landing route.
@@ -21,12 +21,6 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
-  const { processedRecordings, distinctInterviewees } =
-    await fetchArchiveStats();
-  return (
-    <PreviewHero
-      processedRecordings={processedRecordings}
-      distinctInterviewees={distinctInterviewees}
-    />
-  );
+  // Landing must render without the database; the stats card degrades.
+  return <PreviewHero stats={await fetchArchiveStatsOrNull()} />;
 }

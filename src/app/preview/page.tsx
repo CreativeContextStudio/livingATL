@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { PreviewHero } from "@/components/preview-hero";
-import { fetchArchiveStats } from "@/lib/queries/recordings";
+import { fetchArchiveStatsOrNull } from "@/lib/queries/recordings";
 
 export const metadata: Metadata = {
   title: "livingATL. Invite-only preview",
@@ -11,12 +11,6 @@ export const metadata: Metadata = {
 };
 
 export default async function PreviewPage() {
-  const { processedRecordings, distinctInterviewees } =
-    await fetchArchiveStats();
-  return (
-    <PreviewHero
-      processedRecordings={processedRecordings}
-      distinctInterviewees={distinctInterviewees}
-    />
-  );
+  // Public holding page — must render without the database.
+  return <PreviewHero stats={await fetchArchiveStatsOrNull()} />;
 }

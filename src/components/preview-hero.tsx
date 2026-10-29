@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 import Link from "next/link";
 import {
   BookOpenIcon,
@@ -11,6 +10,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { canRequestViewArchive } from "@/lib/access-request";
+import type { ArchiveStats } from "@/lib/queries/recordings";
 import { cn } from "@/lib/utils";
 
 /**
@@ -30,8 +31,7 @@ import { cn } from "@/lib/utils";
  */
 
 function buildStats(
-  processedRecordings: number,
-  distinctInterviewees: number,
+  archive: ArchiveStats | null,
 ): Array<{ label: string; value: string; tail: string }> {
   return [
     {
@@ -39,11 +39,18 @@ function buildStats(
       value: "1914–1977",
       tail: "Recorded late 1970s · digitized by WRFG",
     },
-    {
-      label: "Processed",
-      value: `${processedRecordings} / ${distinctInterviewees}`,
-      tail: "recordings · distinct storytellers",
-    },
+    archive
+      ? {
+          label: "Processed",
+          value: `${archive.processedRecordings} / ${archive.distinctInterviewees}`,
+          tail: "recordings · distinct storytellers",
+        }
+      : {
+          // Database unreachable — keep the card, drop the live counts.
+          label: "Processed",
+          value: "In progress",
+          tail: "recordings · distinct storytellers",
+        },
     {
       label: "Access",
       value: "Invite-only",
@@ -84,7 +91,7 @@ const SURFACES: Surface[] = [
     body: "Search by theme, neighborhood, era, or name. Pull up a 1947 domestic worker alongside a 1974 civil rights organizer and see what they share.",
     href: "/browse",
     icon: BookOpenIcon,
-    iconAccent: "bg-primary/15 text-primary",
+    iconAccent: "bg-primary/15 text-primary-ink",
   },
   {
     label: "Map",
@@ -108,7 +115,7 @@ const SURFACES: Surface[] = [
     body: "Move through 1914–1977 along a scrubbable timeline. Storyteller-authored moments surface as dots. Tap one and you're inside the tape at that beat.",
     href: "/timeline",
     icon: ClockIcon,
-    iconAccent: "bg-primary/15 text-primary",
+    iconAccent: "bg-primary/15 text-primary-ink",
   },
   {
     label: "AI Portal",
@@ -139,34 +146,15 @@ const PLACEHOLDERS: Placeholder[] = [
 ];
 
 export type PreviewHeroProps = {
-  processedRecordings: number;
-  distinctInterviewees: number;
+  /** Null when the database is unreachable; the stats card degrades. */
+  stats: ArchiveStats | null;
 };
 
-/**
- * Has this visitor entered the site? Mirrors the precedence in `proxy.ts`:
- * when SITE_GATE_TOKEN is set the demo password gate is authoritative (the
- * `la_gate` cookie must match, regardless of the launch flag); otherwise the
- * launch flag decides. Returns false in plain invite-only preview, where no
- * cookie grants access. Drives whether the surface cards are live links —
- * an entered visitor can actually reach `/browse`, `/map`, etc., so the cards
- * navigate; everyone else gets the same cards rendered inert.
- */
-async function hasEntered(): Promise<boolean> {
-  const gateToken = process.env.SITE_GATE_TOKEN;
-  if (gateToken) {
-    const gateCookie = (await cookies()).get("la_gate")?.value ?? "";
-    return gateCookie.length === gateToken.length && gateCookie === gateToken;
-  }
-  return process.env.NEXT_PUBLIC_LAUNCH_ENABLED === "true";
-}
-
-export async function PreviewHero({
-  processedRecordings,
-  distinctInterviewees,
-}: PreviewHeroProps) {
-  const stats = buildStats(processedRecordings, distinctInterviewees);
-  const entered = await hasEntered();
+export async function PreviewHero({ stats: archive }: PreviewHeroProps) {
+  const stats = buildStats(archive);
+  // Can this visitor actually reach /browse, /map, …? Then the surface cards
+  // are live links; otherwise they render inert. Same rule as the proxy.
+  const entered = await canRequestViewArchive();
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-7xl flex-col gap-12 px-6 py-10 lg:gap-16 lg:py-16">
@@ -210,7 +198,7 @@ export async function PreviewHero({
           <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
             At a glance
           </p>
-          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground/80">
+          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
             03 · Data points
           </p>
         </div>
@@ -224,7 +212,7 @@ export async function PreviewHero({
                 <p className="font-heading text-3xl font-semibold leading-tight tracking-tight text-foreground">
                   {s.value}
                 </p>
-                <p className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground/80">
+                <p className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
                   {s.tail}
                 </p>
               </article>
@@ -238,7 +226,7 @@ export async function PreviewHero({
           <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
             How to livingATL
           </p>
-          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground/80">
+          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
             06 · Surfaces
           </p>
         </div>
@@ -282,7 +270,7 @@ export async function PreviewHero({
                 {entered ? (
                   <Link
                     href={s.href}
-                    className="group flex h-full w-full flex-col gap-4 rounded-xl border border-border bg-card/60 p-5 transition-colors hover:border-foreground/30 hover:bg-card/80 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                    className="group flex h-full w-full flex-col gap-4 rounded-xl border border-border bg-card/60 p-5 transition-colors hover:border-foreground/30 hover:bg-card/80 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {inner}
                   </Link>
@@ -336,7 +324,7 @@ export async function PreviewHero({
           <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
             Stewarded by
           </p>
-          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground/80">
+          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
             03 · Partners
           </p>
         </div>

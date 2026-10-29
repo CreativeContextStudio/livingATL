@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { TimelineClient } from "@/components/timeline/timeline-client";
 import { requireArchiveAccess } from "@/lib/access-request";
+import { fetchArchiveStatsOrNull } from "@/lib/queries/recordings";
 import { fetchTimelineData } from "@/lib/queries/timeline";
 
 /**
@@ -25,15 +26,14 @@ export default async function TimelinePage() {
   // PRD §8.8 backstop — the proxy is the first line; see src/lib/access.ts.
   await requireArchiveAccess();
 
-  const data = await fetchTimelineData();
+  const [data, stats] = await Promise.all([fetchTimelineData(), fetchArchiveStatsOrNull()]);
 
-  // Unique narrators, keyed by interviewee name when present so multi-clip
-  // interviews (e.g. MarianDoom1 + MarianDoom2) collapse into one narrator.
-  // Falls back to recordingId for rows that don't carry an interviewee
-  // name yet, so an anonymous narrator still counts as a distinct bucket.
-  const narratorCount = new Set(
-    data.moments.map((m) => m.intervieweeName ?? m.recordingId),
-  ).size;
+  // Same storyteller count as Home and About (every interviewee, so joint
+  // interviews count both people). If the stats query fails, fall back to
+  // distinct interviewee names on the moments.
+  const narratorCount =
+    stats?.distinctInterviewees ??
+    new Set(data.moments.map((m) => m.intervieweeName ?? m.recordingId)).size;
   const [yearFrom, yearTo] = data.yearRange;
 
   return (

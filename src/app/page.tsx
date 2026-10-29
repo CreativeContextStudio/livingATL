@@ -15,9 +15,9 @@ import { fetchArchiveStatsOrNull } from "@/lib/queries/recordings";
  */
 
 export const metadata: Metadata = {
-  title: "livingATL. Atlanta's elders are talking.",
+  title: "livingATL · Atlanta oral histories, 1914–1977",
   description:
-    "A public archive of Atlanta oral history, 1914–1977. 500+ recordings from WRFG's Living Atlanta series, made searchable, listenable, and open. Citation-first. Currently invite-only.",
+    "Listen to WRFG's Living Atlanta interviews: Atlantans recorded in the late 1970s, telling stories of the city from 1914 to 1977. Searchable, with transcripts. Private preview.",
 };
 
 export default async function Home() {

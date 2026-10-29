@@ -105,7 +105,7 @@ const PARTNERS: Partner[] = [
     role: "Broadcast partner",
     name: "WRFG",
     descriptor: "Radio Free Georgia · 89.3 FM",
-    body: "Atlanta's community radio station. The Living Atlanta oral history series was recorded in the mid-to-late 1970s and aired on WRFG in the early 1980s; every recording in this archive began on its tapes, reels, and field cassettes.",
+    body: "Atlanta's community radio station. WRFG recorded the Living Atlanta interviews in the late 1970s, aired the series in the early 1980s, and later digitized the tapes.",
     accent: "bg-primary",
   },
   {
@@ -113,7 +113,7 @@ const PARTNERS: Partner[] = [
     role: "Archive steward",
     name: "Atlanta History Center",
     descriptor: "Kenan Research Center",
-    body: "Steward of the original Living Atlanta tapes, catalog metadata, and accompanying papers. The Center digitized the reel-to-reel masters in the late 1990s; livingATL builds on that preservation work. The audio, the catalog numbers, and the finding aids all come from its collection.",
+    body: "Houses the Living Atlanta collection in its Kenan Research Center, with the catalog records and finding aids. The catalog numbers on every recording come from its collection.",
     accent: "bg-amber-500/80",
   },
   {
@@ -121,7 +121,7 @@ const PARTNERS: Partner[] = [
     role: "Design + build",
     name: "Creative Context Studio",
     descriptor: "Platform partner",
-    body: "Designed and built the livingATL platform (transcription pipeline, player, and AI-assisted metadata layer) in partnership with WRFG and the Atlanta History Center.",
+    body: "Designed and built livingATL, from the transcripts to the player, with WRFG and the Atlanta History Center.",
     accent: "bg-teal-500/80",
   },
 ];

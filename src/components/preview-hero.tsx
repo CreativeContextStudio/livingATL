@@ -4,8 +4,8 @@ import {
   MapPinIcon,
   HeadphonesIcon,
   ClockIcon,
+  LandmarkIcon,
   SparklesIcon,
-  PodcastIcon,
   ArrowUpRightIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -26,35 +26,23 @@ import { cn } from "@/lib/utils";
  * Design intent: a sibling of `/browse`, `/map`, and `/contact`. Same
  * `max-w-7xl` shell, mono-eyebrow + `font-heading` hero + muted body
  * vocabulary; extended with a stats rail and a partner strip so the front
- * door carries more presence than the other pages.
- * Kept fully static — the launch-gate page shouldn't hit the DB.
+ * door carries more presence than the other pages. Copy: plain and brief —
+ * what the collection is, what's online, how to start.
  */
 
 function buildStats(
   archive: ArchiveStats | null,
 ): Array<{ label: string; value: string; tail: string }> {
   return [
+    { label: "Years", value: "1914–1977", tail: "the stories cover" },
+    { label: "Interviews", value: "500+", tail: "recorded by WRFG" },
     {
-      label: "The tapes",
-      value: "1914–1977",
-      tail: "Recorded late 1970s · digitized by WRFG",
-    },
-    archive
-      ? {
-          label: "Processed",
-          value: `${archive.processedRecordings} / ${archive.distinctInterviewees}`,
-          tail: "recordings · distinct storytellers",
-        }
-      : {
-          // Database unreachable — keep the card, drop the live counts.
-          label: "Processed",
-          value: "In progress",
-          tail: "recordings · distinct storytellers",
-        },
-    {
-      label: "Access",
-      value: "Invite-only",
-      tail: "Citation-first preview",
+      label: "Online now",
+      // Null when the database is unreachable; the card stays.
+      value: archive ? String(archive.processedRecordings) : "—",
+      tail: archive
+        ? `recordings from ${archive.distinctInterviewees} storytellers`
+        : "recordings",
     },
   ];
 }
@@ -62,15 +50,15 @@ function buildStats(
 type Steward = { name: string; role: string; accent: string };
 
 const STEWARDS: Steward[] = [
-  { name: "WRFG", role: "Broadcast origin", accent: "bg-primary" },
+  { name: "WRFG", role: "Recorded and digitized the tapes", accent: "bg-primary" },
   {
     name: "Atlanta History Center",
-    role: "Archive home",
+    role: "Houses the collection",
     accent: "bg-amber-500/80",
   },
   {
     name: "Creative Context Studio",
-    role: "Design + build",
+    role: "Designed and built livingATL",
     accent: "bg-teal-500/80",
   },
 ];
@@ -87,61 +75,51 @@ type Surface = {
 const SURFACES: Surface[] = [
   {
     label: "Collection",
-    heading: "Every storyteller, findable.",
-    body: "Search by theme, neighborhood, era, or name. Pull up a 1947 domestic worker alongside a 1974 civil rights organizer and see what they share.",
+    heading: "Browse the recordings",
+    body: "Filter by neighborhood, theme, or decade, or search for a name.",
     href: "/browse",
     icon: BookOpenIcon,
     iconAccent: "bg-primary/15 text-primary-ink",
   },
   {
-    label: "Map",
-    heading: "Find your neighborhood's tape.",
-    body: "Every storyteller placed where they lived, worked, and were recorded. Open your block and hear who came before you.",
-    href: "/map",
-    icon: MapPinIcon,
-    iconAccent: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-  },
-  {
-    label: "Player",
-    heading: "Sit inside the recording.",
-    body: "Transcript tracks with the audio. Chapters move you through moments the storyteller chose. Every AI summary cites the second of tape it came from.",
-    href: "/browse",
+    label: "Listening paths",
+    heading: "Start with a path",
+    body: "A few minutes from several interviews, in order. A good first listen.",
+    href: "/paths",
     icon: HeadphonesIcon,
     iconAccent: "bg-teal-500/15 text-teal-700 dark:text-teal-400",
   },
   {
     label: "Timeline",
-    heading: "Walk the decades.",
-    body: "Move through 1914–1977 along a scrubbable timeline. Storyteller-authored moments surface as dots. Tap one and you're inside the tape at that beat.",
+    heading: "Move through the decades",
+    body: "Each moment sits on the year it describes. Select one to read it and listen.",
     href: "/timeline",
     icon: ClockIcon,
+    iconAccent: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+  },
+  {
+    label: "Map",
+    heading: "Find a neighborhood",
+    body: "See which recordings talk about a place.",
+    href: "/map",
+    icon: MapPinIcon,
     iconAccent: "bg-primary/15 text-primary-ink",
   },
   {
+    label: "Neighborhoods",
+    heading: "Read about a place",
+    body: "Each neighborhood page gathers its recordings and moments.",
+    href: "/places",
+    icon: LandmarkIcon,
+    iconAccent: "bg-teal-500/15 text-teal-700 dark:text-teal-400",
+  },
+  {
     label: "AI Portal",
-    heading: "Ask the archive.",
-    body: "A citation-first conversational interface over the full collection. Every answer cites the recording, the speaker, and the timecode it came from. No fabricated quotes.",
+    heading: "Ask a question",
+    body: "Ask about people, places, or events. Each answer links to the recordings it draws on.",
     href: "/portal",
     icon: SparklesIcon,
     iconAccent: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-  },
-];
-
-type Placeholder = {
-  label: string;
-  heading: string;
-  body: string;
-  icon: LucideIcon;
-  iconAccent: string;
-};
-
-const PLACEHOLDERS: Placeholder[] = [
-  {
-    label: "Podcast",
-    heading: "The archive, on the air.",
-    body: "Curated audio episodes drawn straight from the tapes. Themes, neighborhoods, and storyteller arcs threaded together with light editorial framing and full citations back to the source recordings.",
-    icon: PodcastIcon,
-    iconAccent: "bg-teal-500/10 text-teal-700/80 dark:text-teal-400/80",
   },
 ];
 
@@ -162,46 +140,32 @@ export async function PreviewHero({ stats: archive }: PreviewHeroProps) {
         <div className="flex items-center gap-3">
           <div aria-hidden className="h-1.5 w-20 rounded-full bg-primary" />
           <p className="font-mono text-xs tracking-[0.22em] uppercase text-muted-foreground">
-            livingATL · Invite-only preview
+            livingATL · Private preview
           </p>
         </div>
 
-        <h1 className="font-heading text-5xl leading-[1.05] font-bold tracking-tight sm:text-6xl lg:text-[5.25rem]">
-          Atlanta&rsquo;s living story,
-          <br />
-          <span className="text-foreground/60">
-            spoken by the voices that knew it then and remember it now.
-          </span>
+        <h1 className="max-w-4xl font-heading text-5xl leading-[1.05] font-bold tracking-tight sm:text-6xl">
+          Atlanta, in the words of the people who lived it.
         </h1>
 
-        <p className="text-lg leading-relaxed text-foreground/85">
-          Between 1914 and 1977, Atlanta lived through the decades that
-          shaped the culture and communities we know today. In the
-          mid-to-late 1970s, WRFG&apos;s{" "}
-          <span className="font-medium text-foreground">Living Atlanta</span>{" "}
-          series invited Atlantans to sit down at microphones and tell those
-          stories in their own words. The result was more than 500
-          conversations, now digitized by WRFG and preserved by the Atlanta
-          History Center.
+        <p className="max-w-3xl text-lg leading-relaxed text-foreground/85">
+          In the late 1970s, WRFG radio recorded more than 500 interviews for
+          its <span className="font-medium text-foreground">Living Atlanta</span>{" "}
+          series. Atlantans talked about life in the city from 1914 to 1977:
+          work, family, church, school, and segregation. The Atlanta
+          History Center houses the collection.
         </p>
 
-        <p className="text-lg leading-relaxed text-foreground/85">
-          livingATL opens that collection to new kinds of discovery:
-          searchable, listenable, and mapped to the neighborhoods, years, and
-          movements its speakers helped shape.
+        <p className="max-w-3xl text-lg leading-relaxed text-foreground/85">
+          livingATL puts these recordings online, with transcripts, so you can
+          search them, listen, and follow the stories by neighborhood and year.
         </p>
-
       </section>
 
       <section aria-label="Collection at a glance" className="flex flex-col gap-3">
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
-            At a glance
-          </p>
-          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
-            03 · Data points
-          </p>
-        </div>
+        <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
+          At a glance
+        </p>
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {stats.map((s) => (
             <li key={s.label}>
@@ -221,15 +185,10 @@ export async function PreviewHero({ stats: archive }: PreviewHeroProps) {
         </ul>
       </section>
 
-      <section aria-label="How to livingATL" className="flex flex-col gap-4">
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
-            How to livingATL
-          </p>
-          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
-            06 · Surfaces
-          </p>
-        </div>
+      <section aria-label="Ways in" className="flex flex-col gap-4">
+        <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
+          Ways in
+        </p>
         <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {SURFACES.map((s) => {
             const Icon = s.icon;
@@ -256,9 +215,9 @@ export async function PreviewHero({ stats: archive }: PreviewHeroProps) {
                   <p className="font-mono text-[10px] font-semibold tracking-[0.22em] uppercase text-muted-foreground">
                     {s.label}
                   </p>
-                  <h3 className="font-heading text-xl font-semibold leading-tight tracking-tight">
+                  <h2 className="font-heading text-xl font-semibold leading-tight tracking-tight">
                     {s.heading}
-                  </h3>
+                  </h2>
                 </div>
                 <p className="text-sm leading-relaxed text-foreground/80">
                   {s.body}
@@ -282,52 +241,13 @@ export async function PreviewHero({ stats: archive }: PreviewHeroProps) {
               </li>
             );
           })}
-          {PLACEHOLDERS.map((p) => {
-            const Icon = p.icon;
-            return (
-              <li key={p.label} className="flex">
-                <article className="flex h-full w-full flex-col gap-4 rounded-xl border border-dashed border-border bg-card/30 p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "inline-flex size-10 shrink-0 items-center justify-center rounded-lg",
-                        p.iconAccent,
-                      )}
-                    >
-                      <Icon className="size-5" strokeWidth={1.75} />
-                    </span>
-                    <span className="rounded-full border border-border/70 bg-background/60 px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] uppercase text-muted-foreground">
-                      Soon
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <p className="font-mono text-[10px] font-semibold tracking-[0.22em] uppercase text-muted-foreground">
-                      {p.label}
-                    </p>
-                    <h3 className="font-heading text-xl font-semibold leading-tight tracking-tight text-foreground/90">
-                      {p.heading}
-                    </h3>
-                  </div>
-                  <p className="text-sm leading-relaxed text-foreground/70">
-                    {p.body}
-                  </p>
-                </article>
-              </li>
-            );
-          })}
         </ul>
       </section>
 
       <section aria-label="Stewardship" className="flex flex-col gap-3">
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
-            Stewarded by
-          </p>
-          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
-            03 · Partners
-          </p>
-        </div>
+        <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
+          Who&apos;s behind it
+        </p>
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {STEWARDS.map((s) => (
             <li key={s.name}>
@@ -350,25 +270,18 @@ export async function PreviewHero({ stats: archive }: PreviewHeroProps) {
         </ul>
       </section>
 
-      <section aria-label="Editorial guarantee" className="flex flex-col gap-3">
-        <div className="flex items-center gap-3">
-          <div aria-hidden className="h-1.5 w-20 rounded-full bg-foreground/70" />
-          <p className="font-mono text-xs tracking-[0.22em] uppercase text-muted-foreground">
-            Citation-first preview
-          </p>
-        </div>
+      <section aria-label="About the recordings" className="flex max-w-3xl flex-col gap-2">
+        <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
+          About the recordings
+        </p>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          The tapes are the beginning of the sentence, not the end. Atlanta
-          residents will add their own recordings to the same shelf as the
-          Living Atlanta tapes, so the archive keeps growing the way the
-          city does.
-          For now we&apos;re in{" "}
-          <span className="font-medium text-foreground/90">
-            citation-first preview
-          </span>{" "}
-          with WRFG and the Atlanta History Center. Every AI-synthesized
-          answer traces back to source audio with timecodes. No fabricated
-          quotes. No impersonation.
+          Recordings play as they were spoken, including the language of their
+          time; some open with a short content note. Transcripts are made by
+          software and can contain errors. AI helps with summaries and the
+          Portal, and its answers link back to the recordings they come from.{" "}
+          <Link href="/about" className="font-medium text-foreground underline-offset-4 hover:underline">
+            More about the project
+          </Link>
         </p>
       </section>
     </main>

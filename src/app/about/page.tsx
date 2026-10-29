@@ -3,259 +3,154 @@ import Link from "next/link";
 import { ArrowUpRightIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import {
-  fetchArchiveStatsOrNull,
-  type ArchiveStats,
-} from "@/lib/queries/recordings";
+import { fetchArchiveStatsOrNull } from "@/lib/queries/recordings";
 
 /**
- * About page. The public-facing identity page for livingATL — what the
- * archive is, whose voices live in it, who's stewarding it, and how the
- * AI-augmented pipeline works without rewriting what was spoken.
+ * About page — what the collection is, how livingATL presents it, how the
+ * transcripts and tags are made, and who is behind it.
  *
- * Voice notes:
- *   - Echoes the existing site-wide phrases ("citation-first preview mode",
- *     "authentic Atlanta voices", "preserve, don't censor") so listeners
- *     arriving from the AI advisory, PreviewHero, or Contact page hear the
- *     same editorial voice.
- *   - PRD §5 vision line — "These are not 'old' stories. They are from our
- *     elders. They are a light to guide today's Atlanta..." — anchors the
- *     Vision card verbatim so the platform's stated purpose stays visible
- *     on its public identity page.
+ * Copy rules (2026-10-29 rewrite): plain and brief; state only what is
+ * true today. WRFG recorded and digitized the tapes; the Atlanta History
+ * Center houses the collection. AI drafts, the project team reviews — no
+ * absolute promises about review.
  *
- * Design intent: sibling of `/browse`, `/map`, `/contact`, and
- * `<PreviewHero />`. Same `max-w-7xl` shell, mono-eyebrow + `font-heading`
- * hero, `rounded-xl border bg-card/XX` card vocabulary, portrait-band
- * accent rules, mono `NN · Count` section tails.
+ * Design: sibling of `/browse`, `/contact` and `<PreviewHero />` — same
+ * `max-w-7xl` shell, mono eyebrow + `font-heading` hero, `rounded-xl
+ * border bg-card/XX` cards with short accent rules.
  */
 
 export const metadata: Metadata = {
   title: "About · livingATL",
   description:
-    "livingATL opens the Living Atlanta oral history collection (1914–1977): 500+ recordings from the people who lived the city. It also builds the room for Atlantans to keep recording alongside them. Citation-first. Preserve, don't censor.",
+    "livingATL puts WRFG's Living Atlanta interviews online: Atlantans recorded in the late 1970s, telling stories of the city from 1914 to 1977.",
 };
 
-function buildStats(
-  archive: ArchiveStats | null,
-): Array<{ label: string; value: string; tail: string }> {
-  return [
-    {
-      label: "Processed",
-      // Null when the database is unreachable — static page still renders.
-      value: archive
-        ? `${archive.processedRecordings} / ${archive.distinctInterviewees}`
-        : "In progress",
-      tail: "recordings · distinct storytellers",
-    },
-    {
-      label: "Collection",
-      value: "500+",
-      tail: "recordings waiting to be heard",
-    },
-    {
-      label: "Era",
-      value: "1914–1977",
-      tail: "Living Atlanta tapes",
-    },
-  ];
-}
-
-type Principle = {
-  index: string;
-  label: string;
-  heading: string;
-  body: string;
-  accent: string;
-};
-
-const PRINCIPLES: Principle[] = [
+const PRINCIPLES: Array<{ heading: string; body: string; accent: string }> = [
   {
-    index: "01",
-    label: "Editorial stance",
-    heading: "Preserve, don't censor.",
-    body: "We do not edit the historical record to make it more comfortable for the present. Recordings play exactly as they were spoken, including language specific to the speaker's decade. A preventive advisory frames sensitive passages before playback, so a listener is prepared, not protected from what was actually said.",
+    heading: "Presented as spoken",
+    body: "Recordings are not edited. They include the language of their time. Where a recording has difficult material, a short note comes before it plays.",
     accent: "bg-primary",
   },
   {
-    index: "02",
-    label: "Citation-first",
-    heading: "Every answer traces back.",
-    body: "Every summary, every chapter, every semantic-search result links to source audio with timecodes. No fabricated quotes. No impersonation. If a claim cannot be cited back to the tape, it is not made.",
+    heading: "Linked to the source",
+    body: "Chapters, summaries, and Portal answers point to the place in the recording they come from, so you can hear it for yourself.",
     accent: "bg-amber-500/80",
   },
   {
-    index: "03",
-    label: "Human before publishing",
-    heading: "AI assists. People ship.",
-    body: "Every low-confidence transcript and every sensitivity-flagged passage sits in a review queue until a human reviewer signs it off. Automation carries the volume. The editorial call is never automated.",
+    heading: "AI helps, people review",
+    body: "AI drafts transcripts, chapters, and topic tags, and the project team reviews them. Transcripts can still contain errors. If you find one, please tell us.",
     accent: "bg-teal-500/80",
   },
 ];
 
+const STEPS: Array<{ label: string; body: string }> = [
+  {
+    label: "Transcribe",
+    body: "Speech-recognition software (Whisper) turns each recording into a transcript. It runs on the project's own computers.",
+  },
+  {
+    label: "Separate the speakers",
+    body: "Software tells the interviewer's voice apart from the storyteller's, so each line is attributed to the right person.",
+  },
+  {
+    label: "Add chapters and tags",
+    body: "An AI model (Claude) reads the transcript and drafts chapters, summaries, places, and topics, and marks passages that need a content note.",
+  },
+  {
+    label: "Review",
+    body: "The project team checks the drafts and fixes what it finds. Corrections from listeners come in through the Contact page.",
+  },
+];
+
 export default async function AboutPage() {
-  const STATS = buildStats(await fetchArchiveStatsOrNull());
+  const stats = await fetchArchiveStatsOrNull();
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-6 py-10 lg:gap-12 lg:py-14">
-      <header className="flex flex-col gap-4">
+      <header className="flex max-w-3xl flex-col gap-4">
         <div className="flex items-center gap-3">
           <div aria-hidden className="h-1.5 w-20 rounded-full bg-primary" />
           <p className="font-mono text-xs tracking-[0.22em] uppercase text-muted-foreground">
-            About · livingATL
+            About
           </p>
         </div>
-        <h1 className="font-heading text-4xl leading-tight font-bold tracking-tight sm:text-5xl">
-          Atlanta&rsquo;s oral history, carried forward through the voices
-          of those who lived it.
+        <h1 className="font-heading text-3xl leading-tight font-bold tracking-tight sm:text-4xl">
+          A public home for the Living Atlanta interviews
         </h1>
       </header>
 
-      <section aria-label="At a glance" className="flex flex-col gap-3">
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
-            At a glance
-          </p>
-          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
-            03 · Data points
-          </p>
-        </div>
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {STATS.map((s) => (
-            <li key={s.label}>
-              <article className="flex h-full flex-col gap-2 rounded-xl border border-border bg-card/60 p-5">
-                <p className="font-mono text-[10px] font-semibold tracking-[0.22em] uppercase text-muted-foreground">
-                  {s.label}
-                </p>
-                <p className="font-heading text-3xl font-semibold leading-tight tracking-tight text-foreground">
-                  {s.value}
-                </p>
-                <p className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
-                  {s.tail}
-                </p>
-              </article>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section aria-label="Vision" className="grid grid-cols-1 gap-10 lg:grid-cols-[1.1fr_1.9fr] lg:items-start lg:gap-12">
-        <div className="flex flex-col gap-5">
-          <div className="flex items-center gap-3">
-            <div aria-hidden className="h-1.5 w-20 rounded-full bg-primary" />
-            <p className="font-mono text-xs tracking-[0.22em] uppercase text-muted-foreground">
-              Vision · §5
-            </p>
-          </div>
-          <blockquote className="font-heading text-2xl leading-[1.15] font-bold tracking-tight text-foreground sm:text-3xl lg:text-xl lg:leading-snug xl:text-2xl">
-            &ldquo;These are not &lsquo;old&rsquo; stories. They are from our
-            elders. They are{" "}
-            <span className="text-primary-ink">
-              a light to guide today&apos;s Atlanta
-            </span>{" "}
-            toward the future its communities want to build.&rdquo;
-          </blockquote>
-        </div>
-
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <div aria-hidden className="h-1.5 w-20 rounded-full bg-amber-500/80" />
-            <p className="font-mono text-xs tracking-[0.22em] uppercase text-muted-foreground">
-              What we&apos;re building
-            </p>
-          </div>
-          <h2 className="font-heading text-xl leading-snug font-semibold tracking-tight text-foreground/85 sm:text-2xl lg:text-lg xl:text-xl">
-            The archive is the opening move. Around it we are building the
-            room where those elder voices meet the Atlantans coming after
-            them, where a 1970s WRFG tape and a recording made next month
-            sit on the{" "}
-            <span className="text-amber-700 dark:text-amber-400">
-              same shelf
-            </span>
-            , tagged to the same neighborhoods, answering the same
-            questions.
-          </h2>
-          <p className="text-base leading-relaxed text-muted-foreground">
-            The collection stays free, ad-free, and citation-first. Every
-            AI-synthesized summary, chapter, and search answer points back
-            to source audio with timecodes. No fabricated quotes. No
-            impersonation. No paraphrase standing in for the tape.
-          </p>
-        </div>
-      </section>
-
-      <section aria-label="Why this archive matters" className="flex flex-col gap-3">
-        <div className="flex items-center gap-3">
-          <div aria-hidden className="h-1.5 w-20 rounded-full bg-foreground/70" />
-          <p className="font-mono text-xs tracking-[0.22em] uppercase text-muted-foreground">
-            Why this archive
-          </p>
-        </div>
-        <p className="text-base leading-relaxed text-muted-foreground">
+      <section aria-label="The recordings" className="flex max-w-3xl flex-col gap-4 text-base leading-relaxed text-foreground/85">
+        <p>
+          In the late 1970s, WRFG (Radio Free Georgia, 89.3 FM) recorded more
+          than 500 interviews for its{" "}
           <span className="font-medium text-foreground">Living Atlanta</span>{" "}
-          is a radio oral history of the city between 1914 and 1977: more
-          than 500 interviews WRFG recorded in the mid-to-late 1970s,
-          broadcast on Radio Free Georgia in the early 1980s, and entrusted
-          to the Atlanta History Center. It is, quietly, one of the most
-          complete first-person
-          portraits of 20th-century Atlanta in existence. livingATL is opening it: searchable,
-          listenable, neighborhood-mapped, and fully cited back to tape.
-          Not a word rewritten. The people in these recordings are mostly
-          gone. Their stories are not.
+          series. Atlantans described the city they knew from 1914 to 1977:
+          their neighborhoods, jobs, churches, and schools, and life under
+          segregation. WRFG aired the series in the early 1980s and later
+          digitized the tapes. The Atlanta History Center houses the
+          collection.
+        </p>
+        <p>
+          livingATL puts the interviews online with transcripts, chapters, and
+          maps, so anyone can find them and listen.{" "}
+          {stats
+            ? `${stats.processedRecordings} recordings from ${stats.distinctInterviewees} storytellers are online so far; more are added as they are prepared.`
+            : "More recordings are added as they are prepared."}
         </p>
       </section>
 
-      <section aria-label="Editorial principles" className="flex flex-col gap-4">
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
-            Principles
-          </p>
-          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
-            03 · Editorial stance
-          </p>
-        </div>
+      <section aria-label="How we present the recordings" className="flex flex-col gap-4">
+        <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
+          How we present them
+        </p>
         <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {PRINCIPLES.map((p) => (
-            <li key={p.label} className="flex">
-              <article className="relative flex h-full w-full flex-col gap-4 rounded-xl border border-border bg-card/60 p-5">
-                <div
-                  aria-hidden
-                  className={cn("h-1 w-12 rounded-full", p.accent)}
-                />
-                <div className="flex items-baseline justify-between gap-2">
-                  <p className="font-mono text-[10px] font-semibold tracking-[0.22em] uppercase text-muted-foreground">
-                    {p.label}
-                  </p>
-                  <p className="font-mono text-[10px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
-                    {p.index}
-                  </p>
-                </div>
-                <h3 className="font-heading text-xl font-semibold leading-tight tracking-tight">
+            <li key={p.heading} className="flex">
+              <article className="flex h-full w-full flex-col gap-3 rounded-xl border border-border bg-card/60 p-5">
+                <div aria-hidden className={cn("h-1 w-12 rounded-full", p.accent)} />
+                <h2 className="font-heading text-lg font-semibold leading-tight tracking-tight">
                   {p.heading}
-                </h3>
-                <p className="text-sm leading-relaxed text-foreground/80">
-                  {p.body}
-                </p>
+                </h2>
+                <p className="text-sm leading-relaxed text-foreground/80">{p.body}</p>
               </article>
             </li>
           ))}
         </ul>
       </section>
 
+      <section aria-label="How it's made" className="flex flex-col gap-4">
+        <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
+          How it&apos;s made
+        </p>
+        <ol className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {STEPS.map((s, i) => (
+            <li key={s.label}>
+              <article className="flex h-full flex-col gap-2 rounded-xl border border-border bg-card/50 p-5">
+                <p className="font-mono text-[10px] tabular-nums tracking-[0.22em] uppercase text-muted-foreground">
+                  Step {i + 1}
+                </p>
+                <h3 className="font-heading text-base font-semibold leading-tight tracking-tight">
+                  {s.label}
+                </h3>
+                <p className="text-sm leading-relaxed text-foreground/80">{s.body}</p>
+              </article>
+            </li>
+          ))}
+        </ol>
+      </section>
+
       <section
-        aria-label="Stewardship handoff"
+        aria-label="Who's behind it"
         className="flex flex-col gap-3 rounded-xl border border-dashed border-border bg-card/40 p-6 sm:flex-row sm:items-start sm:justify-between sm:gap-8"
       >
-        <div className="flex flex-col gap-2">
+        <div className="flex max-w-3xl flex-col gap-2">
           <p className="font-mono text-[11px] tracking-[0.22em] uppercase text-muted-foreground">
-            Stewardship
+            Who&apos;s behind it
           </p>
-          <h2 className="font-heading text-xl font-semibold leading-tight tracking-tight">
-            Stewarded by WRFG, the Atlanta History Center, and Creative
-            Context Studio.
-          </h2>
-          <p className="text-sm leading-relaxed text-foreground/80">
-            Read more about the partners, and about the sponsorship,
-            partnership, and volunteer-reviewer tracks the archive is
-            actively opening, on the Contact page.
+          <p className="text-sm leading-relaxed text-foreground/85">
+            WRFG recorded and digitized the interviews. The Atlanta History
+            Center houses the collection. Creative Context Studio designed and
+            built livingATL. Questions, corrections, or want to help? Get in
+            touch.
           </p>
         </div>
         <Link
@@ -265,60 +160,6 @@ export default async function AboutPage() {
           Contact
           <ArrowUpRightIcon aria-hidden className="size-3.5" />
         </Link>
-      </section>
-
-      <section aria-label="How the platform was built" className="flex flex-col gap-4">
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
-            How it&apos;s built
-          </p>
-          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
-            04 · Pipeline stages
-          </p>
-        </div>
-        <ol className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {[
-            {
-              step: "01",
-              label: "Could the audio leak.",
-              body: "Whisper transcribes the tapes locally on Apple Metal. No third-party API. No cloud trip for the audio. The recordings never leave a reviewer's machine until a human decides they're ready.",
-            },
-            {
-              step: "02",
-              label: "Could the wrong voice get the wrong words.",
-              body: "Speaker diarization (pyannote.audio) labels who is speaking when (interviewer versus interviewee), and carries voice identity across multi-clip recordings, so the storyteller stays the storyteller from start to finish.",
-            },
-            {
-              step: "03",
-              label: "Could the AI make something up.",
-              body: "Claude reads each transcript and drafts chapters, themes, neighborhoods, and a preservation-first sensitivity review. Every field is a draft. A human approves each one before it reaches the archive.",
-            },
-            {
-              step: "04",
-              label: "Could a bad transcript ship.",
-              body: "Low-confidence segments and flagged passages sit in a review queue until an assigned human reviewer signs them off. The public archive only ever sees recordings that have cleared that gate.",
-            },
-          ].map((s) => (
-            <li key={s.step}>
-              <article className="flex h-full flex-col gap-2 rounded-xl border border-border bg-card/50 p-5">
-                <p className="font-mono text-[10px] tabular-nums tracking-[0.22em] uppercase text-muted-foreground">
-                  Stage {s.step}
-                </p>
-                <p className="font-heading text-base font-semibold leading-tight tracking-tight">
-                  {s.label}
-                </p>
-                <p className="text-sm leading-relaxed text-foreground/80">
-                  {s.body}
-                </p>
-              </article>
-            </li>
-          ))}
-        </ol>
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          No audio was altered. No transcript was rewritten. No spoken word
-          was edited. AI carries the volume. A human signed every
-          curatorial call before it reached you.
-        </p>
       </section>
     </main>
   );

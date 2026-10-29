@@ -19,6 +19,7 @@ import {
 } from "@/components/shared/category-colors";
 import { cn } from "@/lib/utils";
 import type { BrowserFacet, BrowserFacets } from "@/lib/queries/recordings";
+import { captureEvent } from "@/lib/analytics/posthog";
 
 const COLLAPSED_COUNT = 8;
 
@@ -221,6 +222,13 @@ function FilterChip({
       params.set(paramKey, option.value);
     }
     const qs = params.toString();
+    // Facet values are taxonomy slugs, not visitor text — safe to record.
+    captureEvent("browser_filter_change", {
+      surface: pathname,
+      facet: paramKey,
+      value: option.value,
+      action: active ? "remove" : "add",
+    });
     startTransition(() => {
       router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     });
@@ -232,7 +240,7 @@ function FilterChip({
     <button
       type="button"
       onClick={onClick}
-      className="transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 rounded-4xl"
+      className="transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-4xl"
       aria-pressed={displayActive}
     >
       <Badge
@@ -246,7 +254,7 @@ function FilterChip({
         )}
       >
         {label}
-        <span className="ml-1 text-[10px] opacity-60">{option.count}</span>
+        <span className="ml-1 text-[10px] font-normal tabular-nums">{option.count}</span>
       </Badge>
     </button>
   );
@@ -267,6 +275,11 @@ function ActiveFilterStrip({
   if (activeEntries.length === 0) return null;
 
   const clearAll = () => {
+    captureEvent("browser_filter_change", {
+      surface: pathname,
+      action: "clear_all",
+      cleared: activeEntries.length,
+    });
     startTransition(() => {
       router.push(pathname, { scroll: false });
     });
@@ -286,7 +299,7 @@ function ActiveFilterStrip({
             variant="outline"
             className={cn("gap-1", style.bg, style.border, style.text)}
           >
-            <span className="text-[10px] uppercase tracking-[0.1em] opacity-70">
+            <span className="text-[10px] uppercase tracking-[0.1em]">
               {keyLabel(key)}
             </span>
             <span>{displayValue}</span>

@@ -68,7 +68,13 @@ export function FilterTabs({
     [facets, active],
   );
 
-  const [tab, setTab] = useState<FilterKey>("decade");
+  // Open on the first tab that has an active filter (e.g. `?theme=labor`
+  // opens "Theme"), so the selection that's narrowing the list is visible.
+  // Falls back to Era. Initial value only — the visitor's own tab choice
+  // then sticks.
+  const [tab, setTab] = useState<FilterKey>(
+    () => tabs.find((t) => t.activeValue)?.value ?? "decade",
+  );
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-border bg-card/60 p-5">
@@ -80,7 +86,7 @@ export function FilterTabs({
               <TabsTrigger key={t.value} value={t.value} className="h-7 px-3">
                 <span>{t.label}</span>
                 {activeCount > 0 && (
-                  <span className="ml-1 inline-flex size-5 items-center justify-center rounded-full bg-primary/15 text-[11px] font-semibold text-primary">
+                  <span className="ml-1 inline-flex size-5 items-center justify-center rounded-full bg-primary/15 text-[11px] font-semibold text-primary-ink">
                     {activeCount}
                   </span>
                 )}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import {
+  fetchArchiveStats,
   fetchBrowserFacets,
   fetchBrowserRecordings,
   type BrowserFilter,
@@ -11,6 +12,7 @@ import { FilterTabs } from "@/components/browser/filter-tabs";
 import { SortSelect } from "@/components/browser/sort-select";
 import { SearchInput } from "@/components/browser/search-input";
 import { RecordingCard } from "@/components/browser/recording-card";
+import { requireArchiveAccess } from "@/lib/access-request";
 
 /**
  * Collection Browser — PRD §7.1.
@@ -36,6 +38,7 @@ const VALID_SORTS = new Set<BrowserSort>([
   "date_recorded_desc",
   "duration_desc",
   "date_added_desc",
+  "random",
 ]);
 
 /**
@@ -48,7 +51,9 @@ const VALID_SORTS = new Set<BrowserSort>([
  */
 function normalizeSort(raw: string | undefined): BrowserSort {
   if (raw && VALID_SORTS.has(raw as BrowserSort)) return raw as BrowserSort;
-  return "random";
+  // PRD §7.1: alphabetical by default — stable across filter changes and
+  // Back, and it matches what the sort control says.
+  return "alphabetical";
 }
 
 function firstParam(
@@ -63,6 +68,8 @@ export default async function BrowsePage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  // PRD §8.8 backstop — the proxy is the first line; see src/lib/access.ts.
+  await requireArchiveAccess();
   const params = await searchParams;
   const filter: BrowserFilter = {
     theme: firstParam(params.theme),
@@ -74,18 +81,15 @@ export default async function BrowsePage({
   };
   const sort = normalizeSort(firstParam(params.sort));
 
-  const [filtered, facets] = await Promise.all([
+  const [filtered, facets, stats] = await Promise.all([
     fetchBrowserRecordings(filter, sort),
     fetchBrowserFacets(),
+    fetchArchiveStats(),
   ]);
 
-  // Total corpus size comes from the facets aggregate — we avoid a
-  // separate COUNT query since we already ran the grouping for the
-  // filter bar. Fallback to filtered count when no facets returned.
-  const totalRecordings = Math.max(
-    filtered.length,
-    facets.themes[0]?.count ?? 0,
-  );
+  // Corpus total = every published (completed) recording. The previous
+  // max(filtered, top theme's count) showed the most common theme's count.
+  const totalRecordings = stats.processedRecordings;
   const hasActiveFilter = Boolean(
     filter.theme ||
       filter.neighborhood ||
@@ -180,7 +184,7 @@ function EmptyState() {
       </p>
       <Link
         href="/browse"
-        className="mt-2 text-sm font-medium text-primary underline underline-offset-4"
+        className="mt-2 text-sm font-medium text-primary-ink underline underline-offset-4"
       >
         Clear all filters
       </Link>

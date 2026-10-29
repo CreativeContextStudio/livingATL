@@ -11,6 +11,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { SearchIcon, XIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { MAX_SEARCH_CHARS } from "@/lib/search-text";
+import { captureEvent } from "@/lib/analytics/posthog";
 
 /**
  * Browser search input — writes `?q=` search param with a 200ms debounce so
@@ -36,9 +38,14 @@ export function SearchInput({ initialValue = "" }: { initialValue?: string }) {
 
   const currentParam = searchParams.get("q") ?? "";
   const [lastSeenParam, setLastSeenParam] = useState(currentParam);
+  // The `q` this input itself last wrote. When the URL catches up to it,
+  // the visitor has usually typed more in the meantime — resetting the
+  // field then dropped keystrokes ("auburn" → "auurn"). Only adopt URL
+  // values this input didn't write (Back/Forward, links).
+  const [lastPushed, setLastPushed] = useState(currentParam);
   if (currentParam !== lastSeenParam) {
     setLastSeenParam(currentParam);
-    setValue(currentParam);
+    if (currentParam !== lastPushed) setValue(currentParam);
   }
 
   const pushQuery = useCallback(
@@ -49,9 +56,20 @@ export function SearchInput({ initialValue = "" }: { initialValue?: string }) {
       } else {
         params.set("q", next);
       }
+      setLastPushed(next.trim().length === 0 ? "" : next);
+      if (next.trim().length > 0) {
+        // Length only — visitor text never goes to analytics (PRD §8.6).
+        captureEvent("browser_search", { query_length: next.trim().length });
+      }
       const qs = params.toString();
+      const href = qs ? `${pathname}?${qs}` : pathname;
+      // One history entry per search, not per debounced keystroke: starting
+      // a search pushes (so Back returns to the unfiltered list); refining
+      // or clearing it replaces.
+      const startingSearch = !searchParams.get("q") && next.trim().length > 0;
       startTransition(() => {
-        router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+        if (startingSearch) router.push(href, { scroll: false });
+        else router.replace(href, { scroll: false });
       });
     },
     [pathname, router, searchParams],
@@ -98,7 +116,7 @@ export function SearchInput({ initialValue = "" }: { initialValue?: string }) {
     <div
       className={cn(
         "group relative flex h-9 w-full items-center rounded-lg border border-input bg-background",
-        "transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/40",
+        "transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring",
       )}
     >
       <SearchIcon
@@ -108,6 +126,7 @@ export function SearchInput({ initialValue = "" }: { initialValue?: string }) {
       <input
         ref={inputRef}
         type="search"
+        maxLength={MAX_SEARCH_CHARS}
         placeholder="Search storytellers, titles, summaries…"
         value={value}
         onChange={(e) => onChange(e.currentTarget.value)}
@@ -124,7 +143,7 @@ export function SearchInput({ initialValue = "" }: { initialValue?: string }) {
           aria-label="Clear search"
           className={cn(
             "mr-1.5 inline-flex size-6 items-center justify-center rounded-md text-muted-foreground",
-            "hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+            "hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           )}
         >
           <XIcon className="size-3.5" />

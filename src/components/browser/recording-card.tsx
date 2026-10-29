@@ -51,22 +51,27 @@ export function RecordingCard({ recording }: { recording: BrowserRecordingCard }
   const themes = recording.themes.slice(0, MAX_THEME_CHIPS);
   const themeOverflow = recording.themes.length - themes.length;
 
+  // Stretched-link card: the storyteller's name is the link (its accessible
+  // name), and an ::after overlay makes the whole card clickable. An
+  // aria-label on a whole-card link replaced everything inside it, so screen
+  // readers lost the summary, dates, era, and the Advisory badge.
   return (
-    <Link
-      href={`/player/${encodeURIComponent(recording.catalogNumber)}`}
-      className="group block transition-all focus-visible:outline-none"
-      aria-label={`Open ${intervieweeLabel}'s interview`}
-    >
+    <div className="group relative">
       <Card
         className={
           "h-full ring-foreground/10 transition-all " +
           "group-hover:ring-2 group-hover:ring-ring/40 group-hover:-translate-y-0.5 " +
-          "group-focus-visible:ring-2 group-focus-visible:ring-ring"
+          "group-has-[a:focus-visible]:ring-2 group-has-[a:focus-visible]:ring-ring"
         }
       >
         <CardHeader className="gap-2">
           <CardTitle className="font-heading text-xl leading-tight">
-            {intervieweeLabel}
+            <Link
+              href={`/player/${encodeURIComponent(recording.catalogNumber)}`}
+              className="after:absolute after:inset-0 after:rounded-xl after:content-[''] focus-visible:outline-none"
+            >
+              {intervieweeLabel}
+            </Link>
           </CardTitle>
         </CardHeader>
 
@@ -133,6 +138,6 @@ export function RecordingCard({ recording }: { recording: BrowserRecordingCard }
           </div>
         </CardFooter>
       </Card>
-    </Link>
+    </div>
   );
 }

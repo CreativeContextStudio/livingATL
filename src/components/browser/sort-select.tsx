@@ -25,6 +25,7 @@ const SORT_OPTIONS: SortOption[] = [
   { value: "date_recorded_desc", label: "Date recorded (newest first)", short: "Newest recording" },
   { value: "duration_desc", label: "Duration (longest first)", short: "Longest first" },
   { value: "date_added_desc", label: "Date added (newest first)", short: "Recently added" },
+  { value: "random", label: "Shuffle", short: "Shuffled" },
 ];
 
 export function SortSelect({ value }: { value: BrowserSort }) {
@@ -36,23 +37,17 @@ export function SortSelect({ value }: { value: BrowserSort }) {
   const shortByValue = useMemo(() => {
     const map = new Map<string, string>();
     for (const o of SORT_OPTIONS) map.set(o.value, o.short);
-    // "random" is the default when no `?sort=` param is present. The
-    // SortSelect intentionally doesn't advertise a Shuffle option — the
-    // trigger renders the same label it used to render as the default
-    // so the UI reads as unchanged while the server picks a fresh order
-    // per request.
-    map.set("random", map.get("alphabetical") ?? "Shuffled");
     return map;
   }, []);
 
   const onChange = useCallback(
     (next: string | null) => {
       if (next == null) return;
-      // Every explicit pick writes to the URL. The absence of `?sort=` is
-      // reserved for the default random order — so we can't collapse
-      // "alphabetical" to a missing param anymore the way we used to.
+      // The default (alphabetical) is the absence of `?sort=`, so the
+      // canonical URL stays clean; every other pick writes the param.
       const params = new URLSearchParams(searchParams.toString());
-      params.set("sort", next);
+      if (next === "alphabetical") params.delete("sort");
+      else params.set("sort", next);
       const qs = params.toString();
       startTransition(() => {
         router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });

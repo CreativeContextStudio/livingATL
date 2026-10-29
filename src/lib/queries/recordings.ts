@@ -1,9 +1,11 @@
 import "server-only";
 
 import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
+import * as Sentry from "@sentry/nextjs";
 import { unstable_cache } from "next/cache";
 
 import { db } from "@/db";
+import { MAX_SEARCH_CHARS, escapeLikePattern } from "@/lib/search-text";
 import {
   recordings,
   recordingSpeakers,
@@ -76,15 +78,16 @@ export type BrowserRecordingCard = {
   interviewees: BrowserInterviewee[];
 };
 
+/** Safety cap on Browse/Map result rows — well above the planned 500+ corpus. */
+const MAX_BROWSER_RESULTS = 1000;
+
 export type BrowserSort =
   | "alphabetical" // by surname (stored "Last, First" — archival order)
   | "alphabetical_first" // by given name ("First Last" display order)
   | "date_recorded_desc"
   | "duration_desc"
   | "date_added_desc"
-  | "random"; // server-side shuffle — the default when no `?sort=` param
-              //  is present so returning visitors get a fresh ordering
-              //  each visit. Not advertised as a SortSelect option.
+  | "random"; // server-side shuffle — opt-in via the "Shuffle" sort option.
 
 export type BrowserFilter = {
   theme?: string;
@@ -160,7 +163,10 @@ export async function fetchBrowserRecordings(
     );
   }
   if (filter.search && filter.search.trim().length > 0) {
-    const pattern = `%${filter.search.trim()}%`;
+    // Bounded, literal match: `%` / `_` / `\` in the visitor's text are
+    // escaped (backslash is Postgres's default LIKE escape), so "100%" means
+    // the characters "100%", not "starts with 100".
+    const pattern = `%${escapeLikePattern(filter.search.trim().slice(0, MAX_SEARCH_CHARS))}%`;
     whereClauses.push(sql`(
       r.title ILIKE ${pattern}
       OR r.catalog_number ILIKE ${pattern}
@@ -203,10 +209,8 @@ export async function fetchBrowserRecordings(
       case "date_added_desc":
         return sql`sub.created_at DESC NULLS LAST`;
       case "random":
-        // Postgres `random()` is per-row and non-deterministic, so each
-        // request to /browse without an explicit sort returns the cards
-        // in a fresh order — the Collection's front door feels alive
-        // for returning visitors.
+        // Postgres `random()` is per-row and non-deterministic: a fresh
+        // order on every request. Opt-in only (`?sort=random`).
         return sql`random()`;
       default:
         return sql`lower(sub.min_interviewee_name) ASC NULLS LAST`;
@@ -258,6 +262,7 @@ export async function fetchBrowserRecordings(
       ${whereSql}
     ) sub
     ORDER BY ${orderBy}
+    LIMIT ${MAX_BROWSER_RESULTS}
   `);
 
   if (rows.length === 0) return [];
@@ -426,9 +431,26 @@ export const fetchArchiveStats = unstable_cache(
   { tags: ["archive-stats"], revalidate: 3600 },
 );
 
+export type ArchiveStats = Awaited<ReturnType<typeof fetchArchiveStats>>;
+
 /**
- * Lightweight catalog → id resolver used by the stub Player / Map /
- * /player/[catalog] routes to 404 unknown catalog numbers.
+ * `fetchArchiveStats` for the public landing / preview pages, which must
+ * render even when the database is unreachable (e.g. a Supabase free-tier
+ * pause). Returns null instead of throwing; the error still goes to Sentry.
+ */
+export async function fetchArchiveStatsOrNull(): Promise<ArchiveStats | null> {
+  try {
+    return await fetchArchiveStats();
+  } catch (err) {
+    Sentry.captureException(err);
+    console.error("[archive-stats] unavailable", err);
+    return null;
+  }
+}
+
+/**
+ * Lightweight catalog → id resolver. `app/player/[catalog]/layout.tsx` uses
+ * it to 404 unknown or unpublished catalog numbers before the page streams.
  */
 export async function recordingByCatalog(
   catalogNumber: string,
@@ -440,7 +462,12 @@ export async function recordingByCatalog(
       catalogNumber: recordings.catalogNumber,
     })
     .from(recordings)
-    .where(eq(recordings.catalogNumber, catalogNumber))
+    .where(
+      and(
+        eq(recordings.catalogNumber, catalogNumber),
+        eq(recordings.transcriptionStatus, "completed"),
+      ),
+    )
     .limit(1);
   return rows[0] ?? null;
 }

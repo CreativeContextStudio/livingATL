@@ -1,3 +1,13 @@
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
+
+# Patched transitive deps (pnpm audit --prod, 2026-10-29). These come in via
+# @sentry/nextjs (bundler plugins, OTel exporter) and next>postcss; drop each
+# entry once the parent package ships the fixed version itself.
+overrides:
+  protobufjs@7: ^7.6.6
+  brace-expansion@5: ^5.0.12
+  fast-uri@3: ^3.1.9
+  browserslist@4: ^4.28.7
+  source-map-js@1: ^1.2.2

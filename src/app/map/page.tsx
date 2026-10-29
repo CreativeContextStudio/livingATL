@@ -89,7 +89,7 @@ export default async function MapPage({
           {filtered.length} of {totalRecordings} recordings mapped by the
           neighborhoods their storytellers describe. Click a pin to see who spoke
           about that place, or{" "}
-          <Link href="/places" className="text-primary-ink underline-offset-4 hover:underline">
+          <Link href="/places" className="text-primary-ink underline underline-offset-4">
             browse all neighborhoods
           </Link>
           .

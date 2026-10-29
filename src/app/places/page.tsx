@@ -32,7 +32,7 @@ export default async function PlacesPage() {
         </h1>
         <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">
           {places.length} Atlanta neighborhoods come up in the collection. Each page gathers the
-          recordings and moments that touch it. <Link href="/map" className="text-primary-ink underline-offset-4 hover:underline">See them on the map</Link>.
+          recordings and moments that touch it. <Link href="/map" className="text-primary-ink underline underline-offset-4">See them on the map</Link>.
         </p>
       </header>
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

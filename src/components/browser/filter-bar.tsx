@@ -154,9 +154,9 @@ function FilterGroup({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between">
-        <h3 className="font-heading text-xs font-semibold tracking-[0.12em] text-foreground uppercase">
+        <h2 className="font-heading text-xs font-semibold tracking-[0.12em] text-foreground uppercase">
           {label}
-        </h3>
+        </h2>
         {options.length > COLLAPSED_COUNT && (
           <button
             type="button"

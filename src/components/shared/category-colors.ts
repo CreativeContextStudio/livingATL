@@ -455,9 +455,9 @@ const NEIGHBORHOOD_PALETTE: CategoryStyle[] = [
 ];
 
 /**
- * Hex equivalents of `NEIGHBORHOOD_PALETTE`, same index order. Mapbox
- * renders into a `<canvas>` so Tailwind utility classes don't resolve at
- * paint time — the Map client reads from this array to color pins,
+ * Hex equivalents of `NEIGHBORHOOD_PALETTE`, same index order. Map pins
+ * are colored with inline styles, not Tailwind classes — the Map client
+ * reads from this array to color pins,
  * polygons, and corridors with the same hue each neighborhood's Browser /
  * Player chip uses. Values mirror Tailwind's default -500 ramp (Tailwind
  * 4 keeps the same scale).
@@ -491,7 +491,7 @@ export function neighborhoodStyle(name: string): CategoryStyle {
  * Hex color for a neighborhood — same slot as `neighborhoodStyle(name)`,
  * so map pins / polygons / corridors match each neighborhood's Browser
  * chip hue exactly. Use when the target renderer can't consume Tailwind
- * classes (Mapbox canvas paint expressions, canvas 2D draws, etc.).
+ * classes (inline styles on map pins, canvas 2D draws, etc.).
  */
 export function neighborhoodColor(name: string): string {
   return NEIGHBORHOOD_PALETTE_HEX[

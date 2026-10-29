@@ -8,7 +8,6 @@
  *   app itself loads later (PostHog's remote config) inherit trust.
  * - style-src keeps 'unsafe-inline': React `style={…}` attributes (timeline
  *   positions, waveform, sliders, map) can't carry a nonce.
- * - Mapbox: tiles/styles/glyphs over https, workers from blob:.
  * - Sentry goes through the same-origin `/monitoring` tunnel; audio through
  *   the same-origin `/audio` rewrite (`playableAudioUrl` in src/lib/player.ts
  *   makes stored audio URLs same-origin on every host).
@@ -35,12 +34,11 @@ export function buildCsp({
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' blob: data: https://*.mapbox.com",
+    "img-src 'self' blob: data:",
     "font-src 'self' data:",
-    `connect-src 'self' https://*.mapbox.com ${posthogHost} ${posthogAssets}`,
+    `connect-src 'self' ${posthogHost} ${posthogAssets}`,
     "media-src 'self' blob:",
     "worker-src 'self' blob:",
-    "child-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

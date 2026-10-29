@@ -17,7 +17,7 @@ export type NeighborhoodGeometry = {
   name: string;
   geometryKind: NeighborhoodGeometryKind;
   /** Full GeoJSON Feature (type + geometry + properties). Ship straight to
-   *  Mapbox sources without reshaping — see `src/db/schema.ts::neighborhoods`
+   *  the drawn map (`components/map/map-client.tsx`) without reshaping — see `src/db/schema.ts::neighborhoods`
    *  column comment. */
   geometry: GeoJSONFeature;
   source: string;

@@ -5,7 +5,7 @@ import { useSyncExternalStore } from "react";
 /**
  * The active site theme as set on `<html data-theme>` (server-rendered from
  * the theme cookie, updated in place by the theme switcher). For client
- * components that paint outside CSS — Mapbox basemaps, wavesurfer canvases —
+ * components that paint outside CSS — wavesurfer canvases —
  * and so can't pick colors up from CSS variables.
  */
 function subscribeTheme(onChange: () => void) {

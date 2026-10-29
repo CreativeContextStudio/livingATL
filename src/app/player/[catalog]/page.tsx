@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ImageIcon } from "lucide-react";
 
+import { ClampedOverview } from "@/components/player/clamped-overview";
 import { PlayerClient } from "@/components/player/player-client";
 import {
   getThemeAccent,
@@ -22,26 +23,18 @@ import {
  */
 const getPlayerData = cache(fetchPlayerData);
 
-/**
- * Guarded `decodeURIComponent`. A malformed path segment (e.g. `/player/abc%`
- * with a truncated escape sequence) makes the raw call throw `URIError`,
- * which the Server Component renderer surfaces as a 500. Returning null so
- * the caller can `notFound()` gives a clean 404 instead.
- */
-function safeDecodeCatalog(encoded: string): string | null {
-  try {
-    return decodeURIComponent(encoded);
-  } catch {
-    return null;
-  }
-}
 import {
   formatDuration,
   formatRecordingDate,
   formatSpeakerName,
   titleForCard,
 } from "@/lib/format";
+import { safeDecodeCatalog } from "@/lib/player";
 import { cn } from "@/lib/utils";
+import {
+  canRequestViewArchive,
+  requireArchiveAccess,
+} from "@/lib/access-request";
 
 /**
  * Audio Player page — PRD §7.2.
@@ -62,6 +55,9 @@ export async function generateMetadata({
 }: {
   params: Promise<RouteParams>;
 }): Promise<Metadata> {
+  // Don't resolve (and leak) the recording title for a visitor the page
+  // itself would redirect away.
+  if (!(await canRequestViewArchive())) return { title: "livingATL" };
   const { catalog: catalogEncoded } = await params;
   const catalog = safeDecodeCatalog(catalogEncoded);
   if (!catalog) return { title: "Recording not found" };
@@ -94,6 +90,8 @@ export default async function PlayerPage({
 }: {
   params: Promise<RouteParams>;
 }) {
+  // PRD §8.8 backstop — the proxy is the first line; see src/lib/access.ts.
+  await requireArchiveAccess();
   const { catalog: catalogEncoded } = await params;
   const catalog = safeDecodeCatalog(catalogEncoded);
   if (!catalog) notFound();
@@ -134,7 +132,7 @@ export default async function PlayerPage({
       : null);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-10 lg:py-14">
+    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-6 sm:py-10 lg:py-14">
       {/* Breadcrumb — tiny mono trail anchoring the page in the collection.
           Unobtrusive at rest; hover picks up the foreground color on the
           linked crumbs. Current page (catalog number) stays unlinked with
@@ -149,14 +147,14 @@ export default async function PlayerPage({
         >
           livingATL
         </Link>
-        <span aria-hidden className="text-muted-foreground/50">/</span>
+        <span aria-hidden className="text-muted-foreground">/</span>
         <Link
           href="/browse"
           className="transition-colors hover:text-foreground focus-visible:outline-none focus-visible:text-foreground"
         >
           Collection
         </Link>
-        <span aria-hidden className="text-muted-foreground/50">/</span>
+        <span aria-hidden className="text-muted-foreground">/</span>
         <span aria-current="page" className="text-foreground/80">
           {data.catalogNumber}
         </span>
@@ -217,11 +215,7 @@ function AboutThisRecording({
       <p className="font-mono text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground">
         About this recording
       </p>
-      {overview ? (
-        <p className="mt-2 text-sm leading-relaxed text-foreground/85">
-          {overview}
-        </p>
-      ) : null}
+      {overview ? <ClampedOverview text={overview} /> : null}
       <div className="mt-auto flex flex-col gap-1 border-t border-border/60 pt-3">
         <p className="text-sm text-foreground/90">{title}</p>
         <p className="text-xs text-muted-foreground">
@@ -255,7 +249,8 @@ function StorytellerPortraitPlaceholder({
   return (
     <div
       aria-hidden
-      className="relative h-full min-h-[14rem] w-full overflow-hidden rounded-xl ring-1 ring-foreground/10"
+      // Decorative; hidden on phones so the player isn't pushed a screen down.
+      className="relative hidden h-full min-h-[14rem] w-full overflow-hidden rounded-xl ring-1 ring-foreground/10 sm:block"
       style={{
         background: `linear-gradient(to bottom right, ${tintStrong}, ${tintSoft}, var(--color-muted))`,
       }}

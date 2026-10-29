@@ -155,3 +155,54 @@ export function humanSeverity(raw: string | undefined | null): string {
   if (!raw) return "";
   return SEVERITY_LABELS[raw] ?? raw.replace(/_/g, " ");
 }
+
+/**
+ * Guarded `decodeURIComponent`. A malformed path segment (e.g. `/player/abc%`
+ * with a truncated escape sequence) makes the raw call throw `URIError`,
+ * which the Server Component renderer surfaces as a 500. Returning null so
+ * the caller can `notFound()` gives a clean 404 instead.
+ */
+export function safeDecodeCatalog(encoded: string): string | null {
+  try {
+    return decodeURIComponent(encoded);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Screen-reader form of a duration: "1 hour 2 minutes 5 seconds", "4 minutes",
+ * "0 seconds". `formatTimestamp`'s "1:02:05" is read digit-by-digit or as a
+ * clock time by some screen readers.
+ */
+export function formatSpokenTime(seconds: number): string {
+  const total = Math.max(0, Math.floor(seconds));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const part = (n: number, unit: string) => `${n} ${unit}${n === 1 ? "" : "s"}`;
+  const parts = [
+    h > 0 ? part(h, "hour") : null,
+    m > 0 ? part(m, "minute") : null,
+    s > 0 || (h === 0 && m === 0) ? part(s, "second") : null,
+  ].filter(Boolean);
+  return parts.join(" ");
+}
+
+/**
+ * `recordings.audio_url` stores absolute URLs on the production origin
+ * (`https://livingatl.creativecontext.studio/audio/<stem>.mp3`), which are
+ * served by the app's own `/audio/*` → R2 rewrite. Using them verbatim made
+ * every other host (local dev, Vercel previews) fetch audio cross-origin
+ * from production and fail CORS. Any `…/audio/…` URL is turned into the
+ * same-origin path; anything else (e.g. a future CDN domain) passes through.
+ */
+export function playableAudioUrl(stored: string | null): string | null {
+  if (!stored) return null;
+  try {
+    const url = new URL(stored);
+    return url.pathname.startsWith("/audio/") ? url.pathname : stored;
+  } catch {
+    return stored; // already relative
+  }
+}

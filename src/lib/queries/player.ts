@@ -19,6 +19,7 @@ import type {
   HistoricalEventCategory,
   OrganizationCategory,
 } from "@/components/shared/category-colors";
+import { playableAudioUrl } from "@/lib/player";
 
 // ---------------------------------------------------------------------------
 // Types surfaced by fetchPlayerData — richer than the Browser's row shape
@@ -111,6 +112,8 @@ export type PlayerData = {
   title: string;
   audioUrl: string | null;
   durationSeconds: number | null;
+  /** Precomputed waveform (scripts/waveform_peaks.py); null → decode. */
+  waveformPeaks: number[] | null;
   recordingDate: string | null;
   recordingDatePrecision: string | null;
   contentAdvisory: ContentAdvisory | null;
@@ -215,6 +218,7 @@ export async function fetchPlayerData(
       title: recordings.title,
       audioUrl: recordings.audioUrl,
       durationSeconds: recordings.durationSeconds,
+      waveformPeaks: recordings.waveformPeaks,
       recordingDate: recordings.recordingDate,
       recordingDatePrecision: recordings.recordingDatePrecision,
       contentAdvisory: recordings.contentAdvisory,
@@ -238,7 +242,14 @@ export async function fetchPlayerData(
       metadataExtracted,
       eq(metadataExtracted.recordingId, recordings.id),
     )
-    .where(eq(recordings.catalogNumber, catalogNumber))
+    .where(
+      and(
+        eq(recordings.catalogNumber, catalogNumber),
+        // Same publish rule as Browse/Timeline/Portal: a recording in
+        // manual_review (WCS < 0.60), failed, or pending must 404 here too.
+        eq(recordings.transcriptionStatus, "completed"),
+      ),
+    )
     .limit(1);
 
   const row = baseRows[0];
@@ -275,8 +286,9 @@ export async function fetchPlayerData(
     id: row.id,
     catalogNumber: row.catalogNumber,
     title: row.title,
-    audioUrl: row.audioUrl,
+    audioUrl: playableAudioUrl(row.audioUrl),
     durationSeconds: row.durationSeconds,
+    waveformPeaks: row.waveformPeaks ?? null,
     recordingDate: row.recordingDate,
     recordingDatePrecision: row.recordingDatePrecision,
     contentAdvisory: (row.contentAdvisory ?? null) as ContentAdvisory | null,

@@ -11,7 +11,7 @@ import type {
   PlayerSpeaker,
   TranscriptSegment,
 } from "@/lib/queries/player";
-import { usePlayer } from "./player-context";
+import { usePlayer, usePlayerTime } from "./player-context";
 import { TranscriptSegmentRow } from "./transcript-segment";
 
 /**
@@ -96,9 +96,8 @@ export function TranscriptPane({
    *  When this changes, the pane scrolls that segment into view. */
   focusedMatchSegmentIndex?: number;
 }) {
-  const { currentTime, seekAndPlay } = usePlayer();
+  const { seekAndPlay } = usePlayer();
   const viewportRef = useRef<HTMLDivElement>(null);
-  const segmentRefs = useRef<Map<number, HTMLDivElement | null>>(new Map());
   // `-Infinity` so `performance.now() - lastUserScrollAtRef` is always
   // `Infinity` until the user actually interacts — this prevents the
   // first-5-seconds-after-page-load false positive where `now - 0` stays
@@ -106,10 +105,16 @@ export function TranscriptPane({
   // during the exact interval the listener presses play.
   const lastUserScrollAtRef = useRef<number>(Number.NEGATIVE_INFINITY);
 
-  const activeIndex = useMemo(
-    () => currentSegmentIndex(currentTime, segments),
-    [currentTime, segments],
-  );
+  // Re-renders only when the active segment changes, not every frame.
+  const activeIndex = usePlayerTime((t) => currentSegmentIndex(t, segments));
+
+  // Rows carry `data-segment-index`; look them up at scroll time instead of
+  // keeping a ref per row (an inline ref callback per row defeated the
+  // row `memo()` and rebuilt the map on every render).
+  const segmentElement = (index: number) =>
+    viewportRef.current?.querySelector<HTMLElement>(
+      `[data-segment-index="${index}"]`,
+    ) ?? null;
 
   const groups = useMemo(() => groupByRole(segments), [segments]);
 
@@ -194,7 +199,7 @@ export function TranscriptPane({
 
     // Anchor row: show the segment two above the active one at the very
     // top of the viewport so the active row is the third visible segment.
-    const anchor = segmentRefs.current.get(activeIndex - 2);
+    const anchor = segmentElement(activeIndex - 2);
     if (!anchor) return;
     const containerRect = container.getBoundingClientRect();
     const anchorRect = anchor.getBoundingClientRect();
@@ -211,7 +216,7 @@ export function TranscriptPane({
     if (focusedMatchSegmentIndex < 0) return;
     const container = viewportRef.current;
     if (!container) return;
-    const anchor = segmentRefs.current.get(focusedMatchSegmentIndex);
+    const anchor = segmentElement(focusedMatchSegmentIndex);
     if (!anchor) return;
 
     lastUserScrollAtRef.current = performance.now();
@@ -259,9 +264,9 @@ export function TranscriptPane({
                 className={cn(
                   "font-mono text-[10px] font-semibold tracking-[0.18em] uppercase",
                   group.role === "interviewer" && "text-muted-foreground",
-                  group.role === "interviewee" && "text-primary",
-                  group.role === "other" && "text-muted-foreground/80",
-                  group.role === "unknown" && "text-muted-foreground/70",
+                  group.role === "interviewee" && "text-primary-ink",
+                  group.role === "other" && "text-muted-foreground",
+                  group.role === "unknown" && "text-muted-foreground",
                 )}
               >
                 {namesForRole(group.role, speakers) ?? roleLabel(group.role)}
@@ -270,10 +275,6 @@ export function TranscriptPane({
                 {group.segments.map(({ segment, index }) => (
                   <TranscriptSegmentRow
                     key={index}
-                    ref={(el) => {
-                      if (el) segmentRefs.current.set(index, el);
-                      else segmentRefs.current.delete(index);
-                    }}
                     segment={segment}
                     index={index}
                     isActive={index === activeIndex}

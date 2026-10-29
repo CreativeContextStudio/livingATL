@@ -7,7 +7,7 @@ import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatDuration, formatSpeakerName, titleForCard } from "@/lib/format";
 import type { RelatedRecording } from "@/lib/queries/player";
-import { usePlayer } from "./player-context";
+import { usePlayer, usePlayerTime } from "./player-context";
 
 /**
  * End-of-playback "Up next" card — PRD §7.2 discovery lift (Player UX Move 6).
@@ -32,7 +32,11 @@ export function EndOfPlaybackCard({
   related: RelatedRecording | null;
   recordingId: string;
 }) {
-  const { currentTime, duration, isPlaying } = usePlayer();
+  const { duration, isPlaying } = usePlayer();
+  // Boolean snapshot — flips once when playback crosses the threshold.
+  const pastThreshold = usePlayerTime(
+    (t) => duration > 0 && t / duration >= SHOW_AT_PROGRESS,
+  );
   const [dismissed, setDismissed] = useState(false);
 
   // Reset dismiss state during render when the recording changes.
@@ -44,8 +48,7 @@ export function EndOfPlaybackCard({
 
   if (!related) return null;
 
-  const progress = duration > 0 ? currentTime / duration : 0;
-  const shouldShow = isPlaying && progress >= SHOW_AT_PROGRESS && !dismissed;
+  const shouldShow = isPlaying && pastThreshold && !dismissed;
 
   // Return null when hidden so the card doesn't reserve vertical space
   // above the transport. Trade-off: no fade-in (just appears on cross of
@@ -74,7 +77,7 @@ export function EndOfPlaybackCard({
           href={`/player/${encodeURIComponent(related.catalogNumber)}`}
           className="group flex flex-col gap-1"
         >
-          <p className="font-heading text-sm leading-tight font-semibold group-hover:text-primary">
+          <p className="font-heading text-sm leading-tight font-semibold group-hover:text-primary-ink">
             {label}
           </p>
           {related.briefOverview ? (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { ChevronDownIcon } from "lucide-react";
 
 import {
   Tooltip,
@@ -17,7 +18,7 @@ import { formatTimestamp, momentTimeRange } from "@/lib/player";
 import { cn } from "@/lib/utils";
 import type { BriefMoment } from "@/lib/queries/recordings";
 import type { TranscriptSegment } from "@/lib/queries/player";
-import { usePlayer } from "./player-context";
+import { usePlayer, usePlayerTime } from "./player-context";
 
 /**
  * Chapter scrubber — horizontal bar above the waveform showing each brief
@@ -43,6 +44,19 @@ type Resolved = {
   isHighlight: boolean;
 };
 
+/** Summary-row label: the playing chapter's title, else the first one. */
+function activeChapterLabel(chapters: Resolved[]): string {
+  const c = chapters.find((ch) => ch.isActive) ?? chapters[0];
+  if (!c) return "";
+  const themes = c.moment.themes ?? [];
+  return (
+    c.moment.title ??
+    (themes.length > 0
+      ? themes.map((t) => t.replace(/_/g, " ")).join(" · ")
+      : "Chapter")
+  );
+}
+
 export function ChapterScrubber({
   moments,
   segments,
@@ -57,12 +71,12 @@ export function ChapterScrubber({
    *  know the theme yet (e.g., component mounted before data resolves). */
   accent?: ThemeAccent["tailwind"];
 }) {
-  const { currentTime, duration, seekAndPlay } = usePlayer();
+  const { duration, seekAndPlay } = usePlayer();
   const resolvedDuration = duration > 0 ? duration : totalDurationSeconds;
 
-  const chapters: Resolved[] = useMemo(() => {
+  // Geometry is time-independent; only the active flag follows the playhead.
+  const layout: Resolved[] = useMemo(() => {
     if (!moments.length || resolvedDuration <= 0) return [];
-    const playing = currentTime;
     return moments
       .map<Resolved | null>((moment) => {
         const range = momentTimeRange(moment, segments);
@@ -74,12 +88,25 @@ export function ChapterScrubber({
           widthPct: Math.max((width / resolvedDuration) * 100, 0.7),
           start: range.start,
           end: range.end,
-          isActive: playing >= range.start && playing <= range.end,
+          isActive: false,
           isHighlight: Boolean(moment.highlight),
         };
       })
       .filter((c): c is Resolved => c !== null);
-  }, [moments, segments, resolvedDuration, currentTime]);
+  }, [moments, segments, resolvedDuration]);
+
+  // Comma-joined indices of chapters containing the playhead (chapters can
+  // overlap). A string snapshot, so this re-renders only when the set
+  // changes — not on every animation frame.
+  const activeKey = usePlayerTime((t) =>
+    layout
+      .flatMap((c, i) => (t >= c.start && t <= c.end ? [i] : []))
+      .join(","),
+  );
+  const chapters: Resolved[] = useMemo(() => {
+    const active = new Set(activeKey.split(","));
+    return layout.map((c, i) => ({ ...c, isActive: active.has(String(i)) }));
+  }, [layout, activeKey]);
 
   if (chapters.length === 0) {
     return (
@@ -100,7 +127,22 @@ export function ChapterScrubber({
           few pixels wide (untappable), and its titles only surface on hover —
           which never fires on touch. The list gives every chapter a 44px row,
           its title, and a timestamp. Hidden at `md` where the bar takes over. */}
-      <ul className="divide-y divide-border bg-muted/40 md:hidden">
+      {/* Collapsed by default so the transport stays near the top on
+          phones; the summary row names the chapter that's playing. */}
+      <details className="group/chapters bg-muted/40 md:hidden">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset [&::-webkit-details-marker]:hidden">
+          <span className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted-foreground">
+            Chapters ({chapters.length})
+          </span>
+          <span className="min-w-0 flex-1 truncate font-medium text-foreground/90">
+            {activeChapterLabel(chapters)}
+          </span>
+          <ChevronDownIcon
+            aria-hidden
+            className="size-4 shrink-0 text-muted-foreground transition-transform group-open/chapters:rotate-180"
+          />
+        </summary>
+      <ul className="divide-y divide-border border-t border-border">
         {chapters.map((c, i) => {
           const themes = c.moment.themes ?? [];
           const label =
@@ -115,7 +157,7 @@ export function ChapterScrubber({
                 onClick={() => seekAndPlay(c.start)}
                 aria-label={`Jump to "${c.moment.title ?? "chapter"}" at ${formatTimestamp(c.start)}`}
                 className={cn(
-                  "flex min-h-11 w-full items-center gap-3 px-4 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset",
+                  "flex min-h-11 w-full items-center gap-3 px-4 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                   c.isActive ? accent.bgSoft : "hover:bg-foreground/5",
                 )}
               >
@@ -139,6 +181,7 @@ export function ChapterScrubber({
           );
         })}
       </ul>
+      </details>
 
       <div className="hidden w-full overflow-x-auto scrollbar-soft md:block md:overflow-x-visible">
       <div
@@ -169,7 +212,7 @@ export function ChapterScrubber({
                     onClick={() => seekAndPlay(c.start)}
                     aria-label={`Jump to "${c.moment.title ?? "chapter"}" at ${formatTimestamp(c.start)}`}
                     className={cn(
-                      "absolute top-0 bottom-0 flex flex-col items-start gap-1 overflow-hidden border-r border-background/50 px-1.5 py-1.5 text-left transition-[background,transform] hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset",
+                      "absolute top-0 bottom-0 flex flex-col items-start gap-1 overflow-hidden border-r border-background/50 px-1.5 py-1.5 text-left transition-[background,transform] hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                       bgClass,
                     )}
                     style={{ left: `${c.startPct}%`, width: `${c.widthPct}%` }}
@@ -249,7 +292,9 @@ export function ChapterCountsLabel({
   if (counts.total === 0) return null;
 
   return (
-    <div className="flex items-baseline justify-between text-[11px] text-muted-foreground">
+    // Below md the collapsed "Chapters (N)" summary row already carries the
+    // count, so this label only shows alongside the desktop chapter bar.
+    <div className="hidden items-baseline justify-between text-[11px] text-muted-foreground md:flex">
       <p className="font-heading font-semibold tracking-[0.12em] uppercase">
         Chapters
       </p>

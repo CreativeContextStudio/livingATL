@@ -145,6 +145,11 @@ export const recordings = pgTable(
     audioUrl: text("audio_url"), // streaming (R2 CDN); null until R2 upload
     audioUrlArchival: text("audio_url_archival"), // lossless (archival copy)
     durationSeconds: integer("duration_seconds"),
+    // Precomputed waveform (normalized 0–1 peak amplitudes, one channel),
+    // written by `livingatl-pipeline/scripts/waveform_peaks.py`. With peaks +
+    // duration the Player streams audio instead of downloading and decoding
+    // the whole MP3 to draw the waveform. Null → Player falls back to decode.
+    waveformPeaks: jsonb("waveform_peaks").$type<number[]>(),
 
     // Temporal
     recordingDate: date("recording_date"),

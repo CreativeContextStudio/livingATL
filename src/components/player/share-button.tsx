@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { formatTimestamp, parseShareTime } from "@/lib/player";
-import { usePlayer } from "./player-context";
+import { usePlayer, usePlayerTime } from "./player-context";
 
 /**
  * Share button — PRD §7.2. Copies a URL with `?t=` appended so the
@@ -18,7 +18,9 @@ import { usePlayer } from "./player-context";
  */
 export function ShareButton() {
   const searchParams = useSearchParams();
-  const { currentTime, seek, isReady } = usePlayer();
+  const { seek, isReady } = usePlayer();
+  // The label and the copied `?t=` are whole seconds — 1 Hz is enough.
+  const currentTime = usePlayerTime(Math.floor);
   const [copied, setCopied] = useState(false);
   const [fallbackUrl, setFallbackUrl] = useState<string | null>(null);
   const initialSeekAppliedRef = useRef(false);

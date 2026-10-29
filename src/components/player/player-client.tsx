@@ -13,7 +13,11 @@ import { EndOfPlaybackCard } from "./end-of-playback-card";
 import { KeyQuotesList } from "./key-quotes";
 import { MetadataSidebar } from "./metadata-sidebar";
 import { MobileMiniPlayer } from "./mobile-mini-player";
-import { PlayerStateProvider, type PlayerState } from "./player-context";
+import {
+  PlayerStateProvider,
+  createPlayerTimeStore,
+  type PlayerState,
+} from "./player-context";
 import { RelatedRecordings } from "./related-recordings";
 import { Transport } from "./transport";
 import { TranscriptPane } from "./transcript-pane";
@@ -39,7 +43,13 @@ const Waveform = dynamic(
 import { Button } from "@/components/ui/button";
 import { getThemeAccent } from "@/components/shared/theme-accent";
 import { captureEvent } from "@/lib/analytics/posthog";
-import { cleanSegmentText, momentTimeRange, humanCategory } from "@/lib/player";
+import {
+  cleanSegmentText,
+  humanCategory,
+  momentTimeRange,
+  parseShareTime,
+} from "@/lib/player";
+import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type {
   PlayerData,
@@ -72,7 +82,9 @@ export function PlayerClient({
   const wavesurferRef = useRef<WaveSurfer | null>(null);
   const regionsRef = useRef<RegionsPlugin | null>(null);
 
-  const [currentTime, setCurrentTime] = useState(0);
+  // Playhead lives outside React state so `timeupdate` (every animation
+  // frame) doesn't re-render the whole Player tree — see usePlayerTime().
+  const [timeStore] = useState(createPlayerTimeStore);
   const [duration, setDuration] = useState(data.durationSeconds ?? 0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isReady, setIsReady] = useState(false);
@@ -180,8 +192,28 @@ export function PlayerClient({
   // mount and survive React key-based remounts incorrectly. A ref keeps
   // the events accurate if the Player ever re-uses the wavesurfer handle
   // across catalogs (not today, but cheap future-proofing).
+  // Arrived from an AI Portal citation (`?from=portal`)? Recorded once on
+  // arrival and on the first play, so citation clicks can be tied to
+  // actual listening (PRD §1).
+  const searchParams = useSearchParams();
+  const fromPortal = searchParams.get("from") === "portal";
+  const firstPlaySourceRef = useRef<string | null>(
+    fromPortal ? "portal_citation" : null,
+  );
+  useEffect(() => {
+    if (!fromPortal) return;
+    captureEvent("player_citation_click", {
+      catalog: data.catalogNumber,
+      to_time: parseShareTime(searchParams.get("t")) ?? 0,
+    });
+    // Arrival event only — re-renders must not repeat it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const catalogRef = useRef(data.catalogNumber);
-  catalogRef.current = data.catalogNumber;
+  useEffect(() => {
+    catalogRef.current = data.catalogNumber;
+  }, [data.catalogNumber]);
 
   const attachWaveSurfer = useCallback(
     (ws: WaveSurfer, regions: RegionsPlugin) => {
@@ -196,7 +228,9 @@ export function PlayerClient({
         captureEvent("player_play", {
           catalog: catalogRef.current,
           current_time: Math.round(ws.getCurrentTime()),
+          source: firstPlaySourceRef.current,
         });
+        firstPlaySourceRef.current = null;
       });
       ws.on("pause", () => {
         setIsPlaying(false);
@@ -216,8 +250,8 @@ export function PlayerClient({
           reason: "finish",
         });
       });
-      ws.on("timeupdate", (time) => setCurrentTime(time));
-      ws.on("seeking", (time) => setCurrentTime(time));
+      ws.on("timeupdate", (time) => timeStore.set(time));
+      ws.on("seeking", (time) => timeStore.set(time));
 
       regions.on("region-clicked", (region, event) => {
         event.stopPropagation();
@@ -229,7 +263,7 @@ export function PlayerClient({
         });
       });
     },
-    [],
+    [timeStore],
   );
 
   const seek = useCallback((seconds: number) => {
@@ -285,7 +319,7 @@ export function PlayerClient({
   const state: PlayerState = {
     wavesurferRef,
     regionsRef,
-    currentTime,
+    timeStore,
     duration,
     isPlaying,
     isReady,
@@ -397,8 +431,22 @@ export function PlayerClient({
                 totalDurationSeconds={data.durationSeconds ?? 0}
                 accent={accent.tailwind}
               />
-              {/* Bottom row: thin waveform band */}
-              <Waveform audioUrl={data.audioUrl} accent={accent.hex} />
+              {/* Bottom row: thin waveform band. Not mounted until the
+                  advisory gate is accepted: wavesurfer starts fetching the
+                  MP3 on creation, and no audio should load (or be playable
+                  via the Space shortcut) behind the gate. The placeholder
+                  matches the waveform's height (48px + py-2) so nothing
+                  shifts when it swaps in. */}
+              {gateCleared ? (
+                <Waveform
+                  audioUrl={data.audioUrl}
+                  accent={accent.hex}
+                  peaks={data.waveformPeaks}
+                  durationSeconds={data.durationSeconds}
+                />
+              ) : (
+                <div aria-hidden className="h-16 w-full bg-card/70" />
+              )}
               {/* Decode-wait overlay — fills the 10–15s between advisory
                   accept and wavesurfer's `ready` event with the brief's
                   overview so the listener arrives oriented, not idle.

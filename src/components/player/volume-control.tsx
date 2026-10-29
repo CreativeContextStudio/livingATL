@@ -100,6 +100,7 @@ export function VolumeControl({
                   const raw = Array.isArray(next) ? next[0] : next;
                   setVolume((raw ?? 100) / 100);
                 }}
+                getAriaValueText={(_, v) => `${Math.round(v)}%`}
                 aria-label="Volume"
                 style={
                   { "--slider-range-color": accentHex } as React.CSSProperties

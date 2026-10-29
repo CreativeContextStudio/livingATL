@@ -109,11 +109,10 @@ export const TranscriptSegmentRow = memo(
           "group grid grid-cols-[auto_1fr] gap-3 rounded-md px-3 py-2 transition-colors",
           "hover:bg-muted/50",
           isActive && "bg-primary/10 ring-1 ring-primary/20",
-          isLowConfidence && !isActive && "opacity-60",
           // Search-focus outline — rendered on top of the active-state ring
           // so navigating a query while the same segment is playing is
           // still visually readable.
-          isSearchFocused && "ring-2 ring-ring/60",
+          isSearchFocused && "ring-2 ring-ring",
         )}
       >
         <button
@@ -139,7 +138,7 @@ export const TranscriptSegmentRow = memo(
           }
         >
           {isLowConfidence ? (
-            <span aria-hidden className="mr-0.5 text-muted-foreground/70">
+            <span aria-hidden className="mr-0.5 text-muted-foreground">
               ~
             </span>
           ) : null}
@@ -165,7 +164,13 @@ export const TranscriptSegmentRow = memo(
               segment.speaker_role === "interviewee"
                 ? "text-[15px] leading-[1.75]"
                 : "text-sm leading-relaxed",
-              isActive ? "text-foreground" : "text-foreground/80",
+              // Low-confidence rows read quieter via the muted token (6.76:1)
+              // rather than row opacity, which dropped text below 4.5:1.
+              isActive
+                ? "text-foreground"
+                : isLowConfidence
+                  ? "text-muted-foreground"
+                  : "text-foreground/80",
             )}
           >
             {renderWithHighlights(text, searchQuery, isSearchFocused)}

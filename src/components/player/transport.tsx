@@ -26,10 +26,10 @@ import {
   PRIMARY_ACCENT,
   type ThemeAccent,
 } from "@/components/shared/theme-accent";
-import { formatTimestamp } from "@/lib/player";
+import { formatSpokenTime, formatTimestamp } from "@/lib/player";
 import { cn } from "@/lib/utils";
 import { ShareButton } from "./share-button";
-import { usePlayer } from "./player-context";
+import { toQuarterSecond, usePlayer, usePlayerTime } from "./player-context";
 import { VolumeControl } from "./volume-control";
 
 const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
@@ -37,8 +37,10 @@ const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 /**
  * Transport controls — PRD §7.2. Play/pause, scrub, speed, volume, share.
  * Keyboard shortcuts: Space toggles play/pause, ← / → seek -5 / +5 seconds.
- * Shortcuts are ignored when typing in an input, textarea, or contenteditable
- * element so forms elsewhere on the page don't break.
+ * They only fire once audio is ready (which can't happen before the advisory
+ * gate is accepted — the waveform isn't mounted until then), never with a
+ * modifier held (Alt/Cmd+← is browser Back), and never while focus is on a
+ * control that owns those keys itself (see `shouldIgnoreKey`).
  */
 export function Transport({
   accent = PRIMARY_ACCENT.tailwind,
@@ -52,7 +54,7 @@ export function Transport({
   accentHex?: string;
 }) {
   const {
-    currentTime,
+    timeStore,
     duration,
     isPlaying,
     isReady,
@@ -66,21 +68,23 @@ export function Transport({
     setShowAlerts,
   } = usePlayer();
 
+  const currentTime = usePlayerTime(toQuarterSecond);
   const progress = duration > 0 ? currentTime / duration : 0;
 
-  // Mirror the fast-changing playback scalars into refs so the keydown
-  // listener effect below can mount once and read the latest values from
-  // the refs, instead of re-registering the window listener every time
-  // wavesurfer fires `timeupdate` (~60fps during playback).
-  const currentTimeRef = useRef(currentTime);
+  // Mirror play-state scalars into refs so the keydown listener below can
+  // mount once. The playhead is read straight from the store at keypress
+  // time (exact, not the quarter-second display value).
   const durationRef = useRef(duration);
+  const isReadyRef = useRef(isReady);
   useEffect(() => {
-    currentTimeRef.current = currentTime;
     durationRef.current = duration;
-  }, [currentTime, duration]);
+    isReadyRef.current = isReady;
+  }, [duration, isReady]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (!isReadyRef.current || e.defaultPrevented) return;
+      if (e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return;
       const target = e.target as HTMLElement | null;
       if (target && shouldIgnoreKey(target)) return;
 
@@ -91,18 +95,18 @@ export function Transport({
       }
       if (e.code === "ArrowLeft") {
         e.preventDefault();
-        seek(Math.max(0, currentTimeRef.current - 5));
+        seek(Math.max(0, timeStore.get() - 5));
         return;
       }
       if (e.code === "ArrowRight") {
         e.preventDefault();
-        seek(Math.min(durationRef.current, currentTimeRef.current + 5));
+        seek(Math.min(durationRef.current, timeStore.get() + 5));
         return;
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [togglePlay, seek]);
+  }, [togglePlay, seek, timeStore]);
 
   return (
     <TooltipProvider delay={250}>
@@ -151,6 +155,9 @@ export function Transport({
                       if (duration > 0) seek(ratio * duration);
                     }}
                     disabled={!isReady}
+                    getAriaValueText={(_, v) =>
+                      `${formatSpokenTime((v / 1000) * duration)} of ${formatSpokenTime(duration)}`
+                    }
                     aria-label="Seek"
                     style={{ "--slider-range-color": accentHex } as React.CSSProperties}
                     className={cn(
@@ -242,11 +249,34 @@ export function Transport({
   );
 }
 
+/**
+ * Controls that already give Space or the arrow keys a meaning: Space
+ * activates a focused button or link, arrows move a slider or tab list. When
+ * focus is on one of these the key belongs to it, not to the global shortcut.
+ */
+const KEY_OWNING_SELECTOR = [
+  "input",
+  "textarea",
+  "select",
+  "button",
+  "a[href]",
+  "summary",
+  "[contenteditable]:not([contenteditable='false'])",
+  '[role="button"]',
+  '[role="link"]',
+  '[role="slider"]',
+  '[role="tab"]',
+  '[role="menuitem"]',
+  '[role="option"]',
+  '[role="checkbox"]',
+  '[role="radio"]',
+  '[role="switch"]',
+  '[role="combobox"]',
+  '[role="listbox"]',
+  '[role="spinbutton"]',
+].join(",");
+
 function shouldIgnoreKey(target: HTMLElement): boolean {
-  const tag = target.tagName;
-  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
   if (target.isContentEditable) return true;
-  // Don't eat Space on other focused buttons — only ignore when focus is
-  // somewhere that actually cares about arrow/space keys.
-  return false;
+  return typeof target.closest === "function" && target.closest(KEY_OWNING_SELECTOR) !== null;
 }

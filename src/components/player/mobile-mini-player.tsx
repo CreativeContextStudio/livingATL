@@ -8,9 +8,9 @@ import {
   PRIMARY_ACCENT,
   type ThemeAccent,
 } from "@/components/shared/theme-accent";
-import { formatTimestamp } from "@/lib/player";
+import { formatSpokenTime, formatTimestamp } from "@/lib/player";
 import { cn } from "@/lib/utils";
-import { usePlayer } from "./player-context";
+import { toQuarterSecond, usePlayer, usePlayerTime } from "./player-context";
 
 /**
  * Mobile-only sticky compact audio bar. Below `lg` the main Transport scrolls
@@ -36,8 +36,8 @@ export function MobileMiniPlayer({
   accent?: ThemeAccent["tailwind"];
   accentHex?: string;
 }) {
-  const { currentTime, duration, isPlaying, isReady, togglePlay, seek } =
-    usePlayer();
+  const { duration, isPlaying, isReady, togglePlay, seek } = usePlayer();
+  const currentTime = usePlayerTime(toQuarterSecond);
 
   const progress = duration > 0 ? currentTime / duration : 0;
 
@@ -84,6 +84,9 @@ export function MobileMiniPlayer({
               if (duration > 0) seek(ratio * duration);
             }}
             disabled={!isReady}
+            getAriaValueText={(_, v) =>
+              `${formatSpokenTime((v / 1000) * duration)} of ${formatSpokenTime(duration)}`
+            }
             aria-label="Seek"
             style={
               { "--slider-range-color": accentHex } as React.CSSProperties

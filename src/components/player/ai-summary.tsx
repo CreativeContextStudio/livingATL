@@ -34,7 +34,7 @@ export function AISummaryCard({ summary }: { summary: string | null }) {
         </p>
         <span
           aria-hidden
-          className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground/70"
+          className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground"
         >
           ·
         </span>

@@ -107,9 +107,9 @@ export function TimelineFilterBar({
         <span className="text-foreground">
           {matchingMomentCount.toLocaleString()}
         </span>
-        <span className="text-muted-foreground/60">/ {totalMomentCount.toLocaleString()}</span>
+        <span className="text-muted-foreground">/ {totalMomentCount.toLocaleString()}</span>
         <span>moments</span>
-        <span className="mx-1 text-muted-foreground/50">·</span>
+        <span className="mx-1 text-muted-foreground">·</span>
         <span className="text-foreground">{matchingNarratorCount}</span>
         <span>narrators</span>
       </span>
@@ -134,7 +134,7 @@ export function TimelineFilterBar({
         <button
           type="button"
           onClick={clearAll}
-          className="ml-auto inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+          className="ml-auto inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <XIcon aria-hidden className="size-3" />
           Clear filters
@@ -171,7 +171,7 @@ function FilterTriggerShell({
       ref={ref}
       type="button"
       className={cn(
-        "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[11px] uppercase tracking-[0.12em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+        "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[11px] uppercase tracking-[0.12em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active
           ? "border-primary/60 bg-primary/10 text-foreground"
           : "border-border bg-background text-muted-foreground hover:text-foreground",
@@ -351,9 +351,9 @@ function HighlightToggle({
       onClick={onToggle}
       title="Show highlights only"
       className={cn(
-        "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[11px] uppercase tracking-[0.12em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+        "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[11px] uppercase tracking-[0.12em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active
-          ? "border-primary/70 bg-primary/15 text-primary"
+          ? "border-primary/70 bg-primary/15 text-primary-ink"
           : "border-border bg-background text-muted-foreground hover:text-foreground",
       )}
     >

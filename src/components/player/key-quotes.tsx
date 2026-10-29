@@ -42,7 +42,7 @@ export function KeyQuotesList({ quotes }: { quotes: KeyQuote[] }) {
         onClick={() => setSectionOpen((v) => !v)}
         aria-expanded={sectionOpen}
         aria-controls="key-quotes-list"
-        className="flex items-baseline justify-between gap-3 rounded-sm text-left transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+        className="flex items-baseline justify-between gap-3 rounded-sm text-left transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <span className="flex items-center gap-2">
           <ChevronDownIcon
@@ -69,7 +69,7 @@ export function KeyQuotesList({ quotes }: { quotes: KeyQuote[] }) {
                 <div className="flex items-start gap-2">
                   <QuoteIcon
                     aria-hidden
-                    className="mt-1 size-3.5 shrink-0 text-primary/60"
+                    className="mt-1 size-3.5 shrink-0 text-primary-ink/60"
                   />
                   <blockquote className="text-sm leading-relaxed italic text-foreground/90">
                     &ldquo;{q.text}&rdquo;

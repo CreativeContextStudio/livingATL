@@ -46,7 +46,7 @@ export function MobileNavSheet({ links }: { links: readonly MobileNavLink[] }) {
         >
           <div className="flex items-center justify-between">
             <DialogPrimitive.Title className="font-heading text-lg font-bold tracking-tight">
-              living<span className="text-primary">ATL</span>
+              living<span className="text-primary-ink">ATL</span>
             </DialogPrimitive.Title>
             <DialogPrimitive.Close
               aria-label="Close menu"

@@ -75,7 +75,7 @@ const SUPPORT_TRACKS: SupportTrack[] = [
     body: "Sponsors cover transcription, diarization, LLM + agentic review, API + token usage, hosting, and subscription costs that keep the archive online. Every dollar processes the next recording in the queue. No advertising, no paywalls, no lock-in. Sponsor credit lives in a dedicated acknowledgments page; the collection stays free, ad-free, and citation-first.",
     cta: "Sponsorship kit · Forthcoming",
     icon: HandHeartIcon,
-    accent: "bg-primary/15 text-primary",
+    accent: "bg-primary/15 text-primary-ink",
   },
   {
     index: "03",
@@ -177,7 +177,7 @@ export default function ContactPage() {
           <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
             Partners
           </p>
-          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground/80">
+          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
             03 · Organizations
           </p>
         </div>
@@ -198,7 +198,7 @@ export default function ContactPage() {
                   <p className="font-mono text-[10px] font-semibold tracking-[0.22em] uppercase text-muted-foreground">
                     {p.role}
                   </p>
-                  <p className="font-mono text-[10px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground/60">
+                  <p className="font-mono text-[10px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
                     {p.index}
                   </p>
                 </div>
@@ -207,7 +207,7 @@ export default function ContactPage() {
                   <h3 className="font-heading text-xl font-semibold leading-tight tracking-tight">
                     {p.name}
                   </h3>
-                  <p className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground/80">
+                  <p className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
                     {p.descriptor}
                   </p>
                 </div>
@@ -232,7 +232,7 @@ export default function ContactPage() {
           <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
             Support
           </p>
-          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground/80">
+          <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
             04 · Ways to contribute
           </p>
         </div>
@@ -257,7 +257,7 @@ export default function ContactPage() {
                     >
                       <Icon className="size-5" strokeWidth={1.75} />
                     </span>
-                    <p className="font-mono text-[10px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground/60">
+                    <p className="font-mono text-[10px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
                       {t.index}
                     </p>
                   </div>

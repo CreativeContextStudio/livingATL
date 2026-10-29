@@ -30,7 +30,7 @@ export const MOMENT_BG_COLORS = {
  *  active moment (audio playhead inside its range). Applied to labels that
  *  sit *inside* the chip (e.g. theme names). */
 export const MOMENT_TEXT_COLORS = {
-  inactive: "text-primary",
+  inactive: "text-primary-ink",
   active: "text-primary-foreground",
 } as const;
 

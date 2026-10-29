@@ -21,7 +21,7 @@ export function AdvisoryBadge({
   return (
     <Badge
       variant="outline"
-      className="gap-1.5 border-[color:var(--color-warning)]/40 bg-[color:var(--color-warning)]/10 px-2 text-[10px] font-semibold tracking-[0.14em] text-[color:var(--color-warning)] uppercase"
+      className="gap-1.5 border-[color:var(--color-warning)]/40 bg-[color:var(--color-warning)]/10 px-2 text-[10px] font-semibold tracking-[0.14em] text-[color:var(--color-warning-ink)] uppercase"
       title={`Advisory: ${advisory.advisory_version ?? "current"}`}
     >
       <span

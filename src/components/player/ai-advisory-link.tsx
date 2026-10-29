@@ -36,7 +36,7 @@ export function AIAdvisoryLink({ className }: { className?: string }) {
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          "inline-flex items-center gap-1 font-mono text-[10px] tracking-[0.12em] uppercase text-muted-foreground underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 rounded-sm",
+          "inline-flex items-center gap-1 font-mono text-[10px] tracking-[0.12em] uppercase text-muted-foreground underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm",
           className,
         )}
       >
@@ -62,7 +62,7 @@ export function AIAdvisoryLink({ className }: { className?: string }) {
                 Clicking this navigates, which also closes the dialog. */}
             <Link
               href="/contact"
-              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Contact us
             </Link>

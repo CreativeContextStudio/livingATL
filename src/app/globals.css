@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "mapbox-gl/dist/mapbox-gl.css";
 
 /* The `dark:` variant now matches both the shadcn `.dark` class convention
  * and the Atlanta Brand System `[data-theme="dark"]` attribute convention
@@ -18,6 +17,11 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  /* Coral for TEXT (`text-primary-ink`). Light coral (#ff7f5c) is only
+   * 2.37:1 on the light surface, so text gets a darker ink while fills keep
+   * the brand coral. WCAG AA ≥4.5:1 per theme — see P1-a11y-1 in
+   * refDocs/livingATL_PreDeploy_Fixes_PRD.md. */
+  --color-primary-ink: var(--primary-ink);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -91,8 +95,9 @@
   --card-foreground: #1a1a2e;
   --popover: #fff8f5;
   --popover-foreground: #1a1a2e;
-  --primary: #ff7f5c;           /* accent — coral */
-  --primary-foreground: #fff8f5;
+  --primary: #ff7f5c;           /* accent — coral (fills, bars, buttons) */
+  --primary-foreground: #1a1a2e; /* text on coral: 6.86:1 (#fff8f5 was 2.37:1) */
+  --primary-ink: #b8431f;       /* coral text: 5.18:1 on surface, ≥4.76:1 on tints */
   --secondary: #7b2fbe;         /* secondary — purple */
   --secondary-foreground: #fff8f5;
   --muted: #fff0eb;             /* surface-alt */
@@ -102,7 +107,7 @@
   --destructive: #ff4057;       /* error */
   --border: #f0e5df;            /* derived neutral */
   --input: #fff0eb;
-  --ring: #ff7f5c;              /* focus ring = brand accent */
+  --ring: #b8431f;              /* focus ring = coral ink: 5.18:1 (≥3:1 non-text) */
   --chart-1: #ff7f5c;
   --chart-2: #00a8cc;           /* interactive */
   --chart-3: #7b2fbe;
@@ -112,11 +117,11 @@
   --sidebar: #fff8f5;
   --sidebar-foreground: #1a1a2e;
   --sidebar-primary: #ff7f5c;
-  --sidebar-primary-foreground: #fff8f5;
+  --sidebar-primary-foreground: #1a1a2e;
   --sidebar-accent: #fff0eb;
   --sidebar-accent-foreground: #1a1a2e;
   --sidebar-border: #f0e5df;
-  --sidebar-ring: #ff7f5c;
+  --sidebar-ring: #b8431f;
 
   /* Atlanta Brand System semantic tokens — for hand-coded components that
    * want the Style Guide's named API (--color-accent, --color-surface, etc.)
@@ -135,7 +140,8 @@
   --color-interactive: #00a8cc;
   --color-interactive-hover: #008dad;
   --color-success: #2ec866;
-  --color-warning: #ffb627;
+  --color-warning: #ffb627;     /* fills/borders/tints only — 1.67:1 as text */
+  --color-warning-ink: #8a5a00; /* warning TEXT: 5.64:1 on surface, 5.34:1 on warning tint */
   --color-error: #ff4057;
   --color-highlight: #ff2d7b;
   --shadow-glow: 0 8px 30px rgba(255, 127, 92, 0.25);
@@ -224,6 +230,7 @@
   --popover-foreground: #fafafa;
   --primary: #ff7f5c;           /* ABS coral — brand continuity with Light */
   --primary-foreground: #232326;
+  --primary-ink: #ff7f5c;       /* brand coral passes on charcoal: 6.30:1 */
   --secondary: #9b59d0;         /* lightened ABS purple for dark-bg legibility */
   --secondary-foreground: #232326;
   --muted: #37373b;
@@ -262,6 +269,7 @@
   --color-interactive-hover: #5ce1ff;
   --color-success: #2ec866;
   --color-warning: #ffb627;
+  --color-warning-ink: #ffb627;  /* 8.94:1 on charcoal */
   --color-error: #ff4057;
   --color-highlight: #ff2d7b;
   --shadow-glow: 0 8px 30px rgba(255, 127, 92, 0.35);
@@ -348,10 +356,11 @@ html[data-theme="geist"] samp {
   --popover-foreground: #0a0a0a;
   --primary: #0a0a0a;
   --primary-foreground: #fafafa;
+  --primary-ink: #0a0a0a;
   --secondary: #f4f4f5;
   --secondary-foreground: #0a0a0a;
   --muted: #f4f4f5;
-  --muted-foreground: #71717a;
+  --muted-foreground: #5f5f67;  /* zinc-500 (#71717a) was 4.40:1 on bg-muted; this is ≥4.5:1 on every Geist surface incl. the primary/10 active-row tint */
   --accent: #f4f4f5;
   --accent-foreground: #0a0a0a;
   --destructive: #dc2626;
@@ -388,6 +397,7 @@ html[data-theme="geist"] samp {
   --color-interactive-hover: #1d4ed8;
   --color-success: #16a34a;
   --color-warning: #ca8a04;
+  --color-warning-ink: #8a5a00; /* 5.93:1 on white (#ca8a04 is 2.94:1) */
   --color-error: #dc2626;
   --color-highlight: #dc2626;
   --shadow-glow: 0 8px 30px rgba(0, 0, 0, 0.08);

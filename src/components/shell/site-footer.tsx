@@ -27,7 +27,7 @@ export function SiteFooter() {
       <div className="mx-auto flex h-[var(--footer-h)] w-full max-w-7xl items-center justify-between gap-3 px-6 text-[11px] text-muted-foreground sm:text-xs">
         <div className="flex min-w-0 items-center gap-3">
           <p className="font-heading text-sm font-bold tracking-tight text-foreground">
-            living<span className="text-primary">ATL</span>
+            living<span className="text-primary-ink">ATL</span>
           </p>
           <p className="hidden truncate sm:block">
             An oral history archive of Atlanta, 1914–1977.

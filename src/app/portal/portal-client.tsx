@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
   useSyncExternalStore,
@@ -14,17 +15,14 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { PortalResponseCard } from "@/components/portal/portal-response-card";
 import { ShareAnswer } from "@/components/portal/share-answer";
 import { CitationsPanel } from "@/components/portal/citations-panel";
 import { capturePortalEvent } from "@/lib/portal/analytics";
 import { MAX_QUESTION_CHARS } from "@/lib/portal/sanitize-messages";
 import {
-  ACCENT_BY_KEY,
   defaultSlice,
   samplePerGroup,
-  type GroupKey,
   type PromptGroup,
 } from "@/lib/portal/prompt-library";
 import type {
@@ -61,24 +59,6 @@ const PROMPTS_PER_GROUP = 2;
 // ---------------------------------------------------------------------------
 // Part extraction — read text / citations / followups from UIMessage.parts
 // ---------------------------------------------------------------------------
-
-/**
- * Truncate a past question down to the first ~7 words for the coda
- * overture. Strips leading punctuation, lowercases the first word so the
- * overture reads as a prepositional fragment ("on auburn avenue nightlife"),
- * appends an ellipsis when truncated. Pure local heuristic — no server
- * round-trip. Ugly results happen gracefully (just more words until the
- * natural word boundary).
- */
-function compressQuestion(text: string): string {
-  const cleaned = text.trim().replace(/^[^\p{L}\p{N}]+/u, "");
-  if (!cleaned) return "earlier question";
-  const words = cleaned.split(/\s+/);
-  const kept = words.slice(0, 7).join(" ").replace(/[.,;:!?]+$/, "");
-  const truncated = words.length > 7;
-  const lower = kept.charAt(0).toLowerCase() + kept.slice(1);
-  return truncated ? `${lower}…` : lower;
-}
 
 /** `[3]` / `[1, 4]` citation markers read as noise when announced. */
 function stripCitationMarks(text: string): string {
@@ -182,48 +162,38 @@ export function PortalClient() {
     });
 
   const [input, setInput] = useState("");
-  // Origin group per user-turn ordinal index (0, 1, 2, …). Populated when
-  // a visitor clicks a prompt card or a follow-up; typed-from-scratch
-  // questions leave the slot empty and render with a neutral border.
-  const [originByTurn, setOriginByTurn] = useState<Map<number, GroupKey>>(
-    () => new Map(),
-  );
-
-  const scrollerRef = useRef<HTMLDivElement>(null);
-  // Follow the stream only while the reader is at (or near) the bottom of
-  // the conversation; scrolling up to re-read pauses it until they return.
-  const stickToBottomRef = useRef(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const listRef = useRef<HTMLOListElement>(null);
 
   const isLoading = status === "submitted" || status === "streaming";
-  const hasConversation = messages.length > 0 || isLoading;
-  const showEmptyState = messages.length === 0 && !isLoading;
   const hasInput = input.trim().length > 0;
 
-  // Keep the newest text in view as deltas arrive — but scroll only the
-  // conversation pane (scrollIntoView also scrolled the page on mobile),
-  // only when the reader hasn't scrolled away, and without smooth-scroll
-  // animation per token (or at all under prefers-reduced-motion).
-  useEffect(() => {
-    const scroller = scrollerRef.current;
-    if (messages.length === 0 || !scroller || !stickToBottomRef.current) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    scroller.scrollTo({
-      top: scroller.scrollHeight,
-      behavior: reduce || status === "streaming" ? "auto" : "smooth",
-    });
-  }, [messages, status]);
+  // Pair messages into exchanges: a question and (once it arrives) its answer.
+  const exchanges: Array<{ id: string; question: string; answer?: PortalUIMessage }> = [];
+  for (const m of messages) {
+    if (m.role === "user") exchanges.push({ id: m.id, question: extractUserText(m) });
+    else if (m.role === "assistant" && exchanges.length > 0) exchanges[exchanges.length - 1].answer = m;
+  }
+  const showEmptyState = exchanges.length === 0;
 
-  const onScrollerScroll = useCallback(() => {
-    const el = scrollerRef.current;
+  // A new question scrolls its exchange to the top of the screen, so the
+  // answer reads from its first line as it streams in below. Never on load.
+  const exchangeCount = exchanges.length;
+  const seenCountRef = useRef(0);
+  useEffect(() => {
+    if (exchangeCount <= seenCountRef.current) {
+      seenCountRef.current = exchangeCount;
+      return;
+    }
+    seenCountRef.current = exchangeCount;
+    const el = listRef.current?.querySelector<HTMLElement>(`[data-exchange="${exchangeCount - 1}"]`);
     if (!el) return;
-    stickToBottomRef.current =
-      el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-  }, []);
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
+  }, [exchangeCount]);
 
   // One persistent screen-reader status: announce the search, stay quiet
-  // while tokens stream (announcing deltas is noise), then read the
-  // finished answer once. Visible error copy has its own role="alert".
+  // while tokens stream, then read the finished answer once.
   const lastMessage = messages.at(-1);
   const srStatus =
     status === "submitted"
@@ -236,10 +206,8 @@ export function PortalClient() {
   // derived during render rather than mirrored into state.
   const errorMessage = describePortalError(error);
 
-  // Focus the input on arrival and after each turn so the visitor can keep
-  // asking without reaching for the mouse — but never scroll the page to do
-  // it, and skip the on-arrival focus on touch devices: there it popped the
-  // on-screen keyboard and jumped the page past the intro.
+  // Focus the input on arrival and after each answer, without scrolling the
+  // page; skip the on-arrival focus on touch screens (it pops the keyboard).
   const hasMountedRef = useRef(false);
   useEffect(() => {
     if (isLoading) return;
@@ -250,27 +218,13 @@ export function PortalClient() {
   }, [isLoading]);
 
   const submit = useCallback(
-    (rawText: string, sourceGroup?: GroupKey) => {
+    (rawText: string) => {
       const question = rawText.trim();
       if (!question || isLoading) return;
-
-      const turnIndex = messages.filter((m) => m.role === "user").length;
-      // A new question always brings the conversation back to the bottom.
-      stickToBottomRef.current = true;
-
       capturePortalEvent("portal_query", {
         question_length: question.length,
-        turn_index: turnIndex,
+        turn_index: messages.filter((m) => m.role === "user").length,
       });
-
-      if (sourceGroup) {
-        setOriginByTurn((prev) => {
-          const next = new Map(prev);
-          next.set(turnIndex, sourceGroup);
-          return next;
-        });
-      }
-
       setInput("");
       void sendMessage({ text: question });
     },
@@ -295,214 +249,92 @@ export function PortalClient() {
     [input, submit],
   );
 
-  const userTurnCount = messages.filter((m) => m.role === "user").length;
-
   return (
-    <div
-      className={cn(
-        "flex flex-col overflow-hidden rounded-xl border border-border bg-card/40",
-        "h-[70dvh] lg:h-full lg:min-h-0",
-      )}
-    >
-      {/* Header row — mirrors the Player's Transcript card header. */}
-      <div className="flex items-center justify-between gap-3 border-b border-border/60 px-5 py-3">
-        <div className="flex items-center gap-2">
-          <div aria-hidden className="h-1.5 w-8 rounded-full bg-primary" />
-          <h2 className="font-heading text-xs font-semibold tracking-[0.14em] uppercase">
-            Conversation
-          </h2>
-        </div>
-        <p className="font-mono text-[10px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
-          {hasConversation
-            ? `${userTurnCount} turn${userTurnCount === 1 ? "" : "s"}`
-            : "Ready"}
-        </p>
-      </div>
-
-      {/* Scroll region */}
+    <div className="flex flex-1 flex-col gap-8">
       <p role="status" className="sr-only">
         {srStatus}
       </p>
-      <div
-        ref={scrollerRef}
-        onScroll={onScrollerScroll}
-        className="scrollbar-soft min-h-0 flex-1 overflow-y-auto px-5 py-5"
-      >
-        <div className="flex flex-col gap-6">
-          {showEmptyState ? (
-            <EmptyStateWithSampledPrompts onPick={submit} />
-          ) : null}
 
-          {hasConversation ? (
-            (() => {
-              // Pre-compute the user-turn ordinal for every message so the
-              // accent-color lookup is O(1) in the render loop below. An
-              // assistant message inherits the ordinal of its preceding
-              // user turn — they're the two halves of one conversational
-              // pair.
-              let userOrdinal = -1;
-              const ordinals = messages.map((m) => {
-                if (m.role === "user") userOrdinal += 1;
-                return userOrdinal;
-              });
-              const lastUserIdx = findLastUserIndex(messages);
-              const lastUserOrdinal = userTurnCount - 1;
-              const loadingGroupKey =
-                lastUserOrdinal >= 0
-                  ? originByTurn.get(lastUserOrdinal)
-                  : undefined;
-              const loadingAccent = loadingGroupKey
-                ? ACCENT_BY_KEY[loadingGroupKey]
-                : undefined;
-              return (
-                <ol
-                  aria-label="Conversation"
-                  aria-busy={isLoading}
-                  // Horizontal divider appears above a user turn at every
-                  // pair boundary (i.e., any user turn that isn't the
-                  // first li). Within a pair (user → archive answer), no
-                  // divider — they read as one exchange.
-                  className="flex flex-col [&>li[data-role='user']:not(:first-child)]:mt-5 [&>li[data-role='user']:not(:first-child)]:border-t [&>li[data-role='user']:not(:first-child)]:border-border/40 [&>li[data-role='user']:not(:first-child)]:pt-5"
-                >
-                  {messages.map((message, idx) => {
-                    // A turn is "current" if it belongs to the last
-                    // user+archive pair. Everything before renders in
-                    // coda (compact) form.
-                    const isCurrent = idx >= lastUserIdx;
-                    const ordinal = ordinals[idx];
-                    const groupKey =
-                      ordinal >= 0 ? originByTurn.get(ordinal) : undefined;
-                    const accent = groupKey
-                      ? ACCENT_BY_KEY[groupKey]
-                      : undefined;
-                    return (
-                      <li
-                        key={message.id}
-                        data-role={message.role}
-                        className={cn(
-                          "border-l-2 pl-3",
-                          accent?.leftBorder ?? "border-l-transparent",
-                        )}
-                      >
-                        {message.role === "user" ? (
-                          isCurrent ? (
-                            <UserTurn text={extractUserText(message)} />
-                          ) : (
-                            <UserTurnCoda text={extractUserText(message)} />
-                          )
-                        ) : (
-                          <AssistantTurn
-                            message={message}
-                            onPickFollowUp={submit}
-                            sourceGroup={groupKey}
-                            isCurrent={isCurrent}
-                          />
-                        )}
-                      </li>
-                    );
-                  })}
-                  {status === "submitted" ? (
-                    <li
-                      data-role="assistant"
-                      className={cn(
-                        "border-l-2 pl-3",
-                        loadingAccent?.leftBorder ?? "border-l-transparent",
-                      )}
-                    >
-                      <AssistantTurnLoading />
-                    </li>
+      {showEmptyState ? <EmptyStateWithSampledPrompts onPick={submit} /> : null}
+
+      {exchanges.length > 0 ? (
+        <ol ref={listRef} aria-label="Conversation" aria-busy={isLoading} className="flex flex-col gap-10">
+          {exchanges.map((ex, i) => {
+            const isLast = i === exchanges.length - 1;
+            return (
+              <li
+                key={ex.id}
+                data-exchange={i}
+                // The latest exchange reserves a screen's height so a new
+                // question can scroll to the top while its answer streams in.
+                className={isLast ? "min-h-[calc(100dvh-14rem)] scroll-mt-20" : "scroll-mt-20"}
+              >
+                <article className="flex flex-col gap-4">
+                  <h2 className="font-heading text-xl font-semibold leading-snug tracking-tight text-foreground sm:text-2xl">
+                    {ex.question}
+                  </h2>
+                  {ex.answer ? (
+                    <Answer message={ex.answer} isCurrent={isLast} onPickFollowUp={submit} />
+                  ) : isLast && isLoading ? (
+                    <PortalResponseCard text="" citations={[]} loading />
                   ) : null}
-                </ol>
-              );
-            })()
-          ) : null}
+                </article>
+              </li>
+            );
+          })}
+        </ol>
+      ) : null}
 
-          {errorMessage ? (
-            <div
-              role="alert"
-              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-red-800 dark:text-red-200"
-            >
-              <span>{errorMessage}</span>
-              {messages.some((m) => m.role === "user") ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => void regenerate()}
-                >
-                  <RotateCcwIcon aria-hidden className="size-3.5" />
-                  Try again
-                </Button>
-              ) : null}
-            </div>
+      {errorMessage ? (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-red-800 dark:text-red-200"
+        >
+          <span>{errorMessage}</span>
+          {exchanges.length > 0 ? (
+            <Button type="button" size="sm" variant="outline" onClick={() => void regenerate()}>
+              <RotateCcwIcon aria-hidden className="size-3.5" />
+              Try again
+            </Button>
           ) : null}
         </div>
-      </div>
+      ) : null}
 
-      {/* Input bar — anchored to the bottom of the workspace card. */}
+      {/* Question box, pinned to the bottom of the screen (above the
+          listening-queue bar when it's showing). */}
       <div
-        className={cn(
-          "flex flex-col gap-2 border-t border-border/60 bg-card/60 px-4 py-3",
-          "focus-within:bg-card/80",
-        )}
+        className="sticky z-20 mt-auto -mx-4 bg-gradient-to-t from-background from-70% to-transparent px-4 pt-6 pb-4 sm:-mx-6 sm:px-6"
+        style={{ bottom: "var(--queue-bar-h, 0px)" }}
       >
-        <div className="hidden items-center gap-2 px-1 sm:flex">
-          <p className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
-            Ask the archive
-          </p>
-          <div aria-hidden className="h-px flex-1 bg-border/70" />
-          {hasInput && !isLoading ? (
-            // Matches onKeyDown: plain Enter sends, Shift+Enter adds a line.
-            <p
-              aria-hidden
-              className="font-mono text-[10px] tracking-[0.08em] text-muted-foreground"
-            >
-              <kbd className="rounded-md border border-border/70 bg-muted/50 px-1.5 py-0.5 font-medium">
-                ↵
-              </kbd>{" "}
-              send ·{" "}
-              <kbd className="rounded-md border border-border/70 bg-muted/50 px-1.5 py-0.5 font-medium">
-                ⇧↵
-              </kbd>{" "}
-              new line
-            </p>
-          ) : null}
-        </div>
         <p id="portal-input-help" className="sr-only">
           Press Enter to send, Shift+Enter for a new line.
         </p>
-        <form onSubmit={onFormSubmit} className="flex items-end gap-2">
+        <form
+          onSubmit={onFormSubmit}
+          className="flex items-end gap-2 rounded-xl border border-border bg-card p-2 shadow-sm focus-within:ring-2 focus-within:ring-ring"
+        >
           <textarea
             ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.currentTarget.value)}
             onKeyDown={onKeyDown}
-            placeholder="A person, a neighborhood, an era — type your question…"
-            rows={2}
+            placeholder={exchanges.length > 0 ? "Ask a follow-up or a new question…" : "Ask about a person, a place, or an event…"}
+            rows={1}
             maxLength={MAX_QUESTION_CHARS}
             disabled={isLoading}
             aria-label="Ask the archive a question"
             aria-describedby="portal-input-help"
-            className={cn(
-              "min-h-10 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground",
-              "focus:outline-none disabled:opacity-50",
-            )}
+            className="max-h-40 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-base text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 [field-sizing:content]"
           />
           {isLoading ? (
             // While an answer is coming, the send button becomes Stop. What
             // has streamed so far stays on screen.
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => void stop()}
-              aria-label="Stop answering"
-            >
+            <Button type="button" variant="outline" onClick={() => void stop()} aria-label="Stop answering">
               <SquareIcon aria-hidden className="size-3" />
               <span>Stop</span>
             </Button>
           ) : (
-            <Button type="submit" size="sm" disabled={!hasInput} aria-label="Ask">
+            <Button type="submit" disabled={!hasInput} aria-label="Ask">
               <SendHorizontalIcon className="size-3.5" />
               <span>Ask</span>
             </Button>
@@ -549,11 +381,7 @@ function useSampledPrompts(n: number): PromptGroup[] {
   return hydrated ? sampled : defaults;
 }
 
-function EmptyStateWithSampledPrompts({
-  onPick,
-}: {
-  onPick: (q: string, sourceGroup: GroupKey) => void;
-}) {
+function EmptyStateWithSampledPrompts({ onPick }: { onPick: (q: string) => void }) {
   const groups = useSampledPrompts(PROMPTS_PER_GROUP);
   return <EmptyState groups={groups} onPick={onPick} />;
 }
@@ -563,54 +391,24 @@ function EmptyState({
   onPick,
 }: {
   groups: ReadonlyArray<PromptGroup>;
-  onPick: (q: string, sourceGroup: GroupKey) => void;
+  onPick: (q: string) => void;
 }) {
   return (
-    <section
-      className="flex flex-col gap-6"
-      aria-labelledby="portal-empty-heading"
-    >
-      <div className="flex flex-col gap-2">
-        <h2
-          id="portal-empty-heading"
-          className="font-heading text-xl font-semibold text-foreground"
-        >
-          The archive answers in the voices that lived it.
-        </h2>
-        <p className="max-w-2xl text-sm leading-relaxed text-foreground/75">
-          Start with one of these, or type your own. Every response cites the
-          recordings it draws from — click a citation to hear that moment in
-          the Player.
-        </p>
-      </div>
-
+    <section aria-label="Example questions" className="flex flex-col gap-3">
+      <p className="text-sm text-muted-foreground">Try one of these, or type your own below.</p>
       <ul className="grid gap-3 sm:grid-cols-3">
         {groups.map((group) => (
-          <li
-            key={group.label}
-            className="flex flex-col gap-3 rounded-xl border border-border bg-card/40 p-4"
-          >
-            <div className="flex items-center gap-2">
-              <div
-                aria-hidden
-                className={cn("h-px w-6", group.accent.stripe)}
-              />
-              <p className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
-                {group.label}
-              </p>
-            </div>
+          <li key={group.label} className="flex flex-col gap-2">
+            <p className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
+              {group.label}
+            </p>
             <ul className="flex flex-col gap-2">
               {group.prompts.map((prompt) => (
                 <li key={prompt}>
                   <button
                     type="button"
-                    onClick={() => onPick(prompt, group.key)}
-                    className={cn(
-                      "w-full rounded-lg border border-border/50 bg-background px-3 py-2 text-left text-xs leading-relaxed text-foreground/85",
-                      "transition-all hover:-translate-y-0.5 hover:bg-muted hover:text-foreground",
-                      group.accent.hoverBorder,
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    )}
+                    onClick={() => onPick(prompt)}
+                    className="w-full rounded-lg border border-border bg-card/60 px-3 py-2.5 text-left text-sm leading-snug text-foreground/90 transition-colors hover:border-primary/40 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {prompt}
                   </button>
@@ -625,180 +423,53 @@ function EmptyState({
 }
 
 /**
- * Right-aligned user turn (current). Label + thin rule anchor to the right
- * edge; body reads right-aligned with a max-width so short questions don't
- * stretch across the full conversation column.
+ * One answer: the prose (with inline citation chips), its sources, the
+ * Play / Share actions, and — for the latest answer — follow-up questions.
+ * Earlier answers keep their prose and actions but collapse their sources.
  */
-function UserTurn({ text }: { text: string }) {
-  return (
-    <div className="flex flex-col items-end gap-2">
-      <div className="flex w-full items-center gap-2">
-        <div aria-hidden className="h-px flex-1 bg-border/60" />
-        <p className="font-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
-          You
-        </p>
-      </div>
-      <p className="max-w-[80%] whitespace-pre-line text-right text-sm leading-relaxed text-foreground">
-        {text}
-      </p>
-    </div>
-  );
-}
-
-/**
- * Compressed past-question overture. Sits in the coda register — one italic
- * mono-tracked line echoing the page-section eyebrow vocabulary elsewhere in
- * the app. Reads as a chapter mark, not a standalone turn.
- */
-function UserTurnCoda({ text }: { text: string }) {
-  return (
-    <div className="flex justify-end">
-      <p className="max-w-[85%] text-right font-mono text-[10px] tracking-[0.14em] uppercase italic text-muted-foreground">
-        — on {compressQuestion(text)} —
-      </p>
-    </div>
-  );
-}
-
-/**
- * Left-aligned archive turn. Carries the "THE ARCHIVE · N voices" label
- * externally (replacing the old PortalResponseCard `Answer` header), leans
- * on flush-left prose for the body, and conditionally renders citations
- * panel + follow-ups only for the current turn. Past-turn archive answers
- * keep the prose body for readability but collapse the citations panel.
- */
-function AssistantTurn({
+function Answer({
   message,
-  onPickFollowUp,
-  sourceGroup,
   isCurrent,
+  onPickFollowUp,
 }: {
   message: PortalUIMessage;
-  onPickFollowUp: (question: string, sourceGroup?: GroupKey) => void;
-  sourceGroup?: GroupKey;
   isCurrent: boolean;
+  onPickFollowUp: (question: string) => void;
 }) {
   const { text, citationsForLookup, citationsForPanel, followUps, share } =
     extractAssistantFields(message);
-  const voiceCount = citationsForPanel.length;
+  const cited = citationsForPanel.length;
   return (
-    <div
-      className="flex max-w-[92%] flex-col gap-3"
-      aria-label="Archive answer"
-    >
-      <ArchiveSpeakerLabel voiceCount={voiceCount} />
+    <div className="flex flex-col gap-5" aria-label="Archive answer">
       <PortalResponseCard text={text} citations={citationsForLookup} />
-      {voiceCount > 0 ? (
-        <CitationsPanel
-          citations={citationsForPanel}
-          collapsed={!isCurrent}
-        />
+      {cited > 0 ? (
+        <CitationsPanel citations={citationsForPanel} collapsed={!isCurrent} headingLevel="h3" />
       ) : null}
-      {voiceCount > 0 && isCurrent ? (
-        <PlayCitationsButton citations={citationsForPanel} />
+      {cited > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <PlayCitationsButton citations={citationsForPanel} />
+          {share ? <ShareAnswer share={share} answer={text} citations={citationsForLookup} /> : null}
+        </div>
       ) : null}
-      {share && voiceCount > 0 ? (
-        <ShareAnswer share={share} answer={text} citations={citationsForLookup} />
-      ) : null}
-      {isCurrent && followUps.length > 0 ? (
-        <FollowUps
-          prompts={followUps}
-          onPick={(q) => onPickFollowUp(q, sourceGroup)}
-        />
-      ) : null}
+      {isCurrent && followUps.length > 0 ? <FollowUps prompts={followUps} onPick={onPickFollowUp} /> : null}
     </div>
   );
 }
 
-/** Loading-state archive turn — label + skeleton-variant body. Rendered
- *  during `status === "submitted"` before the first text token arrives. */
-function AssistantTurnLoading() {
+function FollowUps({ prompts, onPick }: { prompts: string[]; onPick: (question: string) => void }) {
+  const headingId = useId();
   return (
-    <div className="flex max-w-[92%] flex-col gap-3">
-      <ArchiveSpeakerLabel voiceCount={0} loading />
-      <PortalResponseCard text="" citations={[]} loading />
-    </div>
-  );
-}
-
-/**
- * "The archive · N voices ───" speaker label. Mono-tracked uppercase per
- * the Transcript Pane precedent; `text-primary-ink` coral on "The archive"
- * mirrors how the Player renders the interviewee's name. `N voices` is the
- * active citation count — hidden when 0 (refusal answers don't count as
- * "voices") or during loading.
- */
-function ArchiveSpeakerLabel({
-  voiceCount,
-  loading = false,
-}: {
-  voiceCount: number;
-  loading?: boolean;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <p className="font-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-primary-ink">
-        The archive
-      </p>
-      {!loading && voiceCount > 0 ? (
-        <p className="font-mono text-[10px] tabular-nums tracking-[0.14em] uppercase text-muted-foreground">
-          · {voiceCount} {voiceCount === 1 ? "voice" : "voices"}
-        </p>
-      ) : null}
-      {loading ? (
-        <p className="font-mono text-[10px] tracking-[0.14em] uppercase text-muted-foreground italic">
-          · retrieving…
-        </p>
-      ) : null}
-      <div aria-hidden className="h-px flex-1 bg-border/60" />
-    </div>
-  );
-}
-
-/**
- * Walks messages backwards to find the last `user` message. The current
- * turn = that user message + any assistant message following it. Anything
- * before compresses into coda form.
- */
-function findLastUserIndex(messages: PortalUIMessage[]): number {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === "user") return i;
-  }
-  return -1;
-}
-
-function FollowUps({
-  prompts,
-  onPick,
-}: {
-  prompts: string[];
-  onPick: (question: string) => void;
-}) {
-  return (
-    <section
-      aria-labelledby="portal-followups-heading"
-      className="flex flex-col gap-2"
-    >
-      <div className="flex items-center gap-3">
-        <h2
-          id="portal-followups-heading"
-          className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground"
-        >
-          Keep going
-        </h2>
-        <div aria-hidden className="h-px flex-1 bg-border/70" />
-      </div>
-      <ul className="flex flex-wrap gap-2">
+    <section aria-labelledby={headingId} className="flex flex-col gap-2">
+      <h3 id={headingId} className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
+        Keep going
+      </h3>
+      <ul className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         {prompts.map((prompt, idx) => (
           <li key={`${idx}-${prompt}`}>
             <button
               type="button"
               onClick={() => onPick(prompt)}
-              className={cn(
-                "rounded-full border border-border bg-background px-3 py-1.5 text-left text-xs text-foreground/80",
-                "transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-muted hover:text-foreground",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              )}
+              className="w-full rounded-lg border border-border bg-card/60 px-3 py-2 text-left text-sm text-foreground/90 transition-colors hover:border-primary/40 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto"
             >
               {prompt}
             </button>

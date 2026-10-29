@@ -206,6 +206,10 @@ export function ListeningQueueProvider({ children }: { children: ReactNode }) {
 
   const [open, setOpen] = useState(false);
   const showBar = hydrated && items.length > 0 && !onPlayerPage;
+  // Pinned UI elsewhere (the Portal's question box) sits above the bar.
+  useEffect(() => {
+    document.documentElement.style.setProperty("--queue-bar-h", showBar ? "4rem" : "0px");
+  }, [showBar]);
   const shown = current ?? items[0];
 
   return (

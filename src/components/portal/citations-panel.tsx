@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import Link from "next/link";
 import { ChevronDownIcon, PlayIcon } from "lucide-react";
 
@@ -10,7 +10,7 @@ import { capturePortalEvent } from "@/lib/portal/analytics";
 import type { PortalCitation } from "@/app/api/portal/chat/route";
 import { ContentNotice } from "./content-notice";
 import { useListeningQueue } from "@/components/queue/listening-queue";
-import { formatSpeakerName } from "@/lib/format";
+import { formatSpeakerName, titleForCard } from "@/lib/format";
 
 /**
  * Source panel rendered beneath an archive answer. Two modes:
@@ -28,14 +28,44 @@ import { formatSpeakerName } from "@/lib/format";
  * visual reference so this reads as "a row of recordings you can go
  * listen to," not "an academic footnotes list."
  */
+/** Transcript chunks carry speaker tags for retrieval; show them as a
+ *  plain "Interviewer:" cue (or nothing for the storyteller). */
+function readableExcerpt(text: string): string {
+  return text
+    .replace(/…$/, "")
+    // A tag cut off by the stored excerpt's truncation ("… [INTE").
+    .replace(/\s*\[[A-Z]*\]?\s*$/, "")
+    .replace(/\[INTERVIEWER\]\s*/g, "Interviewer: ")
+    .replace(/\[(INTERVIEWEE|OTHER)\]\s*/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** "Oral history interview of Roy Dunn, clip 2 of 2" → "Clip 2 of 2" (the
+ *  storyteller's name is already the row's title); other titles shortened. */
+function recordingLabel(title: string): string {
+  const short = titleForCard(title);
+  const clip = /,\s*(clip \d+ of \d+)$/i.exec(short);
+  if (clip) return clip[1].charAt(0).toUpperCase() + clip[1].slice(1);
+  return short;
+}
+
 export function CitationsPanel({
   citations,
   collapsed = false,
+  headingLevel = "h2",
 }: {
   citations: PortalCitation[];
   collapsed?: boolean;
+  /** h3 inside the Portal conversation (under each question's h2). */
+  headingLevel?: "h2" | "h3";
 }) {
-  const [isOpen, setIsOpen] = useState(!collapsed);
+  // Follows `collapsed` (earlier answers fold away when a new one arrives)
+  // until the reader toggles it themselves.
+  const [toggled, setToggled] = useState<boolean | null>(null);
+  const isOpen = toggled ?? !collapsed;
+  const headingId = useId();
+  const Heading = headingLevel;
 
   if (citations.length === 0) return null;
 
@@ -43,7 +73,7 @@ export function CitationsPanel({
     return (
       <button
         type="button"
-        onClick={() => setIsOpen(true)}
+        onClick={() => setToggled(true)}
         className={cn(
           "inline-flex items-center gap-1 self-start rounded-md px-1 py-0.5",
           "font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground",
@@ -53,7 +83,7 @@ export function CitationsPanel({
       >
         <ChevronDownIcon className="size-3" />
         <span>
-          {citations.length} source{citations.length === 1 ? "" : "s"}
+          Show {citations.length} source{citations.length === 1 ? "" : "s"}
         </span>
       </button>
     );
@@ -61,23 +91,20 @@ export function CitationsPanel({
 
   return (
     <section
-      aria-labelledby="portal-sources-heading"
-      className="flex flex-col gap-3"
+      aria-labelledby={headingId}
+      className="flex flex-col gap-2"
     >
-      <div className="flex items-center gap-3">
-        <h2
-          id="portal-sources-heading"
-          className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground"
-        >
-          Sources cited · {citations.length}
-        </h2>
-        <div aria-hidden className="h-px flex-1 bg-border/70" />
-      </div>
+      <Heading
+        id={headingId}
+        className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground"
+      >
+        Sources · {citations.length}
+      </Heading>
       <ol className="flex flex-col gap-2">
         {citations.map((citation) => {
           const timestamp = formatTimestamp(citation.startTime);
           const href = `/player/${encodeURIComponent(citation.catalogNumber)}?t=${timestamp}&from=portal`;
-          const attribution = citation.intervieweeName ?? "unnamed interviewee";
+          const speaker = citation.intervieweeName ? formatSpeakerName(citation.intervieweeName) : "Unnamed storyteller";
           return (
             <li
               key={citation.index}
@@ -105,22 +132,19 @@ export function CitationsPanel({
                     }}
                     className="font-heading text-sm font-semibold leading-tight text-foreground outline-none after:absolute after:inset-0 after:content-['']"
                   >
-                    {citation.recordingTitle}
+                    {speaker}
                   </Link>
-                  <p className="text-xs italic text-muted-foreground">
-                    {attribution}
+                  <p className="text-xs text-muted-foreground">
+                    {recordingLabel(citation.recordingTitle)} · {timestamp}
                   </p>
                 </div>
-                <div className="relative z-10 flex shrink-0 items-center gap-1.5">
+                <div className="relative z-10 shrink-0">
                   <SnippetButton citation={citation} />
-                  <span className="rounded-md border border-border/60 bg-background px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-muted-foreground">
-                    {timestamp}
-                  </span>
                 </div>
               </div>
               <ContentNotice notes={citation.contentNotes ?? []} className="pl-7" />
-              <p className="whitespace-pre-line text-[13px] leading-relaxed text-foreground/75">
-                {citation.excerpt}
+              <p className="line-clamp-3 pl-7 text-[13px] leading-relaxed text-foreground/75">
+                &ldquo;{readableExcerpt(citation.excerpt)}&hellip;&rdquo;
               </p>
             </li>
           );

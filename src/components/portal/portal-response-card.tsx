@@ -85,11 +85,12 @@ function renderBody(text: string, citations: PortalCitation[]): ReactNode {
 
 export function PortalResponseCard({ text, citations, loading }: Props) {
   const hasCitations = citations.length > 0;
+  // The cited sources (and their count) are listed under the answer.
   const sourceCountLabel = loading
-    ? "Retrieving excerpts from the archive…"
+    ? "Searching the archive…"
     : hasCitations
-      ? `AI-generated · ${citations.length} source excerpt${citations.length === 1 ? "" : "s"}`
-      : "AI-generated · archive did not surface a match";
+      ? "AI-generated answer"
+      : "AI-generated · no matching recordings";
 
   return (
     // Announcements are handled once, by the persistent role="status" in
@@ -111,7 +112,7 @@ export function PortalResponseCard({ text, citations, loading }: Props) {
           </div>
         </div>
       ) : (
-        <div className="whitespace-pre-line text-sm leading-relaxed text-foreground/90">
+        <div className="whitespace-pre-line text-base leading-7 text-foreground">
           {renderBody(text, citations)}
         </div>
       )}

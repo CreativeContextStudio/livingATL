@@ -35,22 +35,29 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function SiteHeader({ initialTheme }: { initialTheme: Theme }) {
+export function SiteHeader({
+  initialTheme,
+  navEnabled,
+}: {
+  initialTheme: Theme;
+  /** Visitor can reach the archive surfaces (src/lib/access.ts). The gate
+   *  cookie is httpOnly, so the server layout resolves this. */
+  navEnabled: boolean;
+}) {
   const pathname = usePathname() ?? "/";
-  const launchEnabled = process.env.NEXT_PUBLIC_LAUNCH_ENABLED === "true";
 
   return (
     <header className="sticky top-0 z-20 w-full border-b border-border/60 bg-background/85 backdrop-blur">
       <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between px-6">
         <Link
           href="/"
-          className="font-heading text-lg font-bold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 rounded"
+          className="font-heading text-lg font-bold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
         >
-          living<span className="text-primary">ATL</span>
+          living<span className="text-primary-ink">ATL</span>
         </Link>
 
         <div className="flex items-center gap-3">
-          {launchEnabled ? (
+          {navEnabled ? (
             <>
               <nav aria-label="Primary" className="hidden md:block">
                 <ul className="flex items-center gap-6">
@@ -62,7 +69,7 @@ export function SiteHeader({ initialTheme }: { initialTheme: Theme }) {
                           href={link.href}
                           aria-current={active ? "page" : undefined}
                           className={cn(
-                            "font-mono text-xs tracking-[0.18em] uppercase transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 rounded",
+                            "font-mono text-xs tracking-[0.18em] uppercase transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded",
                             active
                               ? "text-foreground"
                               : "text-muted-foreground hover:text-foreground",

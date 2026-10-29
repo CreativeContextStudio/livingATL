@@ -1,5 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { GATE_COOKIE, canViewArchive, resolveAccess } from "@/lib/access";
+import { buildCsp } from "@/lib/csp";
+
 /**
  * Launch gating — PRD §8.8.
  *
@@ -21,18 +24,10 @@ import { NextResponse, type NextRequest } from "next/server";
  * is unchanged.
  *
  * Next.js 16 note: this file is named `proxy.ts` (not `middleware.ts`) and
- * exports `proxy` + `proxyConfig`. Same capabilities, renamed in v16.
+ * exports `proxy` + `config`. Only the function was renamed in v16 — the
+ * matcher export is still `config` (an export named anything else is ignored
+ * and the proxy runs on every request).
  */
-
-/** Constant-time string compare — same helper as `api/revalidate/route.ts`. */
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let mismatch = 0;
-  for (let i = 0; i < a.length; i++) {
-    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return mismatch === 0;
-}
 
 /**
  * Paths reachable without the demo password. The gate page + its POST handler
@@ -43,6 +38,7 @@ const GATE_ALLOWLIST: Array<RegExp> = [
   /^\/gate$/, // password entry page
   /^\/api\/gate$/, // password POST handler
   /^\/api\/health$/, // liveness probe
+  /^\/api\/revalidate$/, // pipeline cache webhook — own bearer-token auth
   /^\/monitoring(\/.*)?$/, // Sentry tunnel
   /^\/audio\//, // same-origin audio proxy → R2 (next.config rewrite); content already public
 ];
@@ -50,8 +46,8 @@ const GATE_ALLOWLIST: Array<RegExp> = [
 const PREVIEW_ALLOWLIST: Array<RegExp> = [
   /^\/$/, // landing page
   /^\/preview(\/.*)?$/, // preview status page
-  /^\/invite\/[^/]+$/, // signed invite token route
   /^\/api\/health$/, // liveness probe
+  /^\/api\/revalidate$/, // pipeline cache webhook — own bearer-token auth
   /^\/monitoring(\/.*)?$/, // Sentry tunnel — never leak into preview HTML
   /^\/audio\//, // same-origin audio proxy → R2 (next.config rewrite); content already public
 ];
@@ -71,6 +67,8 @@ function isFrameworkAsset(pathname: string): boolean {
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/__nextjs_") ||
     pathname === "/favicon.ico" ||
+    pathname === "/icon.png" ||
+    pathname === "/apple-icon.png" ||
     pathname === "/robots.txt" ||
     pathname === "/sitemap.xml"
   );
@@ -81,37 +79,65 @@ export function proxy(request: NextRequest) {
 
   if (isFrameworkAsset(pathname)) return NextResponse.next();
 
-  // Demo password gate takes precedence over preview mode when configured.
-  const gateToken = process.env.SITE_GATE_TOKEN;
-  if (gateToken) {
-    if (GATE_ALLOWLIST.some((rx) => rx.test(pathname))) {
-      return NextResponse.next();
-    }
-    const cookie = request.cookies.get("la_gate")?.value ?? "";
-    if (cookie && timingSafeEqual(cookie, gateToken)) {
-      return NextResponse.next();
-    }
-    const gateUrl = request.nextUrl.clone();
-    gateUrl.pathname = "/gate";
-    gateUrl.search = `?next=${encodeURIComponent(pathname)}`;
-    return NextResponse.rewrite(gateUrl);
+  // Fresh CSP nonce per response (src/lib/csp.ts). Next reads the policy
+  // from the *request* headers to nonce its scripts, and the browser
+  // enforces the copy on the *response*.
+  const csp = buildCsp({
+    nonce: Buffer.from(crypto.randomUUID()).toString("base64"),
+    isDev: process.env.NODE_ENV === "development",
+    isHttps: request.nextUrl.protocol === "https:",
+    posthogHost: process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com",
+  });
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("Content-Security-Policy", csp);
+  const withCsp = <T extends NextResponse>(response: T): T => {
+    response.headers.set("Content-Security-Policy", csp);
+    return response;
+  };
+  const next = () => withCsp(NextResponse.next({ request: { headers: requestHeaders } }));
+  const rewrite = (url: URL) =>
+    withCsp(NextResponse.rewrite(url, { request: { headers: requestHeaders } }));
+
+  // Same rule the route/page backstops use — see src/lib/access.ts. The demo
+  // password gate takes precedence over preview mode when configured.
+  const access = resolveAccess(request.cookies.get(GATE_COOKIE)?.value);
+  if (canViewArchive(access)) return next();
+
+  const allowlist = access === "gate-required" ? GATE_ALLOWLIST : PREVIEW_ALLOWLIST;
+  if (allowlist.some((rx) => rx.test(pathname))) return next();
+
+  // API callers get a machine-readable 403, not the gate/preview HTML page
+  // (which would arrive as a 200 and break JSON/SSE clients). `preview_mode`
+  // is the code the Portal client already recognizes.
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.json(
+      { reason: access === "preview" ? "preview_mode" : "gate_required" },
+      { status: 403 },
+    );
   }
 
-  const launchEnabled = process.env.NEXT_PUBLIC_LAUNCH_ENABLED === "true";
-  if (launchEnabled) return NextResponse.next();
+  if (access === "gate-required") {
+    const gateUrl = request.nextUrl.clone();
+    gateUrl.pathname = "/gate";
+    // Keep the query string so deep links (`/player/X?t=812`) survive login.
+    gateUrl.search = `?next=${encodeURIComponent(pathname + request.nextUrl.search)}`;
+    return rewrite(gateUrl);
+  }
 
-  const isAllowed = PREVIEW_ALLOWLIST.some((rx) => rx.test(pathname));
-  if (isAllowed) return NextResponse.next();
-
+  // access === "preview"
   const url = request.nextUrl.clone();
   url.pathname = "/preview";
   url.search = "";
-  return NextResponse.rewrite(url);
+  return rewrite(url);
 }
 
-export const proxyConfig = {
+export const config = {
   // Skip known framework buckets at the matcher level too. The in-function
   // guard is the backstop — both layers because the matcher regex syntax is
-  // picky and a silent miss breaks every asset request.
-  matcher: ["/((?!_next/|__nextjs_|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)"],
+  // picky and a silent miss breaks every asset request. Exact filenames only:
+  // an extension pattern like `.*\.png$` would also let `/player/X.png`
+  // past the gate.
+  matcher: [
+    "/((?!_next/|__nextjs_|favicon\\.ico|icon\\.png|apple-icon\\.png|robots\\.txt|sitemap\\.xml).*)",
+  ],
 };

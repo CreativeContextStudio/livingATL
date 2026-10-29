@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { safeNextPath } from "@/lib/safe-next";
+
 /**
  * Demo password gate — "fake security" for the public preview.
  *
@@ -16,26 +18,19 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-function safeNext(raw: string | string[] | undefined): string {
-  const value = Array.isArray(raw) ? raw[0] : raw;
-  // Open-redirect guard: only allow same-origin absolute paths.
-  if (value && value.startsWith("/") && !value.startsWith("//")) return value;
-  return "/";
-}
-
 export default async function GatePage({
   searchParams,
 }: {
   searchParams: Promise<{ next?: string; error?: string }>;
 }) {
   const params = await searchParams;
-  const next = safeNext(params.next);
+  const next = safeNextPath(params.next);
   const hasError = params.error === "1";
+  const rateLimited = params.error === "rate";
 
   return (
     <main
       className="mx-auto flex min-h-[80dvh] max-w-md flex-col items-start justify-center gap-6 px-6 py-16"
-      id="main"
     >
       <div className="flex flex-col gap-2">
         <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted-foreground">
@@ -61,12 +56,14 @@ export default async function GatePage({
           required
           autoComplete="current-password"
           placeholder="Password"
-          aria-invalid={hasError}
+          aria-invalid={hasError || rateLimited}
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
-        {hasError ? (
-          <p role="alert" className="text-sm text-destructive">
-            Incorrect password. Try again.
+        {hasError || rateLimited ? (
+          <p role="alert" className="text-sm text-red-800 dark:text-red-300">
+            {rateLimited
+              ? "Too many attempts. Wait a minute, then try again."
+              : "Incorrect password. Try again."}
           </p>
         ) : null}
         <button

@@ -1,10 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, DM_Sans, JetBrains_Mono } from "next/font/google";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { CSPProvider } from "@base-ui/react/csp-provider";
 
 import { PostHogPageviewProvider } from "@/components/analytics/posthog-provider";
 import { SiteFooter } from "@/components/shell/site-footer";
 import { SiteHeader } from "@/components/shell/site-header";
+import { GATE_COOKIE, canViewArchive, resolveAccess } from "@/lib/access";
+import { nonceFromCsp } from "@/lib/csp";
 import { THEME_COOKIE, resolveTheme } from "@/lib/theme";
 import "./globals.css";
 
@@ -67,6 +70,12 @@ export default async function RootLayout({
 }>) {
   const cookieStore = await cookies();
   const theme = resolveTheme(cookieStore.get(THEME_COOKIE)?.value);
+  const navEnabled = canViewArchive(
+    resolveAccess(cookieStore.get(GATE_COOKIE)?.value),
+  );
+  // Base UI renders a few inline <script>/<style> tags (e.g. the slider's
+  // prehydration script); hand it the per-request CSP nonce from src/proxy.ts.
+  const nonce = nonceFromCsp((await headers()).get("content-security-policy"));
 
   return (
     <html
@@ -76,22 +85,24 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-dvh flex flex-col">
-        <a
-          href="#main"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[60] focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring"
-        >
-          Skip to content
-        </a>
-        <SiteHeader initialTheme={theme} />
-        <div
-          id="main"
-          tabIndex={-1}
-          className="flex flex-1 flex-col focus:outline-none"
-        >
-          {children}
-        </div>
-        <SiteFooter />
-        <PostHogPageviewProvider />
+        <CSPProvider nonce={nonce}>
+          <a
+            href="#main"
+            className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[60] focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            Skip to content
+          </a>
+          <SiteHeader initialTheme={theme} navEnabled={navEnabled} />
+          <div
+            id="main"
+            tabIndex={-1}
+            className="flex flex-1 flex-col focus:outline-none"
+          >
+            {children}
+          </div>
+          <SiteFooter />
+          <PostHogPageviewProvider />
+        </CSPProvider>
       </body>
     </html>
   );

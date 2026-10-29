@@ -2,35 +2,39 @@ import "server-only";
 
 import { NextResponse, type NextRequest } from "next/server";
 
+import {
+  GATE_COOKIE,
+  GATE_COOKIE_MAX_AGE_S,
+  secretsEqual,
+  signGateCookie,
+} from "@/lib/access";
+import { clientIp, createRateLimiter } from "@/lib/rate-limit";
+import { safeNextPath } from "@/lib/safe-next";
+
 /**
  * Demo password gate handler — "fake security" for the public preview.
  *
  * Receives the password form POST from `/gate`, checks it against
  * SITE_GATE_PASSWORD, and on success sets the opaque `la_gate` cookie that
  * `src/proxy.ts` checks. The real password never lands in the cookie — the
- * cookie carries SITE_GATE_TOKEN, an opaque value compared in the proxy.
+ * cookie is an HMAC-signed expiry keyed by SITE_GATE_TOKEN (src/lib/access.ts),
+ * verified in the proxy — the token itself never leaves the server.
  *
  * Both env vars are server-only (never NEXT_PUBLIC_*).
  */
 
-const COOKIE_NAME = "la_gate";
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
+// Brute-force brake on password guesses, per client IP (per instance — the
+// Vercel Firewall rule on this path is the global limit).
+const checkRateLimit = createRateLimiter([
+  { limit: 5, windowMs: 60_000 },
+  { limit: 30, windowMs: 60 * 60_000 },
+]);
 
-/** Constant-time string compare — same helper as `api/revalidate/route.ts`. */
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let mismatch = 0;
-  for (let i = 0; i < a.length; i++) {
-    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return mismatch === 0;
-}
-
-/** Open-redirect guard: only same-origin absolute paths. */
-function safeNext(raw: FormDataEntryValue | null): string {
-  const value = typeof raw === "string" ? raw : "";
-  if (value.startsWith("/") && !value.startsWith("//")) return value;
-  return "/";
+function backToGate(req: NextRequest, error: "1" | "rate", next: string) {
+  const url = new URL("/gate", req.nextUrl.origin);
+  url.searchParams.set("error", error);
+  url.searchParams.set("next", next);
+  return NextResponse.redirect(url, { status: 303 });
 }
 
 export async function POST(req: NextRequest) {
@@ -38,31 +42,28 @@ export async function POST(req: NextRequest) {
   const token = process.env.SITE_GATE_TOKEN;
 
   const form = await req.formData();
-  const next = safeNext(form.get("next"));
+  const next = safeNextPath(form.get("next"));
   const submitted = form.get("password");
+
+  if (!checkRateLimit(clientIp(req)).ok) return backToGate(req, "rate", next);
 
   const ok =
     !!password &&
     !!token &&
     typeof submitted === "string" &&
-    timingSafeEqual(submitted, password);
+    secretsEqual(submitted, password);
 
-  if (!ok) {
-    const failUrl = new URL("/gate", req.nextUrl.origin);
-    failUrl.searchParams.set("error", "1");
-    failUrl.searchParams.set("next", next);
-    return NextResponse.redirect(failUrl, { status: 303 });
-  }
+  if (!ok) return backToGate(req, "1", next);
 
   const res = NextResponse.redirect(new URL(next, req.nextUrl.origin), {
     status: 303,
   });
-  res.cookies.set(COOKIE_NAME, token, {
+  res.cookies.set(GATE_COOKIE, signGateCookie(token), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: COOKIE_MAX_AGE,
+    maxAge: GATE_COOKIE_MAX_AGE_S,
   });
   return res;
 }

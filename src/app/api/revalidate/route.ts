@@ -3,16 +3,9 @@ import "server-only";
 import { revalidateTag } from "next/cache";
 import type { NextRequest } from "next/server";
 
-const ALLOWED_TAGS = new Set(["facets", "neighborhoods", "archive-stats"]);
+import { secretsEqual } from "@/lib/access";
 
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let mismatch = 0;
-  for (let i = 0; i < a.length; i++) {
-    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return mismatch === 0;
-}
+const ALLOWED_TAGS = new Set(["facets", "neighborhoods", "archive-stats"]);
 
 function authorized(req: NextRequest): boolean {
   const secret = process.env.REVALIDATE_SECRET;
@@ -20,7 +13,7 @@ function authorized(req: NextRequest): boolean {
   const header = req.headers.get("authorization") ?? "";
   const prefix = "Bearer ";
   if (!header.startsWith(prefix)) return false;
-  return timingSafeEqual(header.slice(prefix.length), secret);
+  return secretsEqual(header.slice(prefix.length), secret);
 }
 
 export async function POST(req: NextRequest) {

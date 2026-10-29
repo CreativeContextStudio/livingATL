@@ -1,4 +1,4 @@
-import { withSentryConfig } from "@sentry/nextjs";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 
 // TEMPORARY — Option B audio bridge.
@@ -13,7 +13,27 @@ import type { NextConfig } from "next";
 // domain, re-run scripts.backfill_audio_url, and delete the rewrites() block.
 const R2_AUDIO_ORIGIN = "https://pub-fd228e83f3154be8aa86ac191a8244de.r2.dev";
 
+// Static security headers for every response. The Content-Security-Policy
+// is per-request (it carries a nonce) and is set in src/proxy.ts.
+const SECURITY_HEADERS = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  // Legacy clickjacking guard; CSP frame-ancestors 'none' is the modern one.
+  { key: "X-Frame-Options", value: "DENY" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+  },
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=63072000; includeSubDomains",
+  },
+];
+
 const nextConfig: NextConfig = {
+  async headers() {
+    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+  },
   async rewrites() {
     return [
       {
@@ -32,8 +52,9 @@ export default withSentryConfig(nextConfig, {
   silent: !process.env.CI,
   widenClientFileUpload: true,
   // Tunnel Sentry requests through a Next.js rewrite so ad blockers don't
-  // strip them. Stays OFF the launch-gate allowlist (see src/proxy.ts) —
-  // the tunnel is not user-reachable during preview mode.
+  // strip them. It IS on both proxy allowlists (src/proxy.ts) so error
+  // reports from the gate and preview pages still arrive; it only forwards
+  // envelopes to Sentry and serves no archive content.
   tunnelRoute: "/monitoring",
   // disableLogger and automaticVercelMonitors are webpack-only options in
   // @sentry/nextjs 10.x — we're on Turbopack (Next 16 default) so both are

@@ -418,3 +418,125 @@ export const neighborhoods = pgTable("neighborhoods", {
     .notNull()
     .defaultNow(),
 });
+
+// ---------------------------------------------------------------------------
+// Preview invites (PRD §8.8, F-invite) — per-person links into the private
+// preview. Only a SHA-256 of each token is stored; the link itself is shown
+// once by `livingatl-pipeline/scripts/invites.py`. Revoking an invite locks
+// its holder out within ~60 s (see src/lib/invites.ts).
+// ---------------------------------------------------------------------------
+
+export const previewInvites = pgTable("preview_invites", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  tokenHash: text("token_hash").notNull().unique(),
+  // Who it's for, e.g. "WRFG board — J. Smith". Shown in analytics; no email.
+  label: text("label").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  useCount: integer("use_count").notNull().default(0),
+});
+
+// ---------------------------------------------------------------------------
+// Reports, corrections and takedown requests (PRD §4 `reports_takedowns`,
+// §8.5 reactive moderation, §8.7 descendant corrections/restrictions;
+// F-report). Submitted from /contact; worked by stewards with
+// `livingatl-pipeline/scripts/reports.py`. Every status change or note is
+// appended to `moderation_log` in the same transaction — the audit log of
+// all moderation actions. Stewards review and escalate; they don't remove
+// content unilaterally (§8.5). `story_id` joins this table in Phase 5.
+// ---------------------------------------------------------------------------
+
+export const reportKind = pgEnum("report_kind", [
+  "correction", // a name, date, place or transcript error
+  "restriction", // descendant / narrator request to limit access
+  "takedown", // request to remove a recording or passage
+  "sensitive_content", // missing or wrong content advisory
+  "ai_summary", // feedback on AI-authored summaries / metadata
+  "other",
+]);
+
+export const reportStatus = pgEnum("report_status", [
+  "pending",
+  "escalated",
+  "resolved",
+  "dismissed",
+]);
+
+export const reportsTakedowns = pgTable(
+  "reports_takedowns",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: reportKind("kind").notNull(),
+    // Null for general feedback not tied to a recording. Set null (not
+    // cascade) if a recording is ever deleted, so the record survives.
+    recordingId: uuid("recording_id").references(() => recordings.id, {
+      onDelete: "set null",
+    }),
+    // As submitted, kept even when it didn't match a recording.
+    catalogNumber: text("catalog_number"),
+    timestampSeconds: integer("timestamp_seconds"),
+    reason: text("reason").notNull(),
+    // How the reporter relates to the recording (descendant, narrator, …).
+    relationship: text("relationship"),
+    // Optional, only for replying. Never shown publicly.
+    contactName: text("contact_name"),
+    contactEmail: text("contact_email"),
+    // The preview invite the reporter came in on, when there was one.
+    inviteId: uuid("invite_id").references(() => previewInvites.id, {
+      onDelete: "set null",
+    }),
+    status: reportStatus("status").notNull().default("pending"),
+    stewardNotes: text("steward_notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("reports_takedowns_status_idx").on(t.status, t.createdAt),
+    index("reports_takedowns_recording_idx").on(t.recordingId),
+  ],
+);
+
+export const moderationLog = pgTable(
+  "moderation_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reportId: uuid("report_id")
+      .notNull()
+      // Audit rows outlive nothing: a report with history can't be deleted
+      // (scrub its contact fields instead). Append-only trigger in
+      // drizzle/sql/0008_reports_rls_and_audit.sql.
+      .references(() => reportsTakedowns.id, { onDelete: "restrict" }),
+    // "submitted" | "status_change" | "note"
+    action: text("action").notNull(),
+    fromStatus: reportStatus("from_status"),
+    toStatus: reportStatus("to_status"),
+    // Steward name for steward actions; "public" for the submission itself.
+    actor: text("actor").notNull(),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("moderation_log_report_idx").on(t.reportId, t.createdAt)],
+);
+
+// ---------------------------------------------------------------------------
+// Shared Portal answers (F-portal-share). A row exists only when a visitor
+// clicks Share; the server stores it only if the answer carries a valid
+// HMAC issued by /api/portal/chat when it generated that answer, so a shared
+// page can't put words in the archive's mouth. `sig_hash` makes re-sharing
+// the same answer return the same link. Stewards can hide a share
+// (`hidden_at`); hidden shares 404.
+// ---------------------------------------------------------------------------
+
+export const portalShares = pgTable("portal_shares", {
+  // Short random id used in the permalink (/portal/a/<id>).
+  id: text("id").primaryKey(),
+  sigHash: text("sig_hash").notNull().unique(),
+  question: text("question").notNull(),
+  answer: text("answer").notNull(),
+  // Only the citations the answer actually references, as shown.
+  citations: jsonb("citations").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  hiddenAt: timestamp("hidden_at", { withTimezone: true }),
+});

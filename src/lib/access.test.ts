@@ -3,11 +3,14 @@ import { describe, expect, it } from "vitest";
 import {
   GATE_COOKIE_MAX_AGE_S,
   canViewArchive,
+  inviteIdFromCookie,
   resolveAccess,
   secretsEqual,
   signGateCookie,
+  signInviteCookie,
   verifyGateCookie,
 } from "./access";
+import { hashInviteToken, looksLikeInviteToken } from "./invite-token";
 
 const TOKEN = "a".repeat(64);
 const COOKIE = signGateCookie(TOKEN);
@@ -71,6 +74,53 @@ describe("gate cookie signing", () => {
 
   it("is invalidated by rotating the token", () => {
     expect(verifyGateCookie(COOKIE, "c".repeat(64))).toBe(false);
+  });
+});
+
+describe("invite cookie signing", () => {
+  const ID = "6f1c2b9e-4a7d-4c1e-9b3a-2d5e8f0a1b2c";
+  const issued = Date.UTC(2026, 0, 1);
+
+  it("round-trips the invite id and passes the gate check", () => {
+    const cookie = signInviteCookie(TOKEN, ID, null, issued);
+    expect(cookie).toMatch(/^v2\.[0-9a-f-]{36}\.\d+\.[A-Za-z0-9_-]{43}$/);
+    expect(inviteIdFromCookie(cookie, TOKEN, issued)).toBe(ID);
+    expect(verifyGateCookie(cookie, TOKEN, issued)).toBe(true);
+    // resolveAccess checks against the real clock.
+    const fresh = signInviteCookie(TOKEN, ID, null);
+    expect(resolveAccess(fresh, { SITE_GATE_TOKEN: TOKEN })).toBe("entered");
+  });
+
+  it("expires with the invite when that comes first", () => {
+    const inviteEnds = new Date(issued + 3 * 24 * 3600 * 1000);
+    const cookie = signInviteCookie(TOKEN, ID, inviteEnds, issued);
+    expect(inviteIdFromCookie(cookie, TOKEN, inviteEnds.getTime() - 1000)).toBe(ID);
+    expect(inviteIdFromCookie(cookie, TOKEN, inviteEnds.getTime())).toBeNull();
+    const later = signInviteCookie(TOKEN, ID, new Date(issued + 365 * 24 * 3600 * 1000), issued);
+    expect(inviteIdFromCookie(later, TOKEN, issued + GATE_COOKIE_MAX_AGE_S * 1000)).toBeNull();
+  });
+
+  it("rejects a swapped invite id, a rotated token, and password cookies", () => {
+    const cookie = signInviteCookie(TOKEN, ID, null, issued);
+    const swapped = cookie.replace(ID, "00000000-0000-4000-8000-000000000000");
+    expect(inviteIdFromCookie(swapped, TOKEN, issued)).toBeNull();
+    expect(verifyGateCookie(swapped, TOKEN, issued)).toBe(false);
+    expect(inviteIdFromCookie(cookie, "c".repeat(64), issued)).toBeNull();
+    expect(inviteIdFromCookie(COOKIE, TOKEN)).toBeNull();
+  });
+});
+
+describe("invite tokens", () => {
+  it("hashes to the hex SHA-256 the pipeline stores", () => {
+    // python: hashlib.sha256(b"abc").hexdigest()
+    expect(hashInviteToken("abc")).toBe(
+      "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    );
+  });
+  it("accepts token_urlsafe(32) shapes only", () => {
+    expect(looksLikeInviteToken("A".repeat(43))).toBe(true);
+    expect(looksLikeInviteToken("short")).toBe(false);
+    expect(looksLikeInviteToken("a".repeat(40) + "/..")).toBe(false);
   });
 });
 

@@ -5,7 +5,7 @@ import type { NextRequest } from "next/server";
 
 import { secretsEqual } from "@/lib/access";
 
-const ALLOWED_TAGS = new Set(["facets", "neighborhoods", "archive-stats"]);
+const ALLOWED_TAGS = new Set(["facets", "neighborhoods", "archive-stats", "invites"]);
 
 function authorized(req: NextRequest): boolean {
   const secret = process.env.REVALIDATE_SECRET;
@@ -35,6 +35,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  revalidateTag(tag, "max");
+  // Archive facets can be served stale while they refresh. A revoked invite
+  // must not get one more stale "still active" answer, so that tag expires
+  // outright and the next request re-checks the database.
+  revalidateTag(tag, tag === "invites" ? { expire: 0 } : "max");
   return Response.json({ revalidated: true, tag, now: Date.now() });
 }

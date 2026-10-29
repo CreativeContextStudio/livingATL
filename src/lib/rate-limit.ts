@@ -42,7 +42,7 @@ export function createRateLimiter(rules: RateLimitRule[]) {
 }
 
 /** Best-effort client IP. Vercel sets `x-forwarded-for` (client first). */
-export function clientIp(req: Request): string {
+export function clientIp(req: { headers: Pick<Headers, "get"> }): string {
   const forwarded = req.headers.get("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0].trim();
   return req.headers.get("x-real-ip") ?? "unknown";

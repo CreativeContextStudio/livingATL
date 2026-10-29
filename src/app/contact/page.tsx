@@ -6,17 +6,19 @@ import {
   UsersRoundIcon,
 } from "lucide-react";
 
+import { ReportForm } from "@/components/contact/report-form";
+import { REPORT_KINDS, type ReportKind } from "@/lib/reports";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 
 /**
- * Contact page. The Player's AI-advisory dialog and the site footer both
- * point listeners here when they want to flag a miscategorized recording,
- * suggest a canonical name, question an AI-authored summary, or offer a
- * correction. The intake channel itself is still on the Phase 2 punch
- * list — this page is honest about that (the "Intake · Placeholder" card)
- * while introducing the three stewarding organizations so visitors know
- * whose hands the archive sits in.
+ * Contact page. The Player (sidebar "Report or request a correction" link,
+ * AI-advisory dialog) and the site header point listeners here to flag a
+ * miscategorized recording, correct a name, question an AI-authored
+ * summary, or — for narrators and descendants — ask for a restriction or
+ * takedown (PRD §8.5, §8.7). The report form (F-report) is the intake;
+ * `?kind=&recording=&t=` prefill it. Below it, the three stewarding
+ * organizations, so visitors know whose hands the archive sits in.
  *
  * Design intent: a typographic sibling of `/browse` and `/map`. Same
  * `max-w-7xl` shell, same mono-eyebrow + heading + subhead header
@@ -124,7 +126,21 @@ const PARTNERS: Partner[] = [
   },
 ];
 
-export default function ContactPage() {
+const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+
+export default async function ContactPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const kindParam = first(params.kind);
+  const prefill = {
+    kind: REPORT_KINDS.find((k) => k.value === kindParam)?.value as ReportKind | undefined,
+    catalogNumber: first(params.recording)?.slice(0, 64),
+    timestamp: first(params.t)?.slice(0, 12),
+  };
+
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-6 py-10 lg:py-14">
       <header className="flex flex-col gap-3">
@@ -135,41 +151,36 @@ export default function ContactPage() {
           Reach the stewards
         </h1>
         <p className="text-base leading-relaxed text-muted-foreground">
-          livingATL is assembled and maintained by three partners. A proper
-          intake channel, for miscategorizations, canonical-name corrections,
-          feedback on AI-authored summaries, and community contributions,
-          lands in Phase 2. In the meantime, the organizations below hold the
-          ground truth for the collection.
+          livingATL is assembled and maintained by three partners. Use the
+          form below to report an error, question an AI-authored summary, or,
+          if you are a narrator or a narrator&apos;s family, ask for a
+          correction, restriction or takedown.
         </p>
       </header>
 
       <section
-        aria-label="Intake status"
-        className="flex flex-col gap-4 rounded-xl border border-dashed border-border bg-card/40 p-6 sm:flex-row sm:items-start sm:justify-between sm:gap-8"
+        id="report"
+        aria-labelledby="report-heading"
+        className="flex scroll-mt-24 flex-col gap-5 rounded-xl border border-border bg-card/40 p-6"
       >
-        <div className="flex flex-1 flex-col gap-2">
+        <div className="flex flex-col gap-2">
           <p className="font-mono text-[11px] tracking-[0.2em] uppercase text-muted-foreground">
-            Intake · Placeholder
+            Report · Correct · Request
           </p>
-          <h2 className="font-heading text-xl font-semibold leading-tight tracking-tight">
-            A proper contact channel is on the way.
+          <h2
+            id="report-heading"
+            className="font-heading text-xl font-semibold leading-tight tracking-tight"
+          >
+            Tell the stewards
           </h2>
-          <p className="text-sm leading-relaxed text-foreground/80">
-            If you have feedback on a specific recording today, note its
-            catalog number (visible in the URL and on every card) and hold
-            onto it. We&apos;ll post a formal address here once the editorial
-            review loop is wired up.
+          <p className="max-w-prose text-sm leading-relaxed text-foreground/80">
+            livingATL presents the 1970s recordings as they were spoken.
+            Stewards read every report, fix metadata and transcripts, and take
+            requests about access to the project leads. Nothing is removed by
+            one person&apos;s decision.
           </p>
         </div>
-        <div className="flex shrink-0 items-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background/80 px-3 py-1.5 font-mono text-[10px] tracking-[0.22em] uppercase text-muted-foreground">
-            <span
-              aria-hidden
-              className="size-1.5 rounded-full bg-amber-500 motion-safe:animate-pulse"
-            />
-            In build
-          </span>
-        </div>
+        <ReportForm prefill={prefill} />
       </section>
 
       <section className="flex flex-col gap-4">

@@ -37,6 +37,7 @@ import { buildCsp } from "@/lib/csp";
 const GATE_ALLOWLIST: Array<RegExp> = [
   /^\/gate$/, // password entry page
   /^\/api\/gate$/, // password POST handler
+  /^\/invite\/[^/]+$/, // per-person invite links (F-invite) — own token check
   /^\/api\/health$/, // liveness probe
   /^\/api\/revalidate$/, // pipeline cache webhook — own bearer-token auth
   /^\/monitoring(\/.*)?$/, // Sentry tunnel

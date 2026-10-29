@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { AlertTriangleIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { formatTimestamp } from "@/lib/player";
 import { capturePortalEvent } from "@/lib/portal/analytics";
 import type { PortalCitation } from "@/app/api/portal/chat/route";
+import { contentNoticeText } from "./content-notice";
 
 /**
  * Inline citation pill rendered inside the Portal's answer card wherever
@@ -25,9 +27,12 @@ import type { PortalCitation } from "@/app/api/portal/chat/route";
 export function CitationChip({ citation }: { citation: PortalCitation }) {
   const timestamp = formatTimestamp(citation.startTime);
   const href = `/player/${encodeURIComponent(citation.catalogNumber)}?t=${timestamp}&from=portal`;
-  const label = citation.intervieweeName
+  const notes = citation.contentNotes ?? [];
+  const notice = notes.length > 0 ? `Content notice: ${contentNoticeText(notes)}` : null;
+  const base = citation.intervieweeName
     ? `${citation.intervieweeName} at ${timestamp}`
     : `${citation.recordingTitle} at ${timestamp}`;
+  const label = notice ? `${base}. ${notice}` : base;
 
   return (
     <Link
@@ -40,10 +45,11 @@ export function CitationChip({ citation }: { citation: PortalCitation }) {
         });
       }}
       title={label}
-      aria-label={`Open Player for ${label}`}
+      // Name starts with the visible number (WCAG 2.5.3).
+      aria-label={`${citation.index}: open Player for ${label}`}
       data-citation-index={citation.index}
       className={cn(
-        "relative inline-flex h-5 min-w-5 items-center justify-center rounded-[min(var(--radius-md),10px)] border border-border bg-background px-1.5 align-baseline font-mono text-[10px] font-medium tabular-nums text-muted-foreground transition-colors",
+        "relative inline-flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-[min(var(--radius-md),10px)] border border-border bg-background px-1.5 align-baseline font-mono text-[10px] font-medium tabular-nums text-muted-foreground transition-colors",
         // Enlarge the touch hit-area on mobile without disturbing inline text
         // flow (the pseudo-element overlays; a modest inset avoids stealing
         // taps from adjacent words). Removed at md where a cursor is precise.
@@ -51,6 +57,9 @@ export function CitationChip({ citation }: { citation: PortalCitation }) {
         "hover:border-primary/40 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
       )}
     >
+      {notice ? (
+        <AlertTriangleIcon aria-hidden className="size-2.5 text-[color:var(--color-warning-ink)]" />
+      ) : null}
       {citation.index}
     </Link>
   );

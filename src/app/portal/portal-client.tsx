@@ -16,6 +16,7 @@ import { DefaultChatTransport } from "ai";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PortalResponseCard } from "@/components/portal/portal-response-card";
+import { ShareAnswer } from "@/components/portal/share-answer";
 import { CitationsPanel } from "@/components/portal/citations-panel";
 import { capturePortalEvent } from "@/lib/portal/analytics";
 import { MAX_QUESTION_CHARS } from "@/lib/portal/sanitize-messages";
@@ -30,6 +31,7 @@ import type {
   PortalCitation,
   PortalUIMessage,
 } from "@/app/api/portal/chat/route";
+import { PlayCitationsButton } from "@/components/queue/queue-buttons";
 
 /**
  * Portal chat island — PRD §7.4. v0.3: transcript-idiom chat thread.
@@ -102,10 +104,12 @@ function extractAssistantFields(message: PortalUIMessage): {
   citationsForLookup: PortalCitation[];
   citationsForPanel: PortalCitation[];
   followUps: string[];
+  share: { sig: string; question: string } | null;
 } {
   let text = "";
   let allCitations: PortalCitation[] = [];
   let followUps: string[] = [];
+  let share: { sig: string; question: string } | null = null;
   for (const part of message.parts) {
     if (
       part.type === "text" &&
@@ -116,6 +120,8 @@ function extractAssistantFields(message: PortalUIMessage): {
       allCitations = (part as { data: PortalCitation[] }).data;
     } else if (part.type === "data-followups") {
       followUps = (part as { data: string[] }).data;
+    } else if (part.type === "data-share") {
+      share = (part as { data: { sig: string; question: string } }).data;
     }
   }
 
@@ -141,6 +147,7 @@ function extractAssistantFields(message: PortalUIMessage): {
     citationsForLookup: allCitations,
     citationsForPanel,
     followUps,
+    share,
   };
 }
 
@@ -671,7 +678,7 @@ function AssistantTurn({
   sourceGroup?: GroupKey;
   isCurrent: boolean;
 }) {
-  const { text, citationsForLookup, citationsForPanel, followUps } =
+  const { text, citationsForLookup, citationsForPanel, followUps, share } =
     extractAssistantFields(message);
   const voiceCount = citationsForPanel.length;
   return (
@@ -686,6 +693,12 @@ function AssistantTurn({
           citations={citationsForPanel}
           collapsed={!isCurrent}
         />
+      ) : null}
+      {voiceCount > 0 && isCurrent ? (
+        <PlayCitationsButton citations={citationsForPanel} />
+      ) : null}
+      {share && voiceCount > 0 ? (
+        <ShareAnswer share={share} answer={text} citations={citationsForLookup} />
       ) : null}
       {isCurrent && followUps.length > 0 ? (
         <FollowUps
@@ -767,12 +780,12 @@ function FollowUps({
       className="flex flex-col gap-2"
     >
       <div className="flex items-center gap-3">
-        <h4
+        <h2
           id="portal-followups-heading"
           className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground"
         >
           Keep going
-        </h4>
+        </h2>
         <div aria-hidden className="h-px flex-1 bg-border/70" />
       </div>
       <ul className="flex flex-wrap gap-2">

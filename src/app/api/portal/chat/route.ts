@@ -24,6 +24,8 @@ import {
   MAX_BODY_BYTES,
   sanitizePortalMessages,
 } from "@/lib/portal/sanitize-messages";
+import type { ContentNote } from "@/lib/player";
+import { shareSecret, signAnswer } from "@/lib/portal/share";
 import { retrieveRelevantChunks } from "@/lib/queries/portal";
 import { clientIp, createRateLimiter } from "@/lib/rate-limit";
 
@@ -62,6 +64,12 @@ const SIMILARITY_THRESHOLD = 0.25;
 const ANSWER_MAX_OUTPUT_TOKENS = 1200;
 const FOLLOWUPS_MAX_OUTPUT_TOKENS = 300;
 
+// Grounded synthesis wants consistency over variety. At the provider default
+// (~1.0) identical eval runs swung ±0.07 in cited-recall (P0-3 QC), which
+// swamps prompt/retrieval tuning. Follow-ups keep the default — variety is
+// the point there.
+const ANSWER_TEMPERATURE = 0.2;
+
 // Per-instance backstop; the Vercel Firewall rule on this path is the real
 // limit (see src/lib/rate-limit.ts).
 const checkRateLimit = createRateLimiter([
@@ -81,9 +89,15 @@ export type PortalCitation = {
   catalogNumber: string;
   recordingTitle: string;
   intervieweeName: string | null;
+  audioUrl: string | null;
   startTime: number;
   endTime: number;
   excerpt: string;
+  /**
+   * Content notices for flagged passages in this excerpt (F-flagged).
+   * Optional: citations from before this field existed lack it.
+   */
+  contentNotes?: ContentNote[];
 };
 
 /**
@@ -96,6 +110,9 @@ export type PortalUIMessage = UIMessage<
   {
     citations: PortalCitation[];
     followups: string[];
+    /** HMAC over question + answer + citations (F-portal-share). Carries
+     *  the exact (sanitized) question that was signed. */
+    share: { sig: string; question: string };
   }
 >;
 
@@ -188,9 +205,11 @@ export async function POST(req: Request): Promise<Response> {
     catalogNumber: chunk.catalogNumber,
     recordingTitle: chunk.recordingTitle,
     intervieweeName: chunk.intervieweeName,
+    audioUrl: chunk.audioUrl,
     startTime: chunk.startTime,
     endTime: chunk.endTime,
     excerpt: truncateExcerpt(chunk.text),
+    contentNotes: chunk.contentNotes,
   }));
 
   // No-material branch — deterministic reply, skip the LLM. Still delivered
@@ -273,6 +292,7 @@ export async function POST(req: Request): Promise<Response> {
         system: buildSystemPrompt(relevant),
         messages: modelMessages,
         maxOutputTokens: ANSWER_MAX_OUTPUT_TOKENS,
+        temperature: ANSWER_TEMPERATURE,
       });
 
       writer.merge(
@@ -299,6 +319,18 @@ export async function POST(req: Request): Promise<Response> {
           data: [],
         });
         return;
+      }
+
+      // Sign the finished answer so the visitor can share it (F-portal-share).
+      // Sent before follow-ups so Share is usable right away. No key → no
+      // part → the client hides Share.
+      const secret = shareSecret();
+      if (secret && answerText) {
+        writer.write({
+          type: "data-share",
+          id: "share",
+          data: { sig: signAnswer(secret, question, answerText, citations), question },
+        });
       }
 
       try {

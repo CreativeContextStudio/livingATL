@@ -2,16 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
+// Only the map chunk needs Mapbox's stylesheet; importing it here (not in
+// globals.css) keeps it off every other page.
+import "mapbox-gl/dist/mapbox-gl.css";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 
-import { MapFilterBar } from "./map-filter-bar";
 import { NeighborhoodPreview } from "./neighborhood-preview";
 import { neighborhoodColor } from "@/components/shared/category-colors";
-import type {
-  BrowserFacets,
-  BrowserFilter,
-  BrowserRecording,
-} from "@/lib/queries/recordings";
+import { cn } from "@/lib/utils";
+import type { BrowserRecording } from "@/lib/queries/recordings";
 import type {
   GeoJSONGeometry,
   NeighborhoodGeometry,
@@ -43,6 +42,15 @@ const MAP_COLORS = {
   // Text on pin badges
   pinLabel: "#ffffff",
 } as const;
+
+/** A single point to fly to for any neighborhood geometry (list selection). */
+function representativePoint(g: GeoJSONGeometry): [number, number] {
+  if (g.type === "Point") return g.coordinates;
+  if (g.type === "LineString") return g.coordinates[Math.floor(g.coordinates.length / 2)];
+  const ring = g.type === "Polygon" ? g.coordinates[0] : g.coordinates[0][0];
+  const [x, y] = ring.reduce(([sx, sy], [px, py]) => [sx + px, sy + py], [0, 0]);
+  return [x / ring.length, y / ring.length];
+}
 
 const INITIAL_VIEWPORT = {
   center: [-84.3920, 33.7540] as [number, number], // Five Points
@@ -92,8 +100,6 @@ export type MapClientProps = {
   neighborhoods: NeighborhoodGeometry[];
   counts: Record<string, number>;
   advisoryByNeighborhood: Record<string, boolean>;
-  facets: BrowserFacets;
-  filter: BrowserFilter;
 };
 
 export function MapClient({
@@ -102,8 +108,6 @@ export function MapClient({
   neighborhoods,
   counts,
   advisoryByNeighborhood,
-  facets,
-  filter,
 }: MapClientProps) {
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   const containerRef = useRef<HTMLDivElement>(null);
@@ -148,7 +152,15 @@ export function MapClient({
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: "mapbox://styles/mapbox/light-v11",
+      // Basemap follows the site theme. MapLoader keys this component on
+      // `data-theme`, so a theme switch remounts with the matching style.
+      style:
+        document.documentElement.dataset.theme === "dark"
+          ? "mapbox://styles/mapbox/dark-v11"
+          : "mapbox://styles/mapbox/light-v11",
+      // Touch: one finger scrolls the page, two fingers move the map — a
+      // 60dvh map otherwise traps page scrolling on phones.
+      cooperativeGestures: window.matchMedia("(pointer: coarse)").matches,
       center: INITIAL_VIEWPORT.center,
       zoom: INITIAL_VIEWPORT.zoom,
       minZoom: 9,
@@ -383,6 +395,30 @@ export function MapClient({
 
   const handleClose = useCallback(() => setActiveNeighborhood(null), []);
 
+  // Keyboard / screen-reader path into the map: every neighborhood with
+  // recordings as a button. Same effect as clicking its pin.
+  const listedNeighborhoods = useMemo(
+    () =>
+      featureCollection.features
+        .filter((f) => f.properties.count > 0)
+        .sort(
+          (a, b) =>
+            b.properties.count - a.properties.count ||
+            a.properties.name.localeCompare(b.properties.name),
+        ),
+    [featureCollection],
+  );
+  const selectFromList = useCallback((feature: PointFeature) => {
+    setActiveNeighborhood(feature.properties.name);
+    const map = mapRef.current;
+    if (map) {
+      map.flyTo({
+        center: representativePoint(feature.geometry),
+        zoom: Math.max(map.getZoom(), 12.5),
+      });
+    }
+  }, []);
+
   if (!token) {
     return (
       <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
@@ -394,13 +430,12 @@ export function MapClient({
 
   return (
     <div className="flex flex-col gap-4">
-      <MapFilterBar facets={facets} filter={filter} />
-
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_24rem]">
         <div
           ref={containerRef}
-          role="application"
+          role="region"
           aria-label="Atlanta oral history map"
+          aria-describedby="map-keyboard-help"
           className="h-[60dvh] min-h-[360px] w-full overflow-hidden rounded-xl bg-[color:var(--color-surface)] ring-1 ring-border lg:h-[70dvh] lg:min-h-[420px]"
         />
 
@@ -416,6 +451,57 @@ export function MapClient({
           />
         </div>
       </div>
+
+      <p id="map-keyboard-help" className="sr-only">
+        Map of neighborhoods mentioned in the recordings. To explore by
+        keyboard, use the neighborhood list below the map.
+      </p>
+      <section aria-labelledby="map-neighborhood-list" className="flex flex-col gap-2">
+        <h2
+          id="map-neighborhood-list"
+          className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted-foreground"
+        >
+          Browse by neighborhood
+        </h2>
+        <ul className="flex flex-wrap gap-2">
+          {listedNeighborhoods.map((f) => {
+            const { name, count } = f.properties;
+            const selected = activeNeighborhood === name;
+            return (
+              <li key={name}>
+                <button
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => selectFromList(f)}
+                  className={cn(
+                    "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    selected
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border bg-card hover:bg-muted",
+                  )}
+                >
+                  {name}
+                  <span
+                    className={cn(
+                      "tabular-nums text-xs",
+                      selected ? "text-background" : "text-muted-foreground",
+                    )}
+                  >
+                    {count}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+      {/* Announce selections — on desktop the preview updates in the
+          sidebar, away from wherever the selection was made. */}
+      <p aria-live="polite" className="sr-only">
+        {activeNeighborhood
+          ? `${activeNeighborhood}: ${activeRecordings.length} recording${activeRecordings.length === 1 ? "" : "s"} shown`
+          : ""}
+      </p>
 
       {/* Mobile/tablet (< lg): selecting a pin opens the preview as a
           dismissible bottom-sheet over the map. `open` is gated on `!isDesktop`

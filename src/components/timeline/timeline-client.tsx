@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
+import { usePathname, useSearchParams } from "next/navigation";
 import { MinusIcon, PlusIcon, RotateCcwIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -45,6 +46,7 @@ import type {
   TimelineHistoricalEvent,
   TimelineMoment,
 } from "@/lib/queries/timeline";
+import { useMediaQuery } from "@/lib/use-media-query";
 
 /**
  * Interactive Timeline — Phase 2 + P3 (zoom / pan).
@@ -210,6 +212,43 @@ function filterFromSearchParams(
 }
 
 /** Moment matches the active filter? OR-within-field semantics. */
+/** Screen point a hover preview anchors to. */
+type Point = { clientX: number; clientY: number };
+
+/** Keyboard focus has no cursor — anchor the preview to the marker itself. */
+function focusPoint(evt: React.FocusEvent<HTMLElement>): Point {
+  const r = evt.currentTarget.getBoundingClientRect();
+  return { clientX: r.right, clientY: r.top + r.height / 2 };
+}
+
+/**
+ * Roving focus across the markers currently on screen, in left-to-right
+ * (year) order, ties broken top-to-bottom. `from = null` focuses the first.
+ * Filtered-out markers are `aria-hidden` and skipped.
+ */
+function stepMarkerFocus(
+  canvas: HTMLElement,
+  from: HTMLElement | null,
+  dir: 1 | -1,
+): void {
+  const bounds = canvas.getBoundingClientRect();
+  const markers = Array.from(
+    canvas.querySelectorAll<HTMLElement>(
+      '[data-timeline-marker]:not([aria-hidden="true"])',
+    ),
+  )
+    .map((el) => ({ el, r: el.getBoundingClientRect() }))
+    .filter(({ r }) => r.right >= bounds.left && r.left <= bounds.right)
+    .sort((a, b) => a.r.left - b.r.left || a.r.top - b.r.top)
+    .map(({ el }) => el);
+  if (markers.length === 0) return;
+  const i = from ? markers.indexOf(from) : -1;
+  const next = from ? markers[i + dir] : markers[0];
+  // preventScroll: the canvas is overflow-hidden; a focus-scroll would
+  // shift its content out from under the view math.
+  next?.focus({ preventScroll: true });
+}
+
 function matchesFilter(m: TimelineMoment, filter: TimelineFilter): boolean {
   if (filter.highlightOnly && !m.highlight) return false;
   if (filter.themes.length > 0) {
@@ -263,7 +302,6 @@ export function TimelineClient({
     [yearRange],
   );
 
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -301,6 +339,10 @@ export function TimelineClient({
     startView: [number, number];
     canvasWidth: number;
   } | null>(null);
+  // Render-visible mirror of "pointer is down on the canvas" — only drives
+  // the grab/grabbing cursor. The pan math reads dragStateRef (no re-render
+  // per pointermove); this flips just twice per gesture.
+  const [isDragging, setIsDragging] = useState(false);
   // didDragRef persists briefly after pointer-up so marker onClick can
   // check whether the gesture was a click vs a pan. Reset on next frame.
   const didDragRef = useRef(false);
@@ -403,8 +445,14 @@ export function TimelineClient({
   // Hover / click handlers
   // -----------------------------------------------------------------------
 
+  // Touch "hover" is an emulated mouseenter after a tap with no matching
+  // leave, so the preview stuck on screen. Phones get the bottom sheet
+  // instead; previews stay for real hover and for keyboard focus.
+  const canHover = useMediaQuery("(hover: hover)");
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
+
   const onMomentEnter = useCallback(
-    (m: TimelineMoment, evt: React.MouseEvent) => {
+    (m: TimelineMoment, evt: Point) => {
       setHoverTip({
         kind: "moment",
         moment: m,
@@ -415,7 +463,7 @@ export function TimelineClient({
     [],
   );
   const onEventEnter = useCallback(
-    (e: TimelineHistoricalEvent, evt: React.MouseEvent) => {
+    (e: TimelineHistoricalEvent, evt: Point) => {
       setHoverTip({
         kind: "event",
         event: e,
@@ -516,6 +564,7 @@ export function TimelineClient({
         canvasWidth: rect.width,
       };
       didDragRef.current = false;
+      setIsDragging(true);
     },
     [view],
   );
@@ -535,6 +584,7 @@ export function TimelineClient({
     };
     const onUp = () => {
       dragStateRef.current = null;
+      setIsDragging(false);
       // Let the drag flag persist just long enough for the click event
       // to see it. Reset on the next frame so future clicks fire
       // normally.
@@ -557,16 +607,36 @@ export function TimelineClient({
   // doesn't pan the timeline.
   useEffect(() => {
     const onKeyDown = (evt: KeyboardEvent) => {
+      const canvas = canvasRef.current;
       const active = document.activeElement as HTMLElement | null;
-      const tag = active?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || active?.isContentEditable) {
-        return;
-      }
+      const onMarker = !!active?.hasAttribute("data-timeline-marker");
       if (evt.key === "Escape") {
         if (pinned) setPinned(null);
+        // Leave marker navigation: hand focus back to the canvas.
+        if (onMarker) canvas?.focus({ preventScroll: true });
         return;
       }
+      // Never take browser shortcuts (Cmd/Ctrl +/−/0 zoom, Alt+← back, …).
+      if (evt.metaKey || evt.ctrlKey || evt.altKey) return;
+      // Pan/zoom keys only apply while the canvas (or one of its markers)
+      // has focus — not while typing in filters, using tabs, or reading.
+      if (!canvas || !active || !canvas.contains(active)) return;
+
+      if (onMarker) {
+        if (evt.key === "ArrowLeft" || evt.key === "ArrowRight") {
+          evt.preventDefault();
+          stepMarkerFocus(canvas, active, evt.key === "ArrowRight" ? 1 : -1);
+        }
+        return; // Enter/Space activate the marker button natively.
+      }
+      if (active !== canvas) return; // zoom buttons etc. handle their own keys
+
       switch (evt.key) {
+        case "Enter":
+        case "ArrowDown":
+          evt.preventDefault();
+          stepMarkerFocus(canvas, null, 1);
+          break;
         case "ArrowLeft":
           evt.preventDefault();
           setView((prev) => panByFraction(prev, -0.1, bounds));
@@ -599,7 +669,10 @@ export function TimelineClient({
   // Sync view + filter → URL, debounced. Clears params when they match
   // default state so the canonical URL is clean. Skipped until the
   // hydration effect has run so initial URL params aren't clobbered
-  // by defaults.
+  // by defaults. Uses `history.replaceState`, which Next's router picks
+  // up for `useSearchParams` without a server round-trip — `router.replace`
+  // re-rendered the page on the server (and re-sent every moment) on each
+  // pan/zoom.
   useEffect(() => {
     if (!hydratedRef.current) return;
     const timer = setTimeout(() => {
@@ -636,14 +709,14 @@ export function TimelineClient({
         params.delete("highlight");
       }
       const qs = params.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      window.history.replaceState(null, "", qs ? `${pathname}?${qs}` : pathname);
     }, 200);
     return () => clearTimeout(timer);
     // intentionally omitting `searchParams` — we read a snapshot once on
     // mount and own view/filter params thereafter. Including it would
-    // create a feedback loop with router.replace.
+    // create a feedback loop with the URL write above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, filter, bounds, pathname, router]);
+  }, [view, filter, bounds, pathname]);
 
   // Full-view check for disabling zoom-out / reset buttons
   const viewSpan = view[1] - view[0];
@@ -656,11 +729,42 @@ export function TimelineClient({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Below lg the folio sits above the canvas, so a tapped marker's
+          detail landed off-screen. There it keeps the collection overview
+          and the selection opens in a bottom sheet (same pattern as Map). */}
       <TimelineDetailFolio
-        selected={pinned}
+        selected={isDesktop ? pinned : null}
         onClear={onClearPin}
         corpus={corpus}
       />
+      <DialogPrimitive.Root
+        open={!isDesktop && pinned != null}
+        onOpenChange={(open) => {
+          if (!open) onClearPin();
+        }}
+      >
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/20 supports-backdrop-filter:backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 lg:hidden" />
+          <DialogPrimitive.Popup className="fixed inset-x-0 bottom-0 z-50 flex max-h-[80dvh] flex-col overflow-y-auto rounded-t-2xl border-t border-border bg-background pb-[env(safe-area-inset-bottom)] shadow-xl outline-none data-open:animate-in data-open:slide-in-from-bottom data-closed:animate-out data-closed:slide-out-to-bottom lg:hidden">
+            <DialogPrimitive.Title className="sr-only">
+              {pinned?.kind === "moment"
+                ? pinned.moment.title
+                : pinned?.kind === "event"
+                  ? pinned.event.label
+                  : "Timeline detail"}
+            </DialogPrimitive.Title>
+            <div
+              aria-hidden
+              className="mx-auto mt-2 h-1.5 w-10 shrink-0 rounded-full bg-foreground/20"
+            />
+            <TimelineDetailFolio
+              selected={pinned}
+              onClear={onClearPin}
+              corpus={corpus}
+            />
+          </DialogPrimitive.Popup>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
 
       {hoverTip ? <HoverTooltip tip={hoverTip} /> : null}
 
@@ -678,7 +782,7 @@ export function TimelineClient({
         {/* Row 2: family filter swatches (click to narrow canvas by
             family) + interaction controls. The 5 swatches double as the
             color legend and the top-level sort controls. */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border/60 px-4 py-2 text-[10px] font-mono tracking-[0.12em] uppercase text-muted-foreground/80 sm:px-6">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border/60 px-4 py-2 text-[10px] font-mono tracking-[0.12em] uppercase text-muted-foreground sm:px-6">
           <span className="flex items-center gap-1 normal-case tracking-normal">
             {THEME_FAMILIES.map((f) => {
               const isActive = filter.families.includes(f.key);
@@ -695,11 +799,11 @@ export function TimelineClient({
                       : `Filter by ${f.label}`
                   }
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+                    "inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     isActive
                       ? "bg-muted text-foreground"
                       : anyActive
-                        ? "text-muted-foreground/60 hover:bg-muted/60 hover:text-foreground"
+                        ? "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                         : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                   )}
                 >
@@ -723,11 +827,11 @@ export function TimelineClient({
                 : `${plottableEvents.length}/${historicalEvents.length}`}{" "}
               events
             </span>
-            <span className="text-muted-foreground/50">·</span>
+            <span className="text-muted-foreground">·</span>
             <span>{Math.round(view[0])}–{Math.round(view[1])}</span>
-            <span className="text-muted-foreground/50">·</span>
+            <span className="text-muted-foreground">·</span>
             <span>{laneMode ? "lanes" : "jitter"}</span>
-            <span className="hidden text-muted-foreground/50 sm:inline">·</span>
+            <span className="hidden text-muted-foreground sm:inline">·</span>
             <span className="hidden sm:inline">scroll to zoom · drag to pan · +/− · 0</span>
             {/* Touch devices have no hover/scroll-zoom — tell them how to drive
                 the canvas: tap a marker for the detail folio above, drag to
@@ -738,11 +842,25 @@ export function TimelineClient({
 
         {/* Canvas — the three bands + axis, plus drag-pan pointer handlers
             and the floating zoom controls. */}
+        <p id="timeline-canvas-help" className="sr-only">
+          Left and right arrows pan, plus and minus zoom, 0 resets the view.
+          Press Enter or Down arrow to move through the points on screen; left
+          and right arrows then step between them in year order, Enter opens
+          one, and Escape returns here.
+        </p>
         <div
           ref={canvasRef}
+          // One tab stop for the whole canvas; markers use roving focus
+          // (tabIndex -1, arrow keys) instead of hundreds of tab stops.
+          tabIndex={0}
+          role="group"
+          aria-roledescription="timeline"
+          aria-label={`Timeline, ${Math.round(view[0])} to ${Math.round(view[1])}`}
+          aria-describedby="timeline-canvas-help"
           className={cn(
             "relative h-[360px] overflow-hidden touch-pan-y select-none sm:h-[480px] sm:touch-none",
-            dragStateRef.current ? "cursor-grabbing" : "cursor-grab",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+            isDragging ? "cursor-grabbing" : "cursor-grab",
           )}
           onMouseLeave={onHoverLeave}
           onPointerDown={onPointerDown}
@@ -836,7 +954,12 @@ export function TimelineClient({
                   aria-label={`${e.label} (${
                     isRange ? `${e.yearStart}–${e.yearEnd}` : e.year
                   })`}
-                  onMouseEnter={(evt) => onEventEnter(e, evt)}
+                  data-timeline-marker=""
+                  tabIndex={-1}
+                  aria-hidden={filteredOut || undefined}
+                  onMouseEnter={(evt) => canHover && onEventEnter(e, evt)}
+                  onFocus={(evt) => onEventEnter(e, focusPoint(evt))}
+                  onBlur={onHoverLeave}
                   onClick={() => onEventClick(e)}
                 />
               );
@@ -931,7 +1054,11 @@ export function TimelineClient({
                   data-selected={isPinnedMarker || undefined}
                   aria-pressed={isPinnedMarker}
                   className={cn(
-                    "absolute block size-2.5 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full p-0 transition-[top,transform,opacity] duration-200 ease-out hover:z-10 hover:scale-[1.6] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+                    "absolute block size-2.5 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full p-0 transition-[top,transform,opacity] duration-200 ease-out hover:z-10 hover:scale-[1.6] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    // Invisible 26px hit area on touch screens (dots are 10px;
+                    // WCAG 2.5.8 minimum is 24px). Larger areas overlap in dense
+                    // clusters and a tap lands on a neighbouring moment.
+                    "pointer-coarse:after:absolute pointer-coarse:after:-inset-2 pointer-coarse:after:rounded-full pointer-coarse:after:content-['']",
                     filteredOut
                       ? "opacity-15 pointer-events-none"
                       : "pointer-events-auto",
@@ -948,7 +1075,12 @@ export function TimelineClient({
                     background: dotBackground,
                   }}
                   aria-label={`${m.title}. ${m.intervieweeName ?? m.recordingTitle}${m.eraLabel ? ` · ${m.eraLabel}` : ""}`}
-                  onMouseEnter={(evt) => onMomentEnter(m, evt)}
+                  data-timeline-marker=""
+                  tabIndex={-1}
+                  aria-hidden={filteredOut || undefined}
+                  onMouseEnter={(evt) => canHover && onMomentEnter(m, evt)}
+                  onFocus={(evt) => onMomentEnter(m, focusPoint(evt))}
+                  onBlur={onHoverLeave}
                   onClick={() => onMomentClick(m)}
                 />
               );
@@ -963,7 +1095,7 @@ export function TimelineClient({
               disabled={isFullView}
               aria-label="Zoom out"
               title="Zoom out (−)"
-              className="inline-flex size-7 min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 md:min-h-0 md:min-w-0"
+              className="inline-flex size-7 min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-0 md:min-w-0"
             >
               <MinusIcon aria-hidden className="size-3.5" />
             </button>
@@ -973,7 +1105,7 @@ export function TimelineClient({
               disabled={isDefaultView}
               aria-label="Reset view"
               title="Reset view (0)"
-              className="inline-flex size-7 min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 md:min-h-0 md:min-w-0"
+              className="inline-flex size-7 min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-0 md:min-w-0"
             >
               <RotateCcwIcon aria-hidden className="size-3.5" />
             </button>
@@ -983,7 +1115,7 @@ export function TimelineClient({
               disabled={isMinView}
               aria-label="Zoom in"
               title="Zoom in (+)"
-              className="inline-flex size-7 min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 md:min-h-0 md:min-w-0"
+              className="inline-flex size-7 min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-0 md:min-w-0"
             >
               <PlusIcon aria-hidden className="size-3.5" />
             </button>

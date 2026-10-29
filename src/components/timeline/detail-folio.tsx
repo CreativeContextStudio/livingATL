@@ -82,7 +82,7 @@ function ClearPinButton({ onClear }: { onClear: () => void }) {
       type="button"
       onClick={onClear}
       aria-label="Clear pinned selection"
-      className="absolute right-4 top-4 inline-flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 sm:right-5 sm:top-5"
+      className="absolute right-4 top-4 inline-flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:right-5 sm:top-5"
     >
       <XIcon aria-hidden className="size-3.5" />
     </button>
@@ -130,7 +130,7 @@ function FolioMomentBody({
               kicker). Era label sits inline so "1891 · 1880s-c. 1900"
               reads as a single dateline. */}
           <div className="flex items-baseline gap-3">
-            <p className="font-heading text-3xl font-bold tracking-tight text-primary sm:text-4xl">
+            <p className="font-heading text-3xl font-bold tracking-tight text-primary-ink sm:text-4xl">
               {anchorYear}
             </p>
             {yearLabel && yearLabel !== anchorYear ? (
@@ -161,7 +161,7 @@ function FolioMomentBody({
               <button
                 type="button"
                 onClick={() => setDetailOpen(true)}
-                className="mt-1.5 ml-4 self-start font-mono text-[11px] tracking-[0.12em] uppercase text-primary transition-colors hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:rounded-sm"
+                className="mt-1.5 ml-4 self-start font-mono text-[11px] tracking-[0.12em] uppercase text-primary-ink transition-colors hover:text-primary-ink/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-sm"
                 aria-label={`Read full summary for ${moment.title}`}
               >
                 … read more
@@ -171,7 +171,7 @@ function FolioMomentBody({
         </div>
 
         {/* Right: structured aside — 20% of the row. */}
-        <aside className="flex min-w-0 flex-col gap-3 overflow-hidden border-l border-border/60 pl-5 lg:pl-6">
+        <aside className="flex min-w-0 flex-col gap-3 overflow-hidden border-t border-border/60 pt-4 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto scrollbar-soft pr-1">
             {themes.length > 0 ? (
               <ThemeTagRow label="Themes" themes={themes} />
@@ -182,7 +182,7 @@ function FolioMomentBody({
             {advisoryNote ? (
               <span
                 title={advisoryNote}
-                className="inline-flex self-start rounded-md border border-[color:var(--color-warning)]/40 bg-[color:var(--color-warning)]/15 px-2 py-0.5 font-mono text-[10px] tracking-[0.18em] uppercase text-[color:var(--color-warning)]"
+                className="inline-flex self-start rounded-md border border-[color:var(--color-warning)]/40 bg-[color:var(--color-warning)]/15 px-2 py-0.5 font-mono text-[10px] tracking-[0.18em] uppercase text-[color:var(--color-warning-ink)]"
               >
                 Advisory
               </span>
@@ -194,7 +194,7 @@ function FolioMomentBody({
             </span>
             <Link
               href={`/player/${encodeURIComponent(moment.catalogNumber)}?t=${playFrom}`}
-              className="inline-flex items-center gap-2 self-start rounded-lg bg-primary px-3 py-2 font-heading text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+              className="inline-flex items-center gap-2 self-start rounded-lg bg-primary px-3 py-2 font-heading text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <PlayIcon aria-hidden className="size-3.5" />
               Play from {formatTimestamp(moment.startTime)}
@@ -233,7 +233,7 @@ function FolioEventBody({
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 overflow-hidden lg:grid-cols-[4fr_1fr]">
         <div className="flex min-w-0 flex-col gap-2 overflow-hidden pr-10">
           {/* Year promoted to top of card. */}
-          <p className="font-heading text-3xl font-bold tracking-tight text-primary sm:text-4xl">
+          <p className="font-heading text-3xl font-bold tracking-tight text-primary-ink sm:text-4xl">
             {when}
           </p>
           <h2 className="font-heading text-base font-bold leading-tight tracking-tight sm:text-lg">
@@ -252,7 +252,7 @@ function FolioEventBody({
               <button
                 type="button"
                 onClick={() => setDetailOpen(true)}
-                className="mt-1.5 ml-4 self-start font-mono text-[11px] tracking-[0.12em] uppercase text-primary transition-colors hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:rounded-sm"
+                className="mt-1.5 ml-4 self-start font-mono text-[11px] tracking-[0.12em] uppercase text-primary-ink transition-colors hover:text-primary-ink/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-sm"
                 aria-label={`See all narrators referencing ${event.label}`}
               >
                 … see all narrators
@@ -261,7 +261,7 @@ function FolioEventBody({
           </div>
         </div>
 
-        <aside className="flex min-w-0 flex-col gap-2 overflow-hidden border-l border-border/60 pl-5 lg:pl-6">
+        <aside className="flex min-w-0 flex-col gap-2 overflow-hidden border-t border-border/60 pt-4 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
           <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto scrollbar-soft pr-1">
             <TagRow
               label="Referenced in"
@@ -290,9 +290,9 @@ function FolioEmptyBody({ corpus }: { corpus: FolioCorpus }) {
     <div className="flex flex-1 flex-col justify-center gap-3">
       <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted-foreground">
         {corpus.momentCount} moments
-        <span className="mx-2 text-muted-foreground/50">·</span>
+        <span className="mx-2 text-muted-foreground">·</span>
         {corpus.narratorCount} narrators
-        <span className="mx-2 text-muted-foreground/50">·</span>c. {from}
+        <span className="mx-2 text-muted-foreground">·</span>c. {from}
         –{to}
       </p>
       <h2 className="max-w-xl font-heading text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
@@ -335,7 +335,7 @@ function MomentDetailDialog({
       <DialogContent className="max-w-[92vw] sm:max-w-2xl lg:max-w-3xl">
         <div className="flex flex-col gap-4">
           <div className="flex items-baseline gap-3">
-            <p className="font-heading text-3xl font-bold tracking-tight text-primary sm:text-4xl">
+            <p className="font-heading text-3xl font-bold tracking-tight text-primary-ink sm:text-4xl">
               {anchorYear}
             </p>
             {yearLabel && yearLabel !== anchorYear ? (
@@ -367,7 +367,7 @@ function MomentDetailDialog({
 
           {moment.highlight && moment.highlightReason ? (
             <div className="rounded-lg border border-primary/40 bg-primary/10 p-4">
-              <p className="font-mono text-[10px] tracking-[0.18em] uppercase text-primary">
+              <p className="font-mono text-[10px] tracking-[0.18em] uppercase text-primary-ink">
                 Why this matters
               </p>
               <p className="mt-1 text-sm leading-relaxed text-foreground/90">
@@ -400,7 +400,7 @@ function MomentDetailDialog({
           <div className="flex items-center justify-end gap-2 pt-2">
             <Link
               href={`/player/${encodeURIComponent(moment.catalogNumber)}?t=${playFrom}`}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-heading text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-heading text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <PlayIcon aria-hidden className="size-3.5" />
               Play from {formatTimestamp(moment.startTime)}
@@ -432,7 +432,7 @@ function EventDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[92vw] sm:max-w-2xl lg:max-w-3xl">
         <div className="flex flex-col gap-4">
-          <p className="font-heading text-3xl font-bold tracking-tight text-primary sm:text-4xl">
+          <p className="font-heading text-3xl font-bold tracking-tight text-primary-ink sm:text-4xl">
             {when}
           </p>
           <DialogTitle className="font-heading text-xl font-bold leading-tight tracking-tight sm:text-2xl">

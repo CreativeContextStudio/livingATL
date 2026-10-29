@@ -28,10 +28,22 @@ export type HoverTip =
 const OFFSET_X = 14;
 const OFFSET_Y = 14;
 
+/** Matches the card's `max-w-[280px]`; estimated height for flipping up. */
+const TIP_W = 280;
+const TIP_H_ESTIMATE = 140;
+const EDGE = 8;
+
 export function HoverTooltip({ tip }: { tip: HoverTip }) {
+  // Keep the card on-screen: shift left near the right edge, flip above the
+  // anchor near the bottom (it overflowed narrow viewports before).
+  const vw = typeof window === "undefined" ? Infinity : window.innerWidth;
+  const vh = typeof window === "undefined" ? Infinity : window.innerHeight;
   const style: React.CSSProperties = {
-    left: tip.x + OFFSET_X,
-    top: tip.y + OFFSET_Y,
+    left: Math.max(EDGE, Math.min(tip.x + OFFSET_X, vw - TIP_W - EDGE)),
+    top:
+      tip.y + OFFSET_Y + TIP_H_ESTIMATE > vh
+        ? Math.max(EDGE, tip.y - OFFSET_Y - TIP_H_ESTIMATE)
+        : tip.y + OFFSET_Y,
   };
   return (
     <div
@@ -64,7 +76,7 @@ function MomentHoverBody({ moment }: { moment: TimelineMoment }) {
           {moment.title}
         </span>
       </div>
-      <span className="font-heading text-[11px] font-bold tracking-tight text-primary">
+      <span className="font-heading text-[11px] font-bold tracking-tight text-primary-ink">
         {year}
         <span className="ml-2 font-sans font-normal text-background/60">
           {byline}
@@ -86,7 +98,7 @@ function EventHoverBody({ event }: { event: TimelineHistoricalEvent }) {
       <span className="font-heading text-[13px] font-semibold leading-tight text-background line-clamp-1">
         {event.label}
       </span>
-      <span className="font-heading text-[11px] font-bold tracking-tight text-primary">
+      <span className="font-heading text-[11px] font-bold tracking-tight text-primary-ink">
         {when}
         <span className="ml-2 font-sans font-normal uppercase tracking-[0.12em] text-background/60">
           {event.category.replace(/_/g, " ")}

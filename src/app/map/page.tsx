@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 
 import { MapLoader } from "@/components/map/map-loader";
 import {
+  fetchArchiveStats,
   fetchBrowserFacets,
   fetchBrowserRecordings,
   type BrowserFilter,
 } from "@/lib/queries/recordings";
 import { fetchNeighborhoodGeometries } from "@/lib/queries/map";
+import { requireArchiveAccess } from "@/lib/access-request";
 
 /**
  * Interactive Map — PRD §7.5 realistic v1.
@@ -38,6 +40,8 @@ export default async function MapPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  // PRD §8.8 backstop — the proxy is the first line; see src/lib/access.ts.
+  await requireArchiveAccess();
   const params = await searchParams;
   const filter: BrowserFilter = {
     theme: firstParam(params.theme),
@@ -48,10 +52,11 @@ export default async function MapPage({
     search: firstParam(params.q),
   };
 
-  const [filtered, facets, neighborhoodGeometries] = await Promise.all([
+  const [filtered, facets, neighborhoodGeometries, stats] = await Promise.all([
     fetchBrowserRecordings(filter, "alphabetical"),
     fetchBrowserFacets(),
     fetchNeighborhoodGeometries(),
+    fetchArchiveStats(),
   ]);
 
   // Counts over the FILTERED recordings — pin sizes and badge numbers
@@ -67,12 +72,8 @@ export default async function MapPage({
     }
   }
 
-  // Corpus total (any neighborhood > 0) — used for "X of N" labels in
-  // the preview panel.
-  const totalRecordings = Math.max(
-    filtered.length,
-    facets.themes[0]?.count ?? 0,
-  );
+  // Corpus total (every published recording) — used for "X of N" labels.
+  const totalRecordings = stats.processedRecordings;
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-6 py-8">

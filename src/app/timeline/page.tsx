@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { TimelineClient } from "@/components/timeline/timeline-client";
+import { requireArchiveAccess } from "@/lib/access-request";
 import { fetchTimelineData } from "@/lib/queries/timeline";
 
 /**
@@ -12,10 +12,10 @@ import { fetchTimelineData } from "@/lib/queries/timeline";
  * No zoom, no pan, no filters — those ship in P3. See `PHASE1_STATE.md`
  * for the full Timeline phase plan.
  *
- * Launch-gate behavior: this route is intentionally NOT on the preview
- * allowlist in `src/proxy.ts`. When `NEXT_PUBLIC_LAUNCH_ENABLED !== "true"`,
- * the proxy rewrites `/timeline` to `/preview`. Route-level backstop
- * below matches the Browser/Map pattern per PRD §8.8.
+ * Launch-gate behavior: this route is intentionally NOT on either allowlist in
+ * `src/proxy.ts`, so the proxy sends visitors without access to `/gate` or
+ * `/preview`. `requireArchiveAccess()` below is the PRD §8.8 backstop shared
+ * with Browse, Map, Player and Portal.
  */
 export const metadata: Metadata = {
   title: "Timeline",
@@ -24,34 +24,8 @@ export const metadata: Metadata = {
 };
 
 export default async function TimelinePage() {
-  const launchEnabled = process.env.NEXT_PUBLIC_LAUNCH_ENABLED === "true";
-  if (!launchEnabled) {
-    // Backstop if the proxy is ever bypassed. The proxy is the real
-    // gate; this is belt-and-braces per PRD §8.8. Prefer the preview
-    // experience over a 404 so invite holders see the same holding
-    // page regardless of which route they tried.
-    return (
-      <main
-        className="mx-auto flex min-h-[60dvh] max-w-3xl flex-col items-start gap-4 px-6 py-16"
-        id="main"
-      >
-        <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted-foreground">
-          Preview mode
-        </p>
-        <h1 className="font-heading text-3xl font-bold">Timeline is invite-only</h1>
-        <p className="text-muted-foreground">
-          The Interactive Timeline is part of the Phase 2 surface that goes
-          live alongside the rest of the Collection when the archive opens.
-        </p>
-        <Link
-          href="/preview"
-          className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
-        >
-          Back to preview
-        </Link>
-      </main>
-    );
-  }
+  // PRD §8.8 backstop — the proxy is the first line; see src/lib/access.ts.
+  await requireArchiveAccess();
 
   const data = await fetchTimelineData();
 
@@ -75,11 +49,11 @@ export default async function TimelinePage() {
         </h1>
         <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted-foreground">
           {data.moments.length} moments
-          <span className="mx-2 text-muted-foreground/50">·</span>
+          <span className="mx-2 text-muted-foreground">·</span>
           {narratorCount} narrators
-          <span className="mx-2 text-muted-foreground/50">·</span>
+          <span className="mx-2 text-muted-foreground">·</span>
           {data.historicalEvents.length} historical events
-          <span className="mx-2 text-muted-foreground/50">·</span>c. {yearFrom}
+          <span className="mx-2 text-muted-foreground">·</span>c. {yearFrom}
           –{yearTo}
         </p>
         <p className="text-muted-foreground">

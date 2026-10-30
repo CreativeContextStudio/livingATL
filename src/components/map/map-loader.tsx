@@ -5,9 +5,9 @@ import type { BrowserFacets, BrowserFilter } from "@/lib/queries/recordings";
 import { MapFilterBar } from "./map-filter-bar";
 
 /**
- * Filter bar + the drawn neighborhood map. (Until 2026-10-29 this
- * lazy-loaded a ~700 KB Mapbox street map; the drawn map is a few KB of
- * our own code and needs no outside service.)
+ * Filter bar + the neighborhood map: the drawn map first, upgraded to the
+ * 3D MapLibre view (our own OpenStreetMap files, lazy-loaded) where WebGL
+ * works. (Until 2026-10-29 this lazy-loaded a Mapbox street map.)
  */
 export function MapLoader({
   facets,

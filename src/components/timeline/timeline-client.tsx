@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { usePathname, useSearchParams } from "next/navigation";
-import { MinusIcon, PlusIcon, RotateCcwIcon, SparklesIcon } from "lucide-react";
+import { ArrowRightIcon, MinusIcon, PlusIcon, RotateCcwIcon, SparklesIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import {
@@ -18,8 +18,10 @@ import {
 } from "@/lib/theme-colors";
 import {
   MIN_VIEW_SPAN,
+  centerViewOn,
   clampView,
   panByFraction,
+  yearToWeightedX,
   panByPixels,
   xPercent,
   zoomAtPct,
@@ -28,6 +30,11 @@ import {
   TimelineDetailFolio,
   type FolioSelection,
 } from "@/components/timeline/detail-folio";
+import {
+  JourneyBar,
+  type JourneyScope,
+  type JourneyState,
+} from "@/components/timeline/journey-bar";
 import {
   HoverTooltip,
   type HoverTip,
@@ -44,6 +51,8 @@ import type {
   TimelineMoment,
 } from "@/lib/queries/timeline";
 import { useMediaQuery } from "@/lib/use-media-query";
+import { useListeningQueue } from "@/components/queue/listening-queue";
+import { momentQueueItem } from "@/components/queue/queue-buttons";
 
 /**
  * Interactive Timeline — PRD §7.3 (2026-10-29 simplification).
@@ -60,6 +69,13 @@ import { useMediaQuery } from "@/lib/use-media-query";
  * The selected moment opens in a sticky panel beside the chart on desktop
  * (the chart never moves) and in a bottom sheet on phones. With nothing
  * selected the panel suggests highlights in view.
+ *
+ * Journey (2026-10-30): "Start the journey" opens the first story and
+ * Earlier / Later (or ← →) step through the stories in year order — the
+ * highlights by default, or all, within the filter. The chart glides to
+ * keep the open story centered, a "you are here" line marks it, and
+ * "Listen through" plays each story in the listening queue and moves on
+ * when it ends.
  *
  * View: `[start, end]`, default the whole collection; `?start=&end=` and
  * the filter round-trip through the URL. Drag pans; pinch or Ctrl/⌘ +
@@ -81,6 +97,11 @@ const SUGGESTION_COUNT = 5;
 /** Phones open on the dense core: the whole 130 years in ~360px stacks
  *  dots on top of each other. "Show the whole collection" still works. */
 const NARROW_DEFAULT_VIEW: [number, number] = [1905, 1955];
+/** Starting a journey from a wide view zooms to the on-screen width of
+ *  these 20 years of the dense core (wider in years at the sparse ends,
+ *  since the axis is weighted). */
+const JOURNEY_WIDTH: [number, number] = [1920, 1940];
+const GLIDE_MS = 520;
 
 const FAMILY_ORDER = new Map<string, number>(FAMILY_KEYS.map((k, i) => [k, i]));
 
@@ -96,6 +117,17 @@ function momentStartYear(m: TimelineMoment): number | null {
 function momentFamily(m: TimelineMoment): FamilyKey | null {
   const primary = m.themes.find((t): t is ThemeKey => isThemeKey(t));
   return primary ? themeKeyToFamily(primary) : null;
+}
+
+/** Journey order: by the year a moment begins, then ends, then recording
+ *  and position in it, so ties step in a stable order. */
+function compareMoments(a: TimelineMoment, b: TimelineMoment): number {
+  return (
+    (momentStartYear(a) ?? 0) - (momentStartYear(b) ?? 0) ||
+    (a.eraEndYear ?? momentStartYear(a) ?? 0) - (b.eraEndYear ?? momentStartYear(b) ?? 0) ||
+    a.recordingTitle.localeCompare(b.recordingTitle) ||
+    a.momentIndex - b.momentIndex
+  );
 }
 
 function eventStartYear(e: TimelineHistoricalEvent): number | null {
@@ -118,10 +150,10 @@ function eraText(m: TimelineMoment): string {
   return String(s ?? e ?? "");
 }
 
-/** Year labels: the smallest of 10/20/25/50-year steps that keeps labels
+/** Year labels: the smallest of 5/10/20/25/50-year steps that keeps labels
  *  at least MIN_LABEL_GAP_PX apart on this (piecewise) scale. */
 function yearLabels(view: [number, number], widthPx: number): number[] {
-  for (const step of [10, 20, 25, 50]) {
+  for (const step of [5, 10, 20, 25, 50]) {
     const first = Math.ceil(view[0] / step) * step;
     const years: number[] = [];
     for (let y = first; y <= view[1]; y += step) years.push(y);
@@ -244,6 +276,11 @@ export function TimelineClient({ data }: { data: TimelineData }) {
   const [filter, setFilter] = useState<TimelineFilter>(() => filterFromSearchParams(searchParams));
   const [pinned, setPinned] = useState<FolioSelection | null>(null);
   const [hoverTip, setHoverTip] = useState<HoverTip | null>(null);
+  const [journeyScope, setJourneyScope] = useState<JourneyScope>("highlights");
+  /** True from "Start the journey" (or a step) until the story is closed;
+   *  dims the dots that aren't journey stops. */
+  const [journeyOn, setJourneyOn] = useState(false);
+  const [listening, setListening] = useState(false);
   const hydratedRef = useRef(false);
 
   // `useSearchParams()` can be empty during SSR; re-read the real URL once
@@ -259,6 +296,7 @@ export function TimelineClient({ data }: { data: TimelineData }) {
   }, []);
 
   const canHover = useMediaQuery("(hover: hover)");
+  const reduceMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const isWide = useMediaQuery("(min-width: 640px)");
   const dotSize = isWide ? 9 : 8;
@@ -380,6 +418,202 @@ export function TimelineClient({ data }: { data: TimelineData }) {
   );
 
   // -----------------------------------------------------------------------
+  // Journey: the stories in year order, the open one's neighbors
+  // -----------------------------------------------------------------------
+
+  const journey = useMemo(() => {
+    const matching = moments.filter(
+      (m) => momentStartYear(m) != null && (!filterActive || matchesFilter(m, filter)),
+    );
+    const highlights = matching.filter((m) => m.highlight);
+    const canScopeHighlights = highlights.length > 0 && highlights.length < matching.length;
+    const useHighlights = journeyScope === "highlights" && highlights.length > 0;
+    const list = (useHighlights ? highlights : matching).sort(compareMoments);
+    return { list, ids: new Set(list.map(momentSelectionId)), useHighlights, canScopeHighlights };
+  }, [moments, filter, filterActive, journeyScope]);
+
+  const pinnedMoment = pinned?.kind === "moment" ? pinned.moment : null;
+
+  const journeyStop = useMemo(() => {
+    if (!pinnedMoment) return null;
+    const list = journey.list;
+    const i = list.findIndex((m) => momentSelectionId(m) === momentSelectionId(pinnedMoment));
+    if (i >= 0) return { position: i, earlier: list[i - 1] ?? null, later: list[i + 1] ?? null, reached: i + 1 };
+    // Not a stop (e.g. a non-highlight dot): step to the stops either side.
+    let earlier: TimelineMoment | null = null;
+    let later: TimelineMoment | null = null;
+    let reached = 0;
+    for (const m of list) {
+      if (compareMoments(m, pinnedMoment) < 0) {
+        earlier = m;
+        reached += 1;
+      } else if (!later) later = m;
+    }
+    return { position: null, earlier, later, reached };
+  }, [journey.list, pinnedMoment]);
+
+  // Glide the view so a year sits in the middle (animated; instant with
+  // reduced motion). User panning or zooming cancels a glide in flight.
+  const viewRef = useRef(view);
+  useEffect(() => {
+    viewRef.current = view;
+  }, [view]);
+  const glideFrameRef = useRef<number | null>(null);
+  const cancelGlide = useCallback(() => {
+    if (glideFrameRef.current != null) cancelAnimationFrame(glideFrameRef.current);
+    glideFrameRef.current = null;
+  }, []);
+  const glideTo = useCallback(
+    (year: number, zoomIn: boolean) => {
+      const from = viewRef.current;
+      const weighted = (v: [number, number]) => yearToWeightedX(v[1]) - yearToWeightedX(v[0]);
+      const widthOf = zoomIn && weighted(from) > weighted(JOURNEY_WIDTH) * 1.5 ? JOURNEY_WIDTH : from;
+      const target = centerViewOn(year, widthOf, bounds);
+      cancelGlide();
+      if (reduceMotion) {
+        setView(target);
+        return;
+      }
+      const t0 = performance.now();
+      const tick = (now: number) => {
+        const t = Math.min(1, (now - t0) / GLIDE_MS);
+        const e = 1 - (1 - t) ** 3;
+        setView([from[0] + (target[0] - from[0]) * e, from[1] + (target[1] - from[1]) * e]);
+        glideFrameRef.current = t < 1 ? requestAnimationFrame(tick) : null;
+      };
+      glideFrameRef.current = requestAnimationFrame(tick);
+    },
+    [bounds, cancelGlide, reduceMotion],
+  );
+  useEffect(() => cancelGlide, [cancelGlide]);
+
+  // Listen through: the journey story playing in the listening queue.
+  // When the queue moves off it (clip ended, or skipped), the journey
+  // steps to the next story and plays that.
+  const { enqueue, onCurrentChange } = useListeningQueue();
+  const listenIdRef = useRef<string | null>(null);
+  const playInQueue = useCallback(
+    (m: TimelineMoment) => {
+      const item = momentQueueItem(m);
+      if (!item) return false;
+      listenIdRef.current = item.id;
+      enqueue([item], { play: true });
+      return true;
+    },
+    [enqueue],
+  );
+
+  const visit = useCallback(
+    (m: TimelineMoment, opts: { zoomIn?: boolean; play?: boolean } = {}) => {
+      setJourneyOn(true);
+      setPinned({ kind: "moment", id: momentSelectionId(m), moment: m });
+      const year = momentStartYear(m);
+      if (year != null) glideTo(year, opts.zoomIn ?? false);
+      if (opts.play) playInQueue(m);
+    },
+    [glideTo, playInQueue],
+  );
+
+  const stepJourney = useCallback(
+    (dir: -1 | 1) => {
+      const target = dir < 0 ? journeyStop?.earlier : journeyStop?.later;
+      if (target) visit(target, { play: listening });
+    },
+    [journeyStop, listening, visit],
+  );
+
+  const startJourney = useCallback(() => {
+    const list = journey.list;
+    if (list.length === 0) return;
+    // From the left edge of what's on screen, unless that's everything.
+    const isFull = view[1] - view[0] >= bounds[1] - bounds[0] - 0.5;
+    const first = isFull ? list[0] : (list.find((m) => (momentStartYear(m) ?? 0) >= view[0]) ?? list[0]);
+    visit(first, { zoomIn: true });
+  }, [journey.list, view, bounds, visit]);
+
+  // Phones: the story opens in a bottom sheet over the lower half of the
+  // screen. While journeying, pad the page by the sheet's height and keep
+  // the chart's baseline in the top half, so the chart stays visible as it
+  // travels. Runs after each glide settles (the chart's height follows the
+  // view); instant, because the sheet's scroll lock cuts smooth scrolls.
+  const sheetJourney = !isDesktop && journeyOn && pinned != null;
+  useEffect(() => {
+    if (!sheetJourney) return;
+    const timer = setTimeout(() => {
+      const r = canvasRef.current?.getBoundingClientRect();
+      if (!r) return;
+      const delta = r.bottom - window.innerHeight * 0.42;
+      if (Math.abs(delta) > 8) window.scrollBy({ top: delta, behavior: "instant" });
+    }, reduceMotion ? 0 : GLIDE_MS + 40);
+    return () => clearTimeout(timer);
+  }, [sheetJourney, pinnedId, reduceMotion]);
+
+  // Read through refs so the subscription below is made once.
+  const advanceRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    advanceRef.current = () => {
+      // Advance from the open story (the one that was playing, unless the
+      // listener has since opened another — then from that one).
+      const next = journeyStop?.later ?? null;
+      if (next) visit(next, { play: true });
+      else {
+        listenIdRef.current = null;
+        setListening(false);
+      }
+    };
+  }, [journeyStop, visit]);
+  useEffect(
+    () =>
+      onCurrentChange((prevId, id) => {
+        const ours = listenIdRef.current;
+        if (ours != null && prevId === ours && id !== ours) advanceRef.current();
+      }),
+    [onCurrentChange],
+  );
+
+  const toggleListening = useCallback(() => {
+    if (listening) {
+      listenIdRef.current = null;
+      setListening(false);
+      return;
+    }
+    if (pinnedMoment && playInQueue(pinnedMoment)) setListening(true);
+  }, [listening, pinnedMoment, playInQueue]);
+
+  const journeyState = useMemo<JourneyState | null>(() => {
+    if (!journeyStop) return null;
+    const total = journey.list.length;
+    return {
+      position: journeyStop.position,
+      total,
+      progress: total > 0 ? journeyStop.reached / total : 0,
+      earlier: journeyStop.earlier,
+      later: journeyStop.later,
+      scope: journeyScope,
+      canScopeHighlights: journey.canScopeHighlights,
+      listening,
+      canListen: pinnedMoment != null && momentQueueItem(pinnedMoment) != null,
+    };
+  }, [journeyStop, journey, journeyScope, listening, pinnedMoment]);
+
+  // ← / → step the journey while a story is open — unless focus is in the
+  // chart (where arrows pan or move between dots) or in a text field.
+  useEffect(() => {
+    if (!pinnedMoment) return;
+    const onKeyDown = (evt: KeyboardEvent) => {
+      if (evt.key !== "ArrowLeft" && evt.key !== "ArrowRight") return;
+      if (evt.metaKey || evt.ctrlKey || evt.altKey || evt.shiftKey || evt.defaultPrevented) return;
+      const active = document.activeElement as HTMLElement | null;
+      const inScope = !active || active === document.body || !!active.closest("[data-journey-scope]");
+      if (!inScope || active?.matches("input, textarea, select, [contenteditable='true'], [role='slider']")) return;
+      evt.preventDefault();
+      stepJourney(evt.key === "ArrowRight" ? 1 : -1);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [pinnedMoment, stepJourney]);
+
+  // -----------------------------------------------------------------------
   // Hover / click
   // -----------------------------------------------------------------------
 
@@ -398,24 +632,40 @@ export function TimelineClient({ data }: { data: TimelineData }) {
   const onMomentClick = useCallback(
     (m: TimelineMoment) => {
       if (didDragRef.current) return;
-      pinMoment(m);
+      // Listening through: a clicked dot becomes the story that plays.
+      if (listening) visit(m, { play: true });
+      else pinMoment(m);
     },
-    [pinMoment],
+    [pinMoment, listening, visit],
   );
   const onEventClick = useCallback((e: TimelineHistoricalEvent) => {
     if (didDragRef.current) return;
     const id = eventSelectionId(e);
     setPinned((prev) => (prev?.id === id ? null : { kind: "event", id, event: e }));
   }, []);
-  const onClearPin = useCallback(() => setPinned(null), []);
+  const onClearPin = useCallback(() => {
+    setPinned(null);
+    setJourneyOn(false);
+    setListening(false);
+    listenIdRef.current = null;
+  }, []);
 
   // -----------------------------------------------------------------------
   // View controls
   // -----------------------------------------------------------------------
 
-  const onZoomIn = useCallback(() => setView((prev) => zoomAtPct(prev, 0.5, true, bounds)), [bounds]);
-  const onZoomOut = useCallback(() => setView((prev) => zoomAtPct(prev, 0.5, false, bounds)), [bounds]);
-  const onResetView = useCallback(() => setView(bounds), [bounds]);
+  const onZoomIn = useCallback(() => {
+    cancelGlide();
+    setView((prev) => zoomAtPct(prev, 0.5, true, bounds));
+  }, [bounds, cancelGlide]);
+  const onZoomOut = useCallback(() => {
+    cancelGlide();
+    setView((prev) => zoomAtPct(prev, 0.5, false, bounds));
+  }, [bounds, cancelGlide]);
+  const onResetView = useCallback(() => {
+    cancelGlide();
+    setView(bounds);
+  }, [bounds, cancelGlide]);
 
   // Pinch / Ctrl-or-⌘ + wheel zooms at the cursor; a horizontal trackpad
   // swipe pans. A plain vertical wheel is left alone so the page scrolls.
@@ -427,22 +677,25 @@ export function TimelineClient({ data }: { data: TimelineData }) {
       if (evt.ctrlKey || evt.metaKey) {
         if (evt.deltaY === 0) return;
         evt.preventDefault();
+        cancelGlide();
         const pct = Math.max(0, Math.min(1, (evt.clientX - rect.left) / rect.width));
         setView((prev) => zoomAtPct(prev, pct, evt.deltaY < 0, bounds));
       } else if (Math.abs(evt.deltaX) > Math.abs(evt.deltaY)) {
         evt.preventDefault();
+        cancelGlide();
         setView((prev) => panByPixels(prev, -evt.deltaX, rect.width, bounds));
       }
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  }, [bounds]);
+  }, [bounds, cancelGlide]);
 
   // Drag-pan. Document-level move/up listeners (no pointer capture, which
   // would swallow the markers' click events).
   const onPointerDown = useCallback(
     (evt: React.PointerEvent<HTMLDivElement>) => {
       if (evt.button !== 0 || !canvasRef.current) return;
+      cancelGlide();
       dragStateRef.current = {
         startClientX: evt.clientX,
         startView: view,
@@ -451,7 +704,7 @@ export function TimelineClient({ data }: { data: TimelineData }) {
       didDragRef.current = false;
       setIsDragging(true);
     },
-    [view],
+    [view, cancelGlide],
   );
   useEffect(() => {
     const onMove = (evt: PointerEvent) => {
@@ -488,7 +741,7 @@ export function TimelineClient({ data }: { data: TimelineData }) {
       const active = document.activeElement as HTMLElement | null;
       const onMarker = !!active?.hasAttribute("data-timeline-marker");
       if (evt.key === "Escape") {
-        if (pinned) setPinned(null);
+        if (pinned) onClearPin();
         if (onMarker) canvas?.focus({ preventScroll: true });
         return;
       }
@@ -535,7 +788,7 @@ export function TimelineClient({ data }: { data: TimelineData }) {
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [bounds, pinned]);
+  }, [bounds, pinned, onClearPin]);
 
   // View + filter → URL (debounced, replaceState so no server round-trip).
   // Default state leaves the URL clean.
@@ -558,6 +811,11 @@ export function TimelineClient({ data }: { data: TimelineData }) {
     // `searchParams` intentionally omitted — read once on mount, owned after.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, filter, bounds, pathname]);
+
+  // "You are here": the open story's dot (columns snap x to a pixel grid,
+  // so use the placed dot, not the raw year).
+  const hereDot = pinnedId ? (placed.dots.find((d) => momentSelectionId(d.m) === pinnedId) ?? null) : null;
+  const dimOffJourney = journeyOn && journey.useHighlights;
 
   const viewSpan = view[1] - view[0];
   const isFullView = viewSpan >= bounds[1] - bounds[0] - 0.5;
@@ -588,7 +846,10 @@ export function TimelineClient({ data }: { data: TimelineData }) {
   );
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+    <div
+      className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start"
+      style={sheetJourney ? { paddingBottom: "56dvh" } : undefined}
+    >
       <div className="flex min-w-0 flex-col gap-2">
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
           <TimelineFilterBar
@@ -628,11 +889,31 @@ export function TimelineClient({ data }: { data: TimelineData }) {
               ))}
             </div>
 
+            {/* You are here — the open story */}
+            {hereDot ? (
+              <div
+                aria-hidden
+                className="pointer-events-none absolute top-0 transition-[left] duration-150"
+                style={{ left: hereDot.x, height: baseline + SPAN_TRACK }}
+              >
+                <div className="absolute inset-y-0 w-0.5 -translate-x-1/2 bg-primary/70" />
+                <span
+                  className={cn(
+                    "absolute top-1.5 whitespace-nowrap rounded-full bg-primary px-2 py-0.5 font-mono text-[10px] font-medium tabular-nums text-primary-foreground shadow-sm",
+                    hereDot.x > width - 72 ? "right-1.5" : "left-1.5",
+                  )}
+                >
+                  {momentStartYear(hereDot.m)}
+                </span>
+              </div>
+            ) : null}
+
             {/* Moments */}
             {placed.dots.map(({ m, x, y, match }) => {
               const id = momentSelectionId(m);
               const isPinned = pinnedId === id;
               const filteredOut = !match && !isPinned;
+              const offJourney = dimOffJourney && !filteredOut && !isPinned && !journey.ids.has(id);
               return (
                 <button
                   key={id}
@@ -647,7 +928,8 @@ export function TimelineClient({ data }: { data: TimelineData }) {
                     // Small extra touch margin only: in a tall stack a larger one
                     // reaches past the neighbor's center and steals its taps.
                     "pointer-coarse:after:absolute pointer-coarse:after:-inset-0.5 pointer-coarse:after:rounded-full pointer-coarse:after:content-['']",
-                    filteredOut ? "pointer-events-none opacity-15" : "cursor-pointer hover:z-10 hover:scale-150",
+                    filteredOut ? "pointer-events-none opacity-15" : "cursor-pointer hover:z-10 hover:scale-150 hover:opacity-100",
+                    offJourney && "opacity-30",
                     isPinned && "z-20 scale-150 ring-2 ring-primary ring-offset-1 ring-offset-card",
                   )}
                   style={{
@@ -663,7 +945,14 @@ export function TimelineClient({ data }: { data: TimelineData }) {
                   onFocus={(evt) => onMomentEnter(m, focusPoint(evt))}
                   onBlur={onHoverLeave}
                   onClick={() => onMomentClick(m)}
-                />
+                >
+                  {isPinned ? (
+                    <span
+                      aria-hidden
+                      className="absolute -inset-1 rounded-full border-2 border-primary motion-safe:animate-ping"
+                    />
+                  ) : null}
+                </button>
               );
             })}
 
@@ -726,21 +1015,48 @@ export function TimelineClient({ data }: { data: TimelineData }) {
             </div>
           </div>
         </div>
+        {!isDesktop && !pinned ? (
+          <StartJourneyButton count={journey.list.length} highlights={journey.useHighlights} onStart={startJourney} />
+        ) : null}
         <p className="px-1 text-xs leading-relaxed text-muted-foreground">
           Each dot is a moment from an interview, placed at the year it begins; dots with a light
           center are highlights. Ticks under the axis are historical events.{" "}
-          <span className="hidden sm:inline">Drag to pan; pinch or Ctrl/⌘ + scroll to zoom.</span>
-          <span className="sm:hidden">Drag to pan; use − and + to zoom.</span>
+          <span className="hidden sm:inline">
+            Start the journey to step through the stories in year order (← →). Drag to pan; pinch or
+            Ctrl/⌘ + scroll to zoom.
+          </span>
+          <span className="sm:hidden">Start the journey to step through the stories in year order. Drag to pan.</span>
         </p>
       </div>
 
       {/* Desktop: sticky side panel. The chart never moves on selection. */}
       {isDesktop ? (
-        <aside aria-label="Selected moment" className="sticky top-20 max-h-[calc(100dvh-6rem)] overflow-y-auto rounded-2xl border border-border bg-card">
+        <aside
+          aria-label="Selected moment"
+          data-journey-scope=""
+          className="sticky top-20 max-h-[calc(100dvh-6rem)] overflow-y-auto rounded-2xl border border-border bg-card"
+        >
           {pinned ? (
-            <TimelineDetailFolio selected={pinned} onClear={onClearPin} />
+            <>
+              {journeyState ? (
+                <JourneyBar
+                  journey={journeyState}
+                  onStep={stepJourney}
+                  onToggleListen={toggleListening}
+                  onScope={setJourneyScope}
+                  onClose={onClearPin}
+                />
+              ) : null}
+              <TimelineDetailFolio selected={pinned} onClear={onClearPin} hideClear={journeyState != null} />
+            </>
           ) : (
-            <Suggestions moments={suggestions} onPick={pinMoment} />
+            <Suggestions
+              moments={suggestions}
+              onPick={(m) => visit(m)}
+              journeyCount={journey.list.length}
+              journeyHighlights={journey.useHighlights}
+              onStart={startJourney}
+            />
           )}
         </aside>
       ) : null}
@@ -748,13 +1064,22 @@ export function TimelineClient({ data }: { data: TimelineData }) {
       {/* Phones/tablets: bottom sheet. */}
       <DialogPrimitive.Root open={!isDesktop && pinned != null} onOpenChange={(open) => !open && onClearPin()}>
         <DialogPrimitive.Portal>
-          <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/20 supports-backdrop-filter:backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 lg:hidden" />
-          <DialogPrimitive.Popup className="fixed inset-x-0 bottom-0 z-50 flex max-h-[80dvh] flex-col overflow-y-auto rounded-t-2xl border-t border-border bg-background pb-[env(safe-area-inset-bottom)] shadow-xl outline-none data-open:animate-in data-open:slide-in-from-bottom data-closed:animate-out data-closed:slide-out-to-bottom lg:hidden">
+          <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/15 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 lg:hidden" />
+          <DialogPrimitive.Popup data-journey-scope="" className="fixed inset-x-0 bottom-0 z-50 flex max-h-[56dvh] flex-col overflow-y-auto rounded-t-2xl border-t border-border bg-background pb-[env(safe-area-inset-bottom)] shadow-xl outline-none data-open:animate-in data-open:slide-in-from-bottom data-closed:animate-out data-closed:slide-out-to-bottom lg:hidden">
             <DialogPrimitive.Title className="sr-only">
               {pinned?.kind === "moment" ? pinned.moment.title : pinned?.kind === "event" ? pinned.event.label : "Timeline detail"}
             </DialogPrimitive.Title>
             <div aria-hidden className="mx-auto mt-2 h-1.5 w-10 shrink-0 rounded-full bg-foreground/20" />
-            {pinned ? <TimelineDetailFolio selected={pinned} onClear={onClearPin} /> : null}
+            {pinned && journeyState ? (
+              <JourneyBar
+                journey={journeyState}
+                onStep={stepJourney}
+                onToggleListen={toggleListening}
+                onScope={setJourneyScope}
+                onClose={onClearPin}
+              />
+            ) : null}
+            {pinned ? <TimelineDetailFolio selected={pinned} onClear={onClearPin} hideClear={journeyState != null} /> : null}
           </DialogPrimitive.Popup>
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>
@@ -817,13 +1142,53 @@ function SpanBar({ moment, view, pinned }: { moment: TimelineMoment; view: [numb
   );
 }
 
-/** Empty panel: a few highlights in the current view as starting points. */
-function Suggestions({ moments, onPick }: { moments: TimelineMoment[]; onPick: (m: TimelineMoment) => void }) {
+/** "Start the journey" — opens the first story (from the left edge of the
+ *  view) and zooms in so the chart can travel with the reader. */
+function StartJourneyButton({
+  count,
+  highlights,
+  onStart,
+}: {
+  count: number;
+  highlights: boolean;
+  onStart: () => void;
+}) {
   return (
-    <div className="flex flex-col gap-3 p-5">
-      <p className="text-sm leading-relaxed text-muted-foreground">
-        Select a dot to read the moment and listen to it. Or start with a highlight:
+    <div className="flex flex-col gap-1.5">
+      <button
+        type="button"
+        onClick={onStart}
+        disabled={count === 0}
+        className="group inline-flex items-center justify-between gap-3 rounded-xl bg-primary px-4 py-3 text-left font-heading text-base font-semibold text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card disabled:opacity-50"
+      >
+        Start the journey
+        <ArrowRightIcon aria-hidden className="size-4 transition-transform group-hover:translate-x-0.5" />
+      </button>
+      <p className="px-1 text-xs leading-relaxed text-muted-foreground">
+        {count} {highlights ? "highlights" : "stories"} in year order. Step through them, or listen as you go.
       </p>
+    </div>
+  );
+}
+
+/** Empty panel: start the journey, or jump in at a highlight in view. */
+function Suggestions({
+  moments,
+  onPick,
+  journeyCount,
+  journeyHighlights,
+  onStart,
+}: {
+  moments: TimelineMoment[];
+  onPick: (m: TimelineMoment) => void;
+  journeyCount: number;
+  journeyHighlights: boolean;
+  onStart: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-4 p-5">
+      <StartJourneyButton count={journeyCount} highlights={journeyHighlights} onStart={onStart} />
+      <p className="text-sm leading-relaxed text-muted-foreground">Or select a dot, or begin at a highlight:</p>
       {moments.length > 0 ? (
         <ul className="flex flex-col gap-1">
           {moments.map((m) => (

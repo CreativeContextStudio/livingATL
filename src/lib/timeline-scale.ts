@@ -183,3 +183,30 @@ export function panByFraction(
     bounds,
   );
 }
+
+/** A view that puts `year` in the middle while keeping the on-screen
+ *  zoom of `widthOf` (its weighted width), clamped to the data bounds.
+ *  The Timeline journey glides to this view on each step. */
+export function centerViewOn(
+  year: number,
+  widthOf: [number, number],
+  bounds: [number, number],
+): [number, number] {
+  const spanX = yearToWeightedX(widthOf[1]) - yearToWeightedX(widthOf[0]);
+  const minX = yearToWeightedX(bounds[0]);
+  const maxX = yearToWeightedX(bounds[1]);
+  if (spanX >= maxX - minX) return bounds;
+  // Shift at the ends in weighted space: `clampView` shifts by years, which
+  // would change the on-screen zoom (and widen it a little on every step).
+  let startX = yearToWeightedX(year) - spanX / 2;
+  let endX = startX + spanX;
+  if (startX < minX) {
+    endX += minX - startX;
+    startX = minX;
+  }
+  if (endX > maxX) {
+    startX -= endX - maxX;
+    endX = maxX;
+  }
+  return clampView([weightedXToYear(startX), weightedXToYear(endX)], bounds);
+}

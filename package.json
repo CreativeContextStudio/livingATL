@@ -25,6 +25,7 @@
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.8.0",
+    "maplibre-gl": "6.14.0",
     "next": "16.4.3",
     "postgres": "^3.4.9",
     "posthog-js": "^1.442.0",

@@ -16,7 +16,8 @@ type QueueableMoment = {
   endTime: number;
 };
 
-function momentItem(moment: QueueableMoment): QueueItem | null {
+/** A moment as a queue item; null when it has no playable audio range. */
+export function momentQueueItem(moment: QueueableMoment): QueueItem | null {
   if (!moment.audioUrl || moment.endTime <= moment.startTime) return null;
   return {
     id: `moment:${moment.catalogNumber}:${moment.momentIndex}`,
@@ -32,7 +33,7 @@ function momentItem(moment: QueueableMoment): QueueItem | null {
 /** Timeline moment → "Play" (queues it and starts) + "Add to queue". */
 export function MomentQueueButtons({ moment }: { moment: QueueableMoment }) {
   const { enqueue, isQueued } = useListeningQueue();
-  const item = momentItem(moment);
+  const item = momentQueueItem(moment);
   if (!item) return null;
   const queued = isQueued(item.id);
   return (
@@ -98,7 +99,7 @@ export function PlayCitationsButton({
 /** Listening path (F-paths) → queue every step in order and start the first. */
 export function PlayPathButton({ moments, title }: { moments: QueueableMoment[]; title: string }) {
   const { enqueue } = useListeningQueue();
-  const items = moments.map(momentItem).filter((i): i is QueueItem => i !== null);
+  const items = moments.map(momentQueueItem).filter((i): i is QueueItem => i !== null);
   if (items.length === 0) return null;
   return (
     <Button onClick={() => enqueue(items, { play: true })} aria-label={`Play the whole path: ${title}`}>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import dynamic from "next/dynamic";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 
 import { NeighborhoodPreview } from "./neighborhood-preview";
@@ -26,7 +27,29 @@ import type { GeoJSONGeometry, NeighborhoodGeometry } from "@/lib/queries/map";
  *
  * Selecting a pin (or a name in the list below, the keyboard path) opens
  * the preview: right column on desktop, bottom sheet on phones.
+ *
+ * 3D (2026-10-30): where WebGL works, `map-3d.tsx` (MapLibre, our own
+ * OpenStreetMap-derived streets + building blocks) loads lazily over this
+ * drawing and replaces it once ready; this drawn map is what renders first
+ * and what stays when 3D can't run.
  */
+
+const Map3D = dynamic(() => import("./map-3d").then((m) => m.Map3D), { ssr: false });
+
+/** WebGL support, checked once on the client (false on the server). */
+let webglSupport: boolean | null = null;
+function detectWebGL(): boolean {
+  if (webglSupport == null) {
+    try {
+      const c = document.createElement("canvas");
+      webglSupport = Boolean(c.getContext("webgl2") ?? c.getContext("webgl"));
+    } catch {
+      webglSupport = false;
+    }
+  }
+  return webglSupport;
+}
+const subscribeNoop = () => () => {};
 
 export type MapClientProps = {
   recordings: BrowserRecording[];
@@ -229,9 +252,21 @@ export function MapClient({
     initialNeighborhood && counts[initialNeighborhood] ? initialNeighborhood : null,
   );
   const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const narrow = useMediaQuery("(max-width: 639px)");
   // Name tag for the pin under the pointer — crowded pins (downtown) can't
   // all carry a fixed label.
   const [hovered, setHovered] = useState<string | null>(null);
+  // 3D: try it where WebGL works; the drawn map shows until it's ready.
+  const webgl = useSyncExternalStore(subscribeNoop, detectWebGL, () => false);
+  const [failed3D, setFailed3D] = useState(false);
+  const [ready3D, setReady3D] = useState(false);
+  const show3D = webgl && !failed3D;
+  const live3D = show3D && ready3D;
+  // Phones: the 3D map gets a taller frame; the drawn map (laid out for the
+  // wide frame) isn't shown under it while it loads.
+  const tall3D = show3D && narrow;
+  const onReady3D = useCallback(() => setReady3D(true), []);
+  const onFail3D = useCallback(() => setFailed3D(true), []);
 
   // Drawing extent: every neighborhood plus Five Points, padded.
   const box = useMemo<Box>(() => {
@@ -311,6 +346,27 @@ export function MapClient({
         }),
     [neighborhoods, frac, VB_H],
   );
+  // 3D inputs: true positions (MapLibre places them), colors, extent.
+  const pins3D = useMemo(
+    () =>
+      neighborhoods.map((n) => {
+        const count = counts[n.name] ?? 0;
+        const { fill, text } = pinColors(neighborhoodColor(n.name));
+        return { name: n.name, count, r: pinRadius(count), fill, text, lngLat: anchorPoint(n.geometry.geometry) };
+      }),
+    [neighborhoods, counts],
+  );
+  const shapes3D = useMemo(() => neighborhoods.filter((n) => n.geometry.geometry.type !== "Point"), [neighborhoods]);
+  const bounds3D = useMemo<[[number, number], [number, number]]>(() => {
+    const pts = [...neighborhoods.map((n) => anchorPoint(n.geometry.geometry)), FIVE_POINTS];
+    const lons = pts.map((p) => p[0]);
+    const lats = pts.map((p) => p[1]);
+    return [
+      [Math.min(...lons) - 0.008, Math.min(...lats) - 0.006],
+      [Math.max(...lons) + 0.008, Math.max(...lats) + 0.006],
+    ];
+  }, [neighborhoods]);
+
   // One mile as a fraction of the drawing's width (x and y share a scale).
   const mileOfWidth = (MILE_LAT / spanY) * (VB_H / VB_W);
 
@@ -339,8 +395,15 @@ export function MapClient({
             aria-label="Map of Atlanta neighborhoods mentioned in the recordings"
             aria-describedby="map-keyboard-help"
             className="relative w-full overflow-hidden rounded-xl bg-card ring-1 ring-border"
-            style={{ aspectRatio: `${VB_W} / ${VB_H}` }}
+            style={{ aspectRatio: tall3D ? "4 / 5" : `${VB_W} / ${VB_H}` }}
           >
+            {tall3D && !ready3D ? (
+              <p className="absolute inset-0 flex items-center justify-center font-mono text-[11px] tracking-[0.18em] uppercase text-muted-foreground">
+                Loading the map…
+              </p>
+            ) : null}
+            {live3D || tall3D ? null : (
+            <>
             {/* Drawing layer: shapes, Five Points, scale, north arrow. */}
             <svg aria-hidden viewBox={`0 0 ${VB_W} ${VB_H}`} className="absolute inset-0 size-full" preserveAspectRatio="xMidYMid meet">
               <defs>
@@ -461,10 +524,39 @@ export function MapClient({
                 </span>
               );
             })}
+            </>
+            )}
+
+            {show3D ? (
+              <div className={cn("absolute inset-0 transition-opacity duration-500", ready3D ? "opacity-100" : "pointer-events-none opacity-0")}>
+                <Map3D
+                  pins={pins3D}
+                  shapes={shapes3D}
+                  shapeColor={neighborhoodColor}
+                  bounds={bounds3D}
+                  fivePoints={FIVE_POINTS}
+                  active={activeNeighborhood}
+                  onToggle={toggle}
+                  onReady={onReady3D}
+                  onFail={onFail3D}
+                  pinScale={narrow ? 0.72 : 1}
+                />
+              </div>
+            ) : null}
           </div>
-          <figcaption className="text-xs text-muted-foreground">
+          <figcaption className="text-xs leading-relaxed text-muted-foreground">
             Pins sit at each neighborhood&apos;s approximate center and grow with the number of
             recordings that mention it. + marks Five Points, the center of downtown.
+            {live3D ? (
+              <>
+                {" "}
+                {narrow
+                  ? "Use two fingers to move, zoom and turn the map; the cube button tilts it."
+                  : "Drag to move; Ctrl/⌘ + scroll to zoom; right-drag or the cube button to tilt and turn."}{" "}
+                Streets and buildings are today&apos;s city, for orientation; many of the places in the
+                stories are gone. Map data © OpenStreetMap contributors.
+              </>
+            ) : null}
           </figcaption>
         </figure>
 

@@ -36,13 +36,15 @@ export type FolioSelection =
 type Props = {
   selected: FolioSelection;
   onClear: () => void;
+  /** The journey bar above carries the close button for moments. */
+  hideClear?: boolean;
 };
 
-function TimelineDetailFolioImpl({ selected, onClear }: Props) {
+function TimelineDetailFolioImpl({ selected, onClear, hideClear = false }: Props) {
   return (
     <section aria-live="polite" className="relative flex flex-col p-5">
       {selected.kind === "moment" ? (
-        <FolioMomentBody moment={selected.moment} onClear={onClear} />
+        <FolioMomentBody moment={selected.moment} onClear={onClear} hideClear={hideClear} />
       ) : (
         <FolioEventBody event={selected.event} onClear={onClear} />
       )}
@@ -82,9 +84,11 @@ export const TimelineDetailFolio = memo(TimelineDetailFolioImpl);
 function FolioMomentBody({
   moment,
   onClear,
+  hideClear,
 }: {
   moment: TimelineMoment;
   onClear: () => void;
+  hideClear: boolean;
 }) {
   const [detailOpen, setDetailOpen] = useState(false);
   const yearLabel = momentYearLabel(moment);
@@ -97,9 +101,9 @@ function FolioMomentBody({
 
   return (
     <>
-      <ClearPinButton onClear={onClear} />
+      {hideClear ? null : <ClearPinButton onClear={onClear} />}
       <div className="flex flex-col gap-3">
-        <div className="flex items-baseline gap-2 pr-10">
+        <div className={cn("flex items-baseline gap-2", !hideClear && "pr-10")}>
           <p className="font-heading text-3xl font-bold tracking-tight text-primary-ink">{anchorYear}</p>
           {yearLabel && yearLabel !== anchorYear ? (
             <p className="font-mono text-[11px] tracking-[0.12em] uppercase text-muted-foreground">{yearLabel}</p>

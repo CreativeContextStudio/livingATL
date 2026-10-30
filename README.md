@@ -75,7 +75,7 @@ For the "what's it built on?" question in a stakeholder call:
 - **Supabase Postgres + Drizzle ORM** — the database, and the type-safe layer the app uses to talk to it.
 - **Base UI** — unstyled accessible primitives (dialogs, menus, popovers) that the design system wraps.
 - **wavesurfer.js** — the audio waveform and playhead in the recording player.
-- **Mapbox GL** — the interactive map surface.
+- **Drawn neighborhood map** — the map page draws its own map from the neighborhoods table (no Mapbox, no map tiles, no token).
 - **Vercel AI SDK** (OpenAI + Anthropic) — the streaming, cited answers in the AI Portal; provider is a single env-var flip.
 - **Sentry** — error monitoring; the developer sees when something breaks in production.
 - **PostHog** — privacy-respecting product analytics (which features get used, how the portal is queried).
@@ -130,7 +130,7 @@ The deploy target is Vercel. The environment variables Vercel needs are the same
 Two deploy-time things worth knowing:
 
 - **Sentry source-map upload** needs `SENTRY_AUTH_TOKEN` as a build-time secret in the Vercel project settings. Without it the build still succeeds, but stack traces in Sentry won't map back to readable source.
-- **Mapbox token** should be URL-restricted in the Mapbox dashboard after the first deploy, so the token only works from the livingATL domain. Until that restriction is in place, the token is technically usable by anyone who views the site and grabs it from the browser.
+- **Pushing `main` to GitHub deploys to production.** The Vercel project is connected to the GitHub repo, so every push to `main` is a live deploy.
 
 Your developer runs the deploy; you sign off on the launch checklist.
 

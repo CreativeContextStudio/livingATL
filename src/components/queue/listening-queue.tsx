@@ -47,6 +47,9 @@ type QueueApi = {
   /** Append (skipping items already queued). `play` starts the first item passed in. */
   enqueue: (items: QueueItem[], opts?: { play?: boolean }) => void;
   isQueued: (id: string) => boolean;
+  /** Called whenever the playing clip changes (a clip ends and the next
+   *  starts, a skip, or playback stops: `id` null). Returns unsubscribe. */
+  onCurrentChange: (listener: (prevId: string | null, id: string | null) => void) => () => void;
 };
 
 const QueueContext = createContext<QueueApi | null>(null);
@@ -199,9 +202,24 @@ export function ListeningQueueProvider({ children }: { children: ReactNode }) {
     setCurrentIndex(-1);
   };
 
+  const listenersRef = useRef(new Set<(prevId: string | null, id: string | null) => void>());
+  const onCurrentChange = useCallback<QueueApi["onCurrentChange"]>((listener) => {
+    listenersRef.current.add(listener);
+    return () => {
+      listenersRef.current.delete(listener);
+    };
+  }, []);
+  const currentId = current?.id ?? null;
+  const prevCurrentIdRef = useRef(currentId);
+  useEffect(() => {
+    const prev = prevCurrentIdRef.current;
+    prevCurrentIdRef.current = currentId;
+    if (prev !== currentId) for (const l of listenersRef.current) l(prev, currentId);
+  }, [currentId]);
+
   const api = useMemo<QueueApi>(
-    () => ({ items: visibleItems, currentIndex, isPlaying, enqueue, isQueued }),
-    [visibleItems, currentIndex, isPlaying, enqueue, isQueued],
+    () => ({ items: visibleItems, currentIndex, isPlaying, enqueue, isQueued, onCurrentChange }),
+    [visibleItems, currentIndex, isPlaying, enqueue, isQueued, onCurrentChange],
   );
 
   const [open, setOpen] = useState(false);

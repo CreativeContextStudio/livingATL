@@ -5,6 +5,7 @@ import { unstable_cache } from "next/cache";
 
 import { db } from "@/db";
 import { neighborhoods } from "@/db/schema";
+import { assertRows } from "@/lib/assert-rows";
 import type { BrowserRecording } from "@/lib/queries/recordings";
 
 /**
@@ -96,6 +97,7 @@ async function _fetchNeighborhoodGeometriesInner(): Promise<
     .from(neighborhoods)
     .orderBy(asc(neighborhoods.name));
 
+  assertRows(rows, (r) => typeof r.name === "string" && Boolean(r.geometry), "neighborhoods");
   return rows.map((r) => ({
     name: r.name,
     geometryKind: r.geometryKind as NeighborhoodGeometryKind,

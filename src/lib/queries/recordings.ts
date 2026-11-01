@@ -5,6 +5,7 @@ import * as Sentry from "@sentry/nextjs";
 import { unstable_cache } from "next/cache";
 
 import { db } from "@/db";
+import { assertRows } from "@/lib/assert-rows";
 import { MAX_SEARCH_CHARS, escapeLikePattern } from "@/lib/search-text";
 import {
   recordings,
@@ -339,6 +340,9 @@ export async function fetchBrowserRecordings(
  * after every successful ingest batch; the 1h TTL is the safety net when
  * the webhook's env vars are unset.
  */
+const isFacetRow = (r: { value: unknown; count: unknown }) =>
+  typeof r.value === "string" && typeof r.count === "number";
+
 async function _fetchBrowserFacetsInner(): Promise<BrowserFacets> {
   const aggregate = async (column: "themes" | "neighborhoods" | "content_decades"): Promise<BrowserFacet[]> => {
     const rows = await db.execute<{ value: string; count: number }>(sql.raw(`
@@ -347,6 +351,7 @@ async function _fetchBrowserFacetsInner(): Promise<BrowserFacets> {
       GROUP BY 1
       ORDER BY count DESC, value ASC
     `));
+    assertRows(rows, isFacetRow, `facet ${column}`, { allowEmpty: true });
     return rows.map((r) => ({ value: r.value, count: r.count }));
   };
 
@@ -364,6 +369,7 @@ async function _fetchBrowserFacetsInner(): Promise<BrowserFacets> {
       GROUP BY 1
       ORDER BY count DESC, value ASC
     `));
+    assertRows(rows, isFacetRow, `facet ${column}`, { allowEmpty: true });
     return rows.map((r) => ({ value: r.value, count: r.count }));
   };
 
@@ -421,6 +427,11 @@ async function _fetchArchiveStatsInner(): Promise<{
           AND r.transcription_status = 'completed'
       ) AS distinct_interviewees
   `);
+  assertRows(
+    rows,
+    (r) => typeof r.processed_recordings === "number" && typeof r.distinct_interviewees === "number",
+    "archive stats",
+  );
   const row = rows[0] ?? {
     processed_recordings: 0,
     distinct_interviewees: 0,

@@ -22,7 +22,7 @@ If you're looking at this repo through GitHub and wondering "where's everything 
 
 The site is in **invite-only preview mode**. The "launch gate" lives in `src/proxy.ts`. When the environment variable `NEXT_PUBLIC_LAUNCH_ENABLED` is anything other than `true`, every non-allowlisted URL rewrites to a single `/preview` page — a short explainer about citation-first preview mode and the rights conversation with WRFG / Atlanta History Center. The allowlist is intentionally small and does not include any of the Phase 2 surfaces.
 
-When the gate flips to `true`, the real site goes live. All five Phase 2 surfaces are already built behind the gate: **Browser** (search and filter the collection), **Map** (neighborhoods plotted with their associated recordings), **Player** (audio with synchronized transcript, chapter scrubber, pre-playback content advisory), **Timeline** (recording moments plotted by era), and the **AI Portal** (ask the archive a question, get cited answers from real voices). The gate flip is a decision point, not a bug fix — it means the rights agreement is in place and the editorial team has signed off.
+When the gate flips to `true`, the real site goes live. All five Phase 2 surfaces are already built behind the gate, under four doors. **Listen:** the interview browser and short listening paths, plus the **Player** (audio with synchronized transcript, chapters, and a pre-playback content note). **Explore:** the **Timeline** (chapters plotted by year), the **3D Map**, and neighborhood pages. **Ask:** the AI Portal (ask a question, get cited answers from real voices). **About:** the project and contact pages. Chapters, summaries and content notes are AI-drafted and awaiting human review. The gate flip is a decision point, not a bug fix — it means the rights agreement is in place and the editorial team has signed off.
 
 Preserve-don't-censor is the framing for everything that ships. The pre-playback advisory is preventive context, not a warning label in front of a takedown. Advisories are reviewed per recording and carry a version tag so editorial wording can evolve without rewriting the underlying data.
 
@@ -75,7 +75,7 @@ For the "what's it built on?" question in a stakeholder call:
 - **Supabase Postgres + Drizzle ORM** — the database, and the type-safe layer the app uses to talk to it.
 - **Base UI** — unstyled accessible primitives (dialogs, menus, popovers) that the design system wraps.
 - **wavesurfer.js** — the audio waveform and playhead in the recording player.
-- **Drawn neighborhood map** — the map page draws its own map from the neighborhoods table (no Mapbox, no map tiles, no token).
+- **MapLibre GL + our own vector tiles** — the 3D map of Atlanta, built from OpenStreetMap and Overture Maps data by `livingatl-pipeline/scripts/build_basemap.py`, with a drawn map as the fallback (no Mapbox, no token).
 - **Vercel AI SDK** (OpenAI + Anthropic) — the streaming, cited answers in the AI Portal; provider is a single env-var flip.
 - **Sentry** — error monitoring; the developer sees when something breaks in production.
 - **PostHog** — privacy-respecting product analytics (which features get used, how the portal is queried).

@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
 
 import { db } from "@/db";
+import { assertRows } from "@/lib/assert-rows";
 import type { ContentAdvisory } from "@/lib/queries/recordings";
 import { playableAudioUrl } from "@/lib/player";
 
@@ -164,6 +165,7 @@ async function _fetchTimelineDataInner(): Promise<TimelineData> {
     ORDER BY era_start_year NULLS LAST, r.catalog_number, moment_index
   `);
 
+  assertRows(momentRows, (r) => typeof r.catalog_number === "string" && typeof r.title === "string", "timeline moments");
   const moments: TimelineMoment[] = momentRows.map((row) => ({
     recordingId: row.recording_id,
     catalogNumber: row.catalog_number,

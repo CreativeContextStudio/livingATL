@@ -19,6 +19,20 @@ These are the events the app is firing. Every insight below is built on some sub
 | `player_play` | Wavesurfer starts playing audio | `catalog`, `current_time` |
 | `player_pause` | Wavesurfer pauses OR finishes | `catalog`, `current_time`, `reason` (`"finish"` on natural end, absent on user-initiated pause) |
 | `player_seek` | Scrubber, transcript click, region click, or `?t=` URL seek | `catalog`, `to_time`, `trigger` (`"seek"` \| `"seek_and_play"` \| `"region"`) |
+| `share_click` | Visitor copies a timestamp link, or creates a Portal share link | `surface` (`"player"` \| `"portal"`), `kind`, `catalog` |
+| `clip_create` | Visitor copies a clip link | `method` (`"quick"` \| `"selection"`), `catalog`, `start`, `seconds` |
+| `shared_clip_landing` | Someone arrives on a clip link from outside the site (internal links don't count) | `catalog`, `start`, `seconds`, `referrer_host` |
+| `clip_continue` | Listener presses Keep listening after a shared clip ends | `catalog`, `end` |
+| `advisory_shown` / `advisory_continue` | The pre-playback note appears / is accepted | `catalog` |
+| `queue_add` | Clips join the listening queue | `count`, `play`, `surface` (first path segment, `home` for `/`) |
+| `queue_item_complete` | A queued clip plays to its end (skips don't count) | `catalog`, `path` |
+| `resume_offered` / `resume_continue` / `resume_restart` | The "you were at" offer appears / is taken / is declined | `catalog`; `position` on continue |
+| `path_start` | Play the whole path | `path`, `steps` |
+| `path_complete` | Every step of a path played to its end | `path` |
+| `journey_start` / `journey_step` / `journey_listen` | Timeline journey starts / moves / Listen through | `scope`, plus `stops` on start and `direction` on step |
+| `home_clip_play` | The Home clip is played | `catalog`, `clip` |
+| `story_cards_print` | Print cards is pressed | `target` (the `/cards` query string) |
+| `invite_redeemed` | A person's browser lands from an invite link (link previews don't count) | `label`, so keep invite labels non-identifying |
 
 PRD §1 names these as the metrics the platform tracks. The dashboard below covers every named metric.
 
@@ -137,6 +151,18 @@ The PRD's flagship metric: "percentage of AI Portal sessions that end with the u
 **Name:** `Route volume`
 
 **What it tells you:** which pages get used. `/browse`, `/portal`, `/map`, `/player/*` — the mix tells you whether the Portal is pulling its weight as a discovery surface vs. the Browser / Map.
+
+---
+
+### 9. Listening funnels *(added 2026-11-01)*
+
+The north-star measure from the 2026-11-01 expert review is weekly minutes listened by unique non-staff visitors. These funnels feed it:
+
+- **Clip to full recording:** `shared_clip_landing`, then `clip_continue`.
+- **Content note continue rate:** `advisory_shown`, then `advisory_continue`. Read a drop as a signal to look at the note's wording, not as a problem to optimize away.
+- **Paths:** `path_start`, then `path_complete`, broken down by `path`.
+- **Home first listen:** `$pageview` on `/`, then `home_clip_play`, broken down by `clip`.
+- **Referrals by partner:** `invite_redeemed`, broken down by `label`.
 
 ---
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { catalogRecordUrl } from "./catalog-links";
 import { LISTENING_PATHS, findPath, momentKey } from "./paths";
 
 describe("listening paths", () => {
@@ -11,6 +12,11 @@ describe("listening paths", () => {
       const keys = p.steps.map((s) => momentKey(s.catalogNumber, s.momentIndex));
       expect(new Set(keys).size).toBe(keys.length);
       expect(p.steps.every((s) => Number.isInteger(s.momentIndex) && s.momentIndex >= 0)).toBe(true);
+    }
+  });
+  it("only uses real catalog numbers (a bad step would vanish from the page)", () => {
+    for (const p of LISTENING_PATHS) {
+      for (const s of p.steps) expect(catalogRecordUrl(s.catalogNumber), `${p.slug} ${s.catalogNumber}`).not.toBeNull();
     }
   });
   it("finds by slug", () => {

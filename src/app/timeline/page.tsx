@@ -44,7 +44,7 @@ export default async function TimelinePage() {
         </h1>
         <p className="max-w-3xl text-muted-foreground">
           {data.moments.length} chapters from {narratorCount} storytellers, placed on the years they
-          describe, from about {yearFrom} to {yearTo}. Select a dot to read the chapter and hear it.
+          describe, from about {yearFrom} to {yearTo}. Select a dot to read the chapter and hear it. Years are estimates drawn from each interview.
         </p>
       </header>
 

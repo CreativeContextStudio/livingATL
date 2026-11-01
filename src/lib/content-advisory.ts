@@ -105,9 +105,9 @@ export function getAdvisoryText(version: AdvisoryVersion | string | null): Advis
 // the Summary card on every Player page, opening a dismissible dialog.
 // ---------------------------------------------------------------------------
 
-export const LATEST_AI_ADVISORY_VERSION = "ai-v2" as const;
+export const LATEST_AI_ADVISORY_VERSION = "ai-v3" as const;
 
-export type AIAdvisoryVersion = "ai-v1" | "ai-v2";
+export type AIAdvisoryVersion = "ai-v1" | "ai-v2" | "ai-v3";
 
 export interface AIAdvisoryText {
   title: string;
@@ -131,6 +131,19 @@ export const AI_ADVISORY_VERSIONS: Record<AIAdvisoryVersion, AIAdvisoryText> = {
       "No audio was altered, no transcript was rewritten, no spoken word was edited. " +
       "AI assisted with the interface you're using and with organizing the metadata around each recording: the themes, neighborhoods, chapters, and summaries. " +
       "Every curatorial decision was reviewed by a human before publishing, with the explicit goal of preserving authentic Atlanta voices and history as they were spoken. " +
+      "If you notice anything that seems to undermine that goal, we want to hear from you.",
+  },
+  // ai-v1/ai-v2 said every decision was reviewed by a human. That wasn't yet
+  // true: the briefs and content notes are AI-drafted. Keep this wording
+  // until a named reviewer signs off.
+  "ai-v3": {
+    title: "How this platform was built",
+    body:
+      "livingATL was built with help from AI agentic tools. " +
+      "No audio was altered, no transcript was rewritten, no spoken word was edited. " +
+      "AI drafted the metadata around each recording: the themes, neighborhoods, chapters, summaries, and content notes. " +
+      "These drafts are awaiting human review, so they can contain mistakes. " +
+      "Our goal is to preserve authentic Atlanta voices and history as they were spoken. " +
       "If you notice anything that seems to undermine that goal, we want to hear from you.",
   },
 };

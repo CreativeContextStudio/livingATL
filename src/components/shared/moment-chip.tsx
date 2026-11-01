@@ -88,7 +88,7 @@ export function MomentTooltipBody({
           <span aria-hidden className={MOMENT_HIGHLIGHT_PIP_CLASS} />
         ) : null}
         <span className="font-heading text-sm font-semibold">
-          {moment.title ?? "Moment"}
+          {moment.title ?? "Chapter"}
         </span>
       </div>
       {themes.length > 0 ? (

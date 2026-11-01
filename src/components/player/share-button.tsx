@@ -1,17 +1,23 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Menu } from "@base-ui/react/menu";
 import { CheckIcon, ScissorsIcon, ShareIcon } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { captureEvent } from "@/lib/analytics/posthog";
 import { QUICK_CLIP_SECONDS, clipHref } from "@/lib/clips";
 import { formatTimestamp, parseShareTime } from "@/lib/player";
 import { usePlayer, usePlayerTime } from "./player-context";
+import { usePlayerCatalog } from "./use-player-catalog";
+
+const MENU_ITEM =
+  "flex min-h-11 cursor-default items-center gap-2 rounded-md px-3 outline-none data-highlighted:bg-accent";
 
 /**
- * Share button — PRD §7.2. Copies a URL with `?t=` appended so the
- * listener can link to a specific moment. Format matches podcast-app
+ * Share button — PRD §7.2. One menu: copy a URL with `?t=` appended so the
+ * listener can link to a specific moment, or a clip of the next 90 seconds. Format matches podcast-app
  * convention ("14:32" or "1:08:30" depending on recording length).
  *
  * Also auto-seeks on Player mount when a `?t=` param is present and the
@@ -19,8 +25,8 @@ import { usePlayer, usePlayerTime } from "./player-context";
  */
 export function ShareButton() {
   const searchParams = useSearchParams();
+  const catalog = usePlayerCatalog();
   const { seek, isReady, duration } = usePlayer();
-  const [clipCopied, setClipCopied] = useState(false);
   // The label and the copied `?t=` are whole seconds — 1 Hz is enough.
   const currentTime = usePlayerTime(Math.floor);
   const [copied, setCopied] = useState(false);
@@ -43,6 +49,7 @@ export function ShareButton() {
     const url = new URL(window.location.href);
     url.searchParams.set("t", t);
     const href = url.toString();
+    captureEvent("share_click", { surface: "player", kind: "timestamp", catalog });
     try {
       await navigator.clipboard.writeText(href);
       setCopied(true);
@@ -61,11 +68,12 @@ export function ShareButton() {
     const start = Math.floor(currentTime);
     const end = Math.min(start + QUICK_CLIP_SECONDS, Math.floor(duration) || start + QUICK_CLIP_SECONDS);
     const href = clipHref(window.location.href, { start, end });
+    captureEvent("clip_create", { method: "quick", catalog, start, seconds: end - start });
     try {
       await navigator.clipboard.writeText(href);
-      setClipCopied(true);
+      setCopied(true);
       setFallbackUrl(null);
-      window.setTimeout(() => setClipCopied(false), 1800);
+      window.setTimeout(() => setCopied(false), 1800);
     } catch {
       setFallbackUrl(href);
     }
@@ -73,42 +81,29 @@ export function ShareButton() {
 
   return (
     <div className="flex flex-col items-end gap-1.5">
-      <div className="flex items-center gap-1.5">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onCopyClip}
-          aria-label={`Copy link to a ${QUICK_CLIP_SECONDS}-second clip starting at ${formatTimestamp(currentTime)}`}
-          title={`Copy link to the next ${QUICK_CLIP_SECONDS} seconds`}
-          className="gap-1.5"
-        >
-          {clipCopied ? <CheckIcon className="size-3.5" /> : <ScissorsIcon className="size-3.5" />}
-          <span>{clipCopied ? "Copied" : `Clip ${formatTimestamp(QUICK_CLIP_SECONDS)}`}</span>
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onCopy}
-          aria-label="Copy link to this timestamp"
-          title="Copy link to this timestamp"
-          className="gap-1.5"
-        >
-          {copied ? (
-            <>
-              <CheckIcon className="size-3.5" />
-              <span>Copied</span>
-            </>
-          ) : (
-            <>
-              <ShareIcon className="size-3.5" />
-              <span>Share @ {formatTimestamp(currentTime)}</span>
-            </>
-          )}
-          <span className="sr-only">
-            Copy this recording&rsquo;s URL at {formatTimestamp(currentTime)}
-          </span>
-        </Button>
-      </div>
+      <Menu.Root>
+        <Menu.Trigger render={<Button variant="outline" size="sm" className="gap-1.5" />}>
+          {copied ? <CheckIcon aria-hidden className="size-3.5" /> : <ShareIcon aria-hidden className="size-3.5" />}
+          {copied ? "Copied" : "Share"}
+        </Menu.Trigger>
+        <Menu.Portal>
+          <Menu.Positioner side="top" align="end" sideOffset={6} className="z-50">
+            <Menu.Popup className="min-w-56 rounded-lg border border-border bg-popover p-1 text-sm text-popover-foreground shadow-md outline-none">
+              <Menu.Item onClick={onCopy} className={MENU_ITEM}>
+                <ShareIcon aria-hidden className="size-3.5" />
+                Copy link at {formatTimestamp(currentTime)}
+              </Menu.Item>
+              <Menu.Item onClick={onCopyClip} className={MENU_ITEM}>
+                <ScissorsIcon aria-hidden className="size-3.5" />
+                Copy a {QUICK_CLIP_SECONDS}-second clip
+              </Menu.Item>
+            </Menu.Popup>
+          </Menu.Positioner>
+        </Menu.Portal>
+      </Menu.Root>
+      <span role="status" className="sr-only">
+        {copied ? "Link copied" : ""}
+      </span>
       {fallbackUrl ? (
         <div className="flex max-w-[20rem] flex-col items-end gap-1">
           <p className="text-[10px] text-muted-foreground">

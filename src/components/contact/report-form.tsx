@@ -240,7 +240,7 @@ export function ReportForm({ prefill }: { prefill: Prefill }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" disabled={pending} className="h-auto min-h-8 max-w-full whitespace-normal">
           {pending ? "Sending…" : "Send to the stewards"}
         </Button>
         <p className="text-xs text-muted-foreground">

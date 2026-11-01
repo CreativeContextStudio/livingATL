@@ -11,8 +11,8 @@ import { LISTENING_PATHS } from "@/lib/paths";
  * interviews. Definitions live in `src/lib/paths.ts`.
  */
 export const metadata: Metadata = {
-  title: "Listening paths · livingATL",
-  description: "Short guided sequences of moments from the Living Atlanta oral histories.",
+  title: "Listening paths",
+  description: "Short guided sequences of chapters from the Living Atlanta oral histories.",
 };
 
 export default async function PathsPage() {
@@ -20,9 +20,6 @@ export default async function PathsPage() {
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
       <header className="flex flex-col gap-2">
-        <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
-          Collection · Listening paths
-        </p>
         <h1 className="font-heading text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
           Start with a path
         </h1>
@@ -40,7 +37,7 @@ export default async function PathsPage() {
             >
               <p className="flex items-center gap-1.5 font-mono text-[11px] tracking-[0.18em] uppercase text-muted-foreground">
                 <ListMusicIcon aria-hidden className="size-3.5" />
-                {path.steps.length} moments
+                {path.steps.length} chapters
               </p>
               <h2 className="font-heading text-xl font-semibold leading-tight">{path.title}</h2>
               <p className="text-sm leading-relaxed text-foreground/80">{path.dek}</p>

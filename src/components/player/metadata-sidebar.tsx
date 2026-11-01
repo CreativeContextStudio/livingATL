@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { PanelLeftCloseIcon, PrinterIcon } from "lucide-react";
+import { ChevronDownIcon, ExternalLinkIcon, PanelLeftCloseIcon, PrinterIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,9 @@ import {
   formatPublisher,
   formatRecordingDate,
   formatSpeakerName,
+  licenseLink,
 } from "@/lib/format";
+import { catalogRecordUrl } from "@/lib/catalog-links";
 import { placeHref } from "@/lib/places";
 import { cn } from "@/lib/utils";
 import { ReportLink } from "./report-link";
@@ -47,7 +49,10 @@ export function MetadataSidebar({
    *  share a consistent "controls live in the card's top row" rhythm. */
   onCollapse?: () => void;
 }) {
-  const interviewer = data.speakers.find((s) => s.role === "interviewer");
+  const interviewers = data.speakers.filter((s) => s.role === "interviewer");
+  const catalogUrl = catalogRecordUrl(data.catalogNumber);
+  const license = licenseLink(data.license);
+  const publisher = data.publisher ? formatPublisher(data.publisher) : null;
 
   const dateLabel = formatRecordingDate(
     data.recordingDate,
@@ -61,6 +66,7 @@ export function MetadataSidebar({
 
   return (
     <aside className="relative flex flex-col gap-5 rounded-xl border border-border bg-card/40 p-5">
+      <h2 className="sr-only">About this recording</h2>
       {onCollapse ? (
         <Button
           type="button"
@@ -79,12 +85,14 @@ export function MetadataSidebar({
           facts + facet chips + references so researchers still have the
           index they expect. */}
 
-      {interviewer ? (
+      {interviewers.length > 0 ? (
         <div className="flex flex-col gap-1">
           <h3 className="font-heading text-xs font-semibold tracking-[0.14em] uppercase text-muted-foreground">
-            Interviewer
+            {interviewers.length > 1 ? "Interviewers" : "Interviewer"}
           </h3>
-          <p className="text-sm">{formatSpeakerName(interviewer.name)}</p>
+          <p className="text-sm">
+            {interviewers.map((s) => formatSpeakerName(s.name)).join(", ")}
+          </p>
         </div>
       ) : null}
 
@@ -98,15 +106,6 @@ export function MetadataSidebar({
             label="Duration"
             value={formatDuration(data.durationSeconds)}
           />
-          {data.collection ? (
-            <RecordingFact label="Collection" value={data.collection} muted />
-          ) : null}
-          {data.publisher ? (() => {
-            const publisher = formatPublisher(data.publisher);
-            return publisher ? (
-              <RecordingFact label="Publisher" value={publisher} muted />
-            ) : null;
-          })() : null}
         </dl>
       </div>
 
@@ -126,21 +125,52 @@ export function MetadataSidebar({
         />
       ) : null}
 
-      {data.organizations.length > 0 ? (
-        <OrganizationChips
-          label="Organizations"
-          items={data.organizations}
-        />
-      ) : null}
+      <details className="group flex flex-col">
+        <summary className="flex min-h-6 cursor-pointer list-none items-center gap-2 rounded-sm text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+          <ChevronDownIcon aria-hidden className="size-3.5 -rotate-90 transition-transform group-open:rotate-0" />
+          More details
+        </summary>
+        <div className="mt-3 flex flex-col gap-5">
+          {data.organizations.length > 0 ? (
+            <OrganizationChips label="Organizations" items={data.organizations} />
+          ) : null}
+          {data.historicalEvents.length > 0 ? (
+            <HistoricalEventChips label="Historical events" items={data.historicalEvents} />
+          ) : null}
+          {data.collection || data.publisher ? (
+            <dl className="flex flex-col gap-2 text-sm">
+              {data.collection ? <RecordingFact label="Collection" value={data.collection} muted /> : null}
+              {publisher ? <RecordingFact label="Publisher" value={publisher} muted /> : null}
+            </dl>
+          ) : null}
+        </div>
+      </details>
 
-      {data.historicalEvents.length > 0 ? (
-        <HistoricalEventChips
-          label="Historical events"
-          items={data.historicalEvents}
-        />
-      ) : null}
-
-      <div className="flex flex-col gap-2 border-t border-border/70 pt-4">
+      <div className="flex flex-col gap-2 border-t border-border/70 pt-4 [&_a]:min-h-6 pointer-coarse:[&_a]:min-h-11">
+        {catalogUrl ? (
+          <a
+            href={catalogUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 self-start text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ExternalLinkIcon aria-hidden className="size-3.5" />
+            Catalog record, Atlanta History Center
+          </a>
+        ) : null}
+        {license ? (
+          <p className="text-xs leading-snug text-muted-foreground">
+            {data.rightsHolder ? `© ${data.rightsHolder} · ` : null}
+            <a
+              href={license.href}
+              target="_blank"
+              rel="license noreferrer"
+              className="underline-offset-4 hover:text-foreground hover:underline"
+            >
+              {license.label}
+            </a>
+          </p>
+        ) : null}
         <Link
           href={`/cards?recording=${encodeURIComponent(data.catalogNumber)}`}
           className="inline-flex items-center gap-1.5 self-start text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

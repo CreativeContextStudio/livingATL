@@ -12,6 +12,7 @@ import {
   speakers,
 } from "@/db/schema";
 import {
+  cardSummary,
   eraRangeFromMoments,
   formatSpeakerName,
 } from "@/lib/format";
@@ -44,6 +45,8 @@ export type BriefMoment = {
 export type BrowserBrief = {
   transcript_hash?: string;
   overview?: string;
+  /** One plain sentence for recording cards, written in the metadata pass. */
+  card_line?: string;
   moments?: BriefMoment[];
 };
 
@@ -71,6 +74,8 @@ export type BrowserRecordingCard = {
   createdAt: Date;
   aiSummary: string | null;
   briefOverview: string | null;
+  /** Card summary: the authored `brief.card_line`, else cut from the overview. */
+  cardLine: string;
   eraRange: string | null;
   themes: string[];
   neighborhoods: string[];
@@ -312,6 +317,7 @@ export async function fetchBrowserRecordings(
       createdAt: row.created_at,
       aiSummary: row.ai_summary,
       briefOverview: brief?.overview ?? null,
+      cardLine: brief?.card_line ?? cardSummary(brief?.overview ?? row.ai_summary, 220),
       eraRange: eraRangeFromMoments(moments),
       themes: row.themes ?? [],
       neighborhoods: row.neighborhoods ?? [],

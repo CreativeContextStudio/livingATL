@@ -106,8 +106,8 @@ function EventHoverBody({ event }: { event: TimelineHistoricalEvent }) {
       </span>
       <p className="text-[11px] leading-snug text-background/70">
         {event.recordingCount === 1
-          ? "Mentioned by 1 narrator"
-          : `Mentioned by ${event.recordingCount} narrators`}
+          ? "Mentioned by 1 storyteller"
+          : `Mentioned by ${event.recordingCount} storytellers`}
       </p>
     </div>
   );

@@ -28,7 +28,7 @@ export function CitationChip({ citation }: { citation: PortalCitation }) {
   const timestamp = formatTimestamp(citation.startTime);
   const href = `/player/${encodeURIComponent(citation.catalogNumber)}?t=${timestamp}&from=portal`;
   const notes = citation.contentNotes ?? [];
-  const notice = notes.length > 0 ? `Content notice: ${contentNoticeText(notes)}` : null;
+  const notice = notes.length > 0 ? `Content note: ${contentNoticeText(notes)}` : null;
   const base = citation.intervieweeName
     ? `${citation.intervieweeName} at ${timestamp}`
     : `${citation.recordingTitle} at ${timestamp}`;

@@ -28,7 +28,9 @@ export function formatRecordingDate(
   if (!dateIso) return "Date unknown";
   const d = new Date(dateIso);
   if (Number.isNaN(d.getTime())) return "Date unknown";
-  const y = d.getFullYear();
+  // UTC throughout: dates are stored as midnight UTC, so a local read turns
+  // 1977-01-01 into 1976 in every US browser.
+  const y = d.getUTCFullYear();
   if (precision === "year" || precision === "estimated") {
     return precision === "estimated" ? `c. ${y}` : `${y}`;
   }
@@ -77,16 +79,49 @@ export function eraRangeFromMoments(
   return lo === hi ? `${lo}` : `${lo}–${hi}`;
 }
 
+// A period after one of these doesn't end a sentence: initials ("E. Bernard
+// West", "L.D. Milton") and the abbreviations the briefs use.
+const ABBREVIATION_RE =
+  /(?:^|[\s(.'"])(?:[A-Z]|c|ca|b|d|Dr|Mr|Mrs|Ms|Jr|Sr|St|Rev|Gov|Gen|Col|Capt|Lt|Sgt|Ga|Ala|Mt|No|vs|approx|e\.g|i\.e)\.$/;
+
+/** Split prose into sentences without breaking at initials or abbreviations. */
+export function splitSentences(prose: string): string[] {
+  const text = prose.replace(/\s+/g, " ").trim();
+  const out: string[] = [];
+  let start = 0;
+  for (const m of text.matchAll(/[.!?]['"’”)]?(?= +['"‘“(]?[A-Z0-9])/g)) {
+    const end = m.index + m[0].length;
+    const sentence = text.slice(start, end);
+    if (m[0][0] === "." && ABBREVIATION_RE.test(text.slice(start, m.index + 1))) continue;
+    out.push(sentence.trim());
+    start = end;
+  }
+  if (start < text.length) out.push(text.slice(start).trim());
+  return out.filter(Boolean);
+}
+
+// Opening sentences that only restate catalog facts the card already shows
+// (clip number, length, interview date): "Clip 1 of 3.", "About 34
+// minutes.", "A 63-minute oral history recorded October 9, 1978.", "The
+// December 7, 1978 E. Bernard West interview with …".
+const BOOKKEEPING_RE =
+  /^(?:Clip \d+ of \d+\b|(?:About |Approximately |Roughly )?\d+ minutes\.|A \d+-minute oral history\b|The (?:[A-Z][a-z]+ (?:\d{1,2}, )?)?\d{4} .{0,80}?\binterview with\b)/;
+
 /**
- * First line of a prose AI summary, for the card preview.
- * Splits on sentence boundaries; falls back to the first 180 chars.
+ * One-line summary for a recording card: the first sentence that says what
+ * the recording is about, cut at a word boundary to `maxLen`.
  */
-export function firstSentence(prose: string | null | undefined, maxLen = 220): string {
+export function cardSummary(prose: string | null | undefined, maxLen = 220): string {
   if (!prose) return "";
-  const trimmed = prose.trim();
-  const m = trimmed.match(/^([^.!?]+[.!?])\s+/);
-  const first = m ? m[1] : trimmed.slice(0, maxLen);
-  return first.length > maxLen ? first.slice(0, maxLen - 1).trimEnd() + "…" : first;
+  const sentences = splitSentences(prose);
+  if (sentences.length === 0) return "";
+  let line = sentences.find((s) => !BOOKKEEPING_RE.test(s)) ?? sentences[0];
+  // "Covers: the 1934 strike; …" reads as a list once the lead-ins are gone.
+  line = line.replace(/^Covers:?\s+(\S)/, (_, c: string) => c.toUpperCase());
+  if (line.length <= maxLen) return line;
+  const cut = line.slice(0, maxLen - 1);
+  const atWord = cut.slice(0, Math.max(cut.lastIndexOf(" "), maxLen * 0.6));
+  return atWord.replace(/[\s,;:—–-]+$/, "") + "…";
 }
 
 /** Matches `1952-2015`, `1948-`, `1948`, or `-2015` — the year-range
@@ -148,6 +183,22 @@ export function formatPublisher(stored: string | null | undefined): string {
  * to a Browser-card-appropriate form: strip the boilerplate prefix and return
  * the remainder. Returns the original if nothing matches.
  */
+/**
+ * Short label + link for a catalog rights statement ("… licensed under a
+ * Creative Commons, Attribution-NonCommercial-NoDerivs CC BY-NC-ND license,
+ * http://creativecommons.org/licenses/by-nc-nd/4.0/."). Null when the
+ * statement names no Creative Commons license.
+ */
+export function licenseLink(rights: string | null | undefined): { label: string; href: string } | null {
+  const match = rights?.match(/https?:\/\/creativecommons\.org\/licenses\/([a-z-]+)\/([\d.]+)\/?/i);
+  if (!match) return null;
+  const [, terms, version] = match;
+  return {
+    label: `CC ${terms.toUpperCase()} ${version}`,
+    href: `https://creativecommons.org/licenses/${terms.toLowerCase()}/${version}/`,
+  };
+}
+
 export function titleForCard(title: string | null | undefined): string {
   if (!title) return "Untitled recording";
   return title

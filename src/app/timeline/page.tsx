@@ -19,7 +19,7 @@ import { fetchTimelineData } from "@/lib/queries/timeline";
 export const metadata: Metadata = {
   title: "Timeline",
   description:
-    "Explore the Living Atlanta collection as a single horizontal timeline: every authored brief-moment and every historical event the narrators reference, placed on a shared year axis.",
+    "Explore the Living Atlanta collection as a single horizontal timeline: every chapter and every historical event the storytellers reference, placed on a shared year axis.",
 };
 
 export default async function TimelinePage() {
@@ -39,15 +39,12 @@ export default async function TimelinePage() {
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
       <header className="flex flex-col gap-2">
-        <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted-foreground">
-          Timeline
-        </p>
         <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
           A century of Atlanta
         </h1>
         <p className="max-w-3xl text-muted-foreground">
-          {data.moments.length} moments from {narratorCount} storytellers, placed on the years they
-          describe, from about {yearFrom} to {yearTo}. Select a dot to read the moment and hear it.
+          {data.moments.length} chapters from {narratorCount} storytellers, placed on the years they
+          describe, from about {yearFrom} to {yearTo}. Select a dot to read the chapter and hear it.
         </p>
       </header>
 

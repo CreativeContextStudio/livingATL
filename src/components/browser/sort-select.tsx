@@ -65,7 +65,7 @@ export function SortSelect({ value }: { value: BrowserSort }) {
         Sort
       </span>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="h-9 w-full min-w-0 flex-1 gap-2 rounded-lg sm:w-auto sm:flex-none sm:min-w-[14rem]">
+        <SelectTrigger aria-label="Sort" className="h-9 w-full min-w-0 flex-1 gap-2 rounded-lg sm:w-auto sm:flex-none sm:min-w-[14rem]">
           <ArrowDownUpIcon
             aria-hidden
             className="size-3.5 text-muted-foreground"

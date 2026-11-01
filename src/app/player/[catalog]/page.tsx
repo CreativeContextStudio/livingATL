@@ -4,7 +4,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ImageIcon } from "lucide-react";
 
-import { ClampedOverview } from "@/components/player/clamped-overview";
 import { PlayerClient } from "@/components/player/player-client";
 import {
   getThemeAccent,
@@ -74,7 +73,7 @@ export async function generateMetadata({
   const title = interviewee
     ? `${formatSpeakerName(interviewee.name)} · ${titleForCard(data.title)}`
     : data.title;
-  const description = data.briefOverview ?? data.aiSummary ?? undefined;
+  const description = data.cardLine || undefined;
   // Clip links get a card quoting the clip; plain links quote the recording.
   const sp = await searchParams;
   const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -154,7 +153,7 @@ export default async function PlayerPage({
   const voiceBeatTail =
     firstEraLabel ??
     (data.briefMoments.length > 0
-      ? `${data.briefMoments.length} moment${data.briefMoments.length === 1 ? "" : "s"} authored`
+      ? `${data.briefMoments.length} chapter${data.briefMoments.length === 1 ? "" : "s"}`
       : null);
 
   // Structured data for search engines (schema.org AudioObject). Rendered as
@@ -165,7 +164,7 @@ export default async function PlayerPage({
     "@context": "https://schema.org",
     "@type": "AudioObject",
     name: titleForCard(data.title),
-    description: data.briefOverview ?? data.aiSummary ?? undefined,
+    description: data.cardLine || undefined,
     url: new URL(`/player/${encodeURIComponent(data.catalogNumber)}`, siteUrl()).toString(),
     encodingFormat: "audio/mpeg",
     ...(data.durationSeconds ? { duration: `PT${Math.round(data.durationSeconds)}S` } : {}),
@@ -195,7 +194,7 @@ export default async function PlayerPage({
           `aria-current="page"`. */}
       <nav
         aria-label="Breadcrumb"
-        className="flex flex-wrap items-center gap-1.5 font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground"
+        className="[&_a]:inline-flex [&_a]:min-h-6 [&_a]:items-center pointer-coarse:[&_a]:min-h-11 flex flex-wrap items-center gap-1.5 font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground"
       >
         <Link
           href="/"
@@ -208,7 +207,7 @@ export default async function PlayerPage({
           href="/browse"
           className="transition-colors hover:text-foreground focus-visible:outline-none focus-visible:text-foreground"
         >
-          Collection
+          Interviews
         </Link>
         <span aria-hidden className="text-muted-foreground">/</span>
         <span aria-current="page" className="text-foreground/80">
@@ -269,9 +268,9 @@ function AboutThisRecording({
   return (
     <section className="flex h-full flex-col rounded-xl border border-border bg-card/40 px-5 py-4">
       <p className="font-mono text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground">
-        About this recording
+        About this interview
       </p>
-      {overview ? <ClampedOverview text={overview} /> : null}
+      {overview ? <p className="mt-2 mb-3 text-base leading-relaxed text-foreground/85">{overview}</p> : null}
       <div className="mt-auto flex flex-col gap-1 border-t border-border/60 pt-3">
         <p className="text-sm text-foreground/90">{title}</p>
         <p className="text-xs text-muted-foreground">

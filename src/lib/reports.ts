@@ -16,7 +16,7 @@ export const REPORT_KINDS = [
   {
     value: "restriction",
     label: "Restriction request",
-    hint: "For narrators and descendants: limit how a recording is shared.",
+    hint: "For storytellers and descendants: limit how a recording is shared.",
   },
   {
     value: "takedown",
@@ -25,8 +25,8 @@ export const REPORT_KINDS = [
   },
   {
     value: "sensitive_content",
-    label: "Content advisory",
-    hint: "A passage that needs a content advisory, or one that's wrong.",
+    label: "Content note",
+    hint: "A passage that needs a content note, or one that's wrong.",
   },
   {
     value: "ai_summary",
@@ -39,8 +39,8 @@ export const REPORT_KINDS = [
 export type ReportKind = (typeof REPORT_KINDS)[number]["value"];
 
 export const REPORT_RELATIONSHIPS = [
-  { value: "descendant", label: "Descendant or family of a narrator" },
-  { value: "narrator", label: "Narrator or interviewer" },
+  { value: "descendant", label: "Descendant or family of a storyteller" },
+  { value: "narrator", label: "Storyteller or interviewer" },
   { value: "researcher", label: "Researcher, educator or archivist" },
   { value: "listener", label: "Listener" },
   { value: "partner", label: "WRFG / Atlanta History Center / partner" },

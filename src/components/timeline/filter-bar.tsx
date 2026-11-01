@@ -128,7 +128,7 @@ export function TimelineFilterBar({
             <span
               className="normal-case tracking-normal"
               aria-live="polite"
-              title={`${matchingMomentCount} moments from ${matchingNarratorCount} ${matchingNarratorCount === 1 ? "narrator" : "narrators"} in view`}
+              title={`${matchingMomentCount} chapters from ${matchingNarratorCount} ${matchingNarratorCount === 1 ? "storyteller" : "storytellers"} in view`}
             >
               <span className="text-foreground">{matchingMomentCount}</span> in view
             </span>

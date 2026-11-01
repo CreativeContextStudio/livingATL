@@ -41,7 +41,7 @@ const GATE_ALLOWLIST: Array<RegExp> = [
   /^\/api\/health$/, // liveness probe
   /^\/api\/revalidate$/, // pipeline cache webhook — own bearer-token auth
   /^\/monitoring(\/.*)?$/, // Sentry tunnel
-  /^\/audio\//, // same-origin audio proxy → R2 (next.config rewrite); content already public
+  /^\/audio\//, // same-origin audio relay → R2 (src/app/audio/[file]/route.ts); content already public
 ];
 
 const PREVIEW_ALLOWLIST: Array<RegExp> = [
@@ -50,7 +50,7 @@ const PREVIEW_ALLOWLIST: Array<RegExp> = [
   /^\/api\/health$/, // liveness probe
   /^\/api\/revalidate$/, // pipeline cache webhook — own bearer-token auth
   /^\/monitoring(\/.*)?$/, // Sentry tunnel — never leak into preview HTML
-  /^\/audio\//, // same-origin audio proxy → R2 (next.config rewrite); content already public
+  /^\/audio\//, // same-origin audio relay → R2 (src/app/audio/[file]/route.ts); content already public
 ];
 
 /**
@@ -71,7 +71,13 @@ function isFrameworkAsset(pathname: string): boolean {
     pathname === "/icon.png" ||
     pathname === "/apple-icon.png" ||
     pathname === "/robots.txt" ||
-    pathname === "/sitemap.xml"
+    pathname === "/sitemap.xml" ||
+    // 3D map base tiles: public OpenStreetMap/Overture geometry, no archive
+    // content. Skipping the proxy keeps each tile a plain CDN hit.
+    pathname.startsWith("/tiles/") ||
+    // MapLibre's worker: public code. Must skip the rewrite, because the
+    // year-long immutable header would otherwise stick to gate HTML.
+    pathname.startsWith("/vendor/")
   );
 }
 
@@ -139,6 +145,6 @@ export const config = {
   // an extension pattern like `.*\.png$` would also let `/player/X.png`
   // past the gate.
   matcher: [
-    "/((?!_next/|__nextjs_|favicon\\.ico|icon\\.png|apple-icon\\.png|robots\\.txt|sitemap\\.xml).*)",
+    "/((?!_next/|__nextjs_|tiles/|vendor/|favicon\\.ico|icon\\.png|apple-icon\\.png|robots\\.txt|sitemap\\.xml).*)",
   ],
 };

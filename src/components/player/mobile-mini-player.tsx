@@ -45,7 +45,7 @@ export function MobileMiniPlayer({
     <div
       className={cn(
         "fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur",
-        "pb-[env(safe-area-inset-bottom)] transition-transform duration-300 lg:hidden",
+        "pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] transition-transform duration-300 lg:hidden print:hidden",
         visible ? "translate-y-0" : "translate-y-full",
       )}
       // Hide from the a11y tree + tab order while off-screen so the slid-down

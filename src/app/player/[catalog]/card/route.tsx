@@ -2,17 +2,21 @@ import { ImageResponse } from "next/og";
 
 import { getThemeAccent } from "@/components/shared/theme-accent";
 import { canRequestViewArchive } from "@/lib/access-request";
-import { clipQuote, parseClipRange } from "@/lib/clips";
+import { parseClipRange } from "@/lib/clips";
 import { formatSpeakerName, titleForCard } from "@/lib/format";
+import { shareCardText } from "@/lib/off-site-text";
 import { formatTimestamp, safeDecodeCatalog } from "@/lib/player";
 import { fetchPlayerData } from "@/lib/queries/player";
 
 /**
  * Share card (Open Graph / Twitter image) for a recording or a clip:
  * `/player/<catalog>/card[?t=12:04&end=13:34]`. Clip links quote the clip's
- * own words; plain recording links use the first key quote. Archive access
- * rules apply, so while the site is gated crawlers get a 404 — share
- * previews start working when the archive goes public.
+ * own words; plain recording links use the first key quote. Link previews
+ * have no pre-playback note, so flagged passages are never quoted: the card
+ * falls back to the card line, labeled when the link points at one
+ * (`src/lib/off-site-text.ts`). Archive access rules apply, so while the
+ * site is gated crawlers get a 404 — share previews start working when the
+ * archive goes public.
  */
 export async function GET(
   req: Request,
@@ -25,9 +29,13 @@ export async function GET(
 
   const sp = new URL(req.url).searchParams;
   const clip = parseClipRange(sp.get("t"), sp.get("end"));
-  const quote = clip
-    ? clipQuote(data.transcriptSegments, clip, 200)
-    : (data.keyQuotes[0]?.text ?? data.briefOverview ?? "").slice(0, 200);
+  const text = shareCardText({
+    clip,
+    segments: data.transcriptSegments,
+    keyQuotes: data.keyQuotes,
+    cardLine: data.cardLine,
+    flaggedSpans: data.flaggedSpans,
+  });
   const interviewee = data.speakers.find((s) => s.role === "interviewee");
   const name = interviewee ? formatSpeakerName(interviewee.name) : titleForCard(data.title);
   const year = data.recordingDate?.slice(0, 4);
@@ -55,8 +63,22 @@ export async function GET(
           <div style={{ width: 96, height: 12, borderRadius: 6, background: accent }} />
           <div style={{ fontSize: 28, letterSpacing: 4, color: "#5c5470" }}>LIVING ATLANTA ORAL HISTORY</div>
         </div>
-        <div style={{ display: "flex", fontSize: quote.length > 140 ? 42 : 52, lineHeight: 1.3, fontWeight: 600 }}>
-          {quote ? `“${quote}”` : name}
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {text.contentNote ? (
+            <div style={{ display: "flex", fontSize: 26, letterSpacing: 2, color: "#b8431f", fontWeight: 700 }}>
+              CONTENT NOTE · PRESENTED AS SPOKEN
+            </div>
+          ) : null}
+          <div
+            style={{
+              display: "flex",
+              fontSize: (text.quote ?? text.line).length > 140 ? 42 : 52,
+              lineHeight: 1.3,
+              fontWeight: 600,
+            }}
+          >
+            {text.quote ? `“${text.quote}”` : text.line || name}
+          </div>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

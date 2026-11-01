@@ -5,9 +5,11 @@ import { PlayIcon, RotateCcwIcon, ScissorsIcon } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
-import { parseClipRange } from "@/lib/clips";
+import { captureEvent } from "@/lib/analytics/posthog";
+import { isSharedClipArrival, parseClipRange } from "@/lib/clips";
 import { formatTimestamp } from "@/lib/player";
 import { usePlayer, usePlayerControls, usePlayerTime } from "./player-context";
+import { usePlayerCatalog } from "./use-player-catalog";
 
 type Phase = "before" | "inside" | "past" | "away";
 
@@ -22,6 +24,26 @@ export function ClipBanner() {
   const clip = parseClipRange(searchParams.get("t"), searchParams.get("end"));
   const { isReady, isPlaying, seekAndPlay, timeStore } = usePlayer();
   const { wavesurferRef } = usePlayerControls();
+  const catalog = usePlayerCatalog();
+  const clipStart = clip?.start;
+  const clipStop = clip?.end;
+
+  // A visitor arrived on a shared clip link from outside the site.
+  useEffect(() => {
+    if (clipStart === undefined || clipStop === undefined) return;
+    const arrived = isSharedClipArrival({
+      loadedUrl: performance.getEntriesByType("navigation")[0]?.name,
+      currentUrl: window.location.href,
+      referrer: document.referrer,
+    });
+    if (!arrived) return;
+    captureEvent("shared_clip_landing", {
+      catalog,
+      start: clipStart,
+      seconds: clipStop - clipStart,
+      referrer_host: document.referrer ? new URL(document.referrer).host : null,
+    });
+  }, [catalog, clipStart, clipStop]);
 
   // Coarse position relative to the clip — re-renders only on transitions.
   const phase = usePlayerTime<Phase>((t) => {
@@ -108,6 +130,7 @@ export function ClipBanner() {
             size="sm"
             onClick={() => {
               setReleased(true);
+              captureEvent("clip_continue", { catalog, end: clip.end });
               seekAndPlay(clip.end);
             }}
           >

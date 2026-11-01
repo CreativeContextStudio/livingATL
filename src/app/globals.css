@@ -231,7 +231,7 @@
   --primary: #ff7f5c;           /* ABS coral — brand continuity with Light */
   --primary-foreground: #232326;
   --primary-ink: #ff7f5c;       /* brand coral passes on charcoal: 6.30:1 */
-  --secondary: #9b59d0;         /* lightened ABS purple for dark-bg legibility */
+  --secondary: #b37de0;         /* lightened ABS purple: 5:1 under --secondary-foreground */
   --secondary-foreground: #232326;
   --muted: #37373b;
   --muted-foreground: #a1a1aa;
@@ -510,6 +510,65 @@ html[data-theme="geist"] samp {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Keep focused and scrolled-to elements clear of the sticky header and the
+ * listening queue bar (which sets --queue-bar-h while it's showing). */
+html {
+  scroll-padding-top: 5rem;
+  scroll-padding-bottom: calc(var(--queue-bar-h, 0px) + 1rem);
+}
+
+/* A long word in a big heading can be wider than a phone at 200% text. */
+h1,
+h2,
+h3,
+h4 {
+  overflow-wrap: break-word;
+}
+
+/* Native scrollbars and form controls follow the chosen theme, not the OS. */
+html[data-theme="light"],
+html[data-theme="geist"] {
+  color-scheme: light;
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* The viewport runs edge to edge (viewportFit: cover), so keep content out of
+ * the notch on a phone held sideways. */
+body {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Windows contrast themes flatten backgrounds and turn transparent borders
+ * into real ones, so anything shown by fill alone needs a system color here. */
+@media (forced-colors: active) {
+  [data-slot="slider-track"] {
+    background-color: GrayText !important;
+  }
+  [data-slot="slider-range"] {
+    background-color: Highlight !important;
+  }
+  /* Adjust off, or the browser's text backplate hides HighlightText. */
+  [data-playing] {
+    forced-color-adjust: none;
+    background-color: Highlight !important;
+  }
+  [data-playing] > span {
+    color: HighlightText !important;
+  }
+  [data-section-tabs] a {
+    border-bottom-color: Canvas !important;
+  }
+  [data-section-tabs] a[aria-current="page"] {
+    border-bottom-color: Highlight !important;
+  }
+  header nav a[aria-current] {
+    text-decoration: underline;
   }
 }
 

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
 import { PreviewHero } from "@/components/preview-hero";
-import { fetchArchiveStatsOrNull } from "@/lib/queries/recordings";
 
 /**
  * `/` landing route.
@@ -20,7 +19,6 @@ export const metadata: Metadata = {
     "Listen to WRFG's Living Atlanta interviews: Atlantans recorded in the late 1970s, telling stories of the city from 1914 to 1977. Searchable, with transcripts. Private preview.",
 };
 
-export default async function Home() {
-  // Landing must render without the database; the stats card degrades.
-  return <PreviewHero stats={await fetchArchiveStatsOrNull()} />;
+export default function Home() {
+  return <PreviewHero />;
 }

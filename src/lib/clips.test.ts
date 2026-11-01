@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
+import { isSharedClipArrival,
   MAX_CLIP_SECONDS,
   clipForSegments,
   clipHref,
@@ -60,5 +60,21 @@ describe("clipQuote", () => {
     expect(q.endsWith("…")).toBe(true);
     expect(q.length).toBeLessThanOrEqual(41);
     expect(q).toBe("So tell me about Auburn Avenue. Well,…");
+  });
+});
+
+describe("isSharedClipArrival", () => {
+  const url = "https://livingatl.example/player/x?t=1:00&end=1:30";
+  it("counts a link opened from elsewhere, or with no referrer", () => {
+    expect(isSharedClipArrival({ loadedUrl: url, currentUrl: url, referrer: "https://t.co/abc" })).toBe(true);
+    expect(isSharedClipArrival({ loadedUrl: url, currentUrl: url, referrer: "" })).toBe(true);
+  });
+  it("ignores moving around the site", () => {
+    expect(
+      isSharedClipArrival({ loadedUrl: "https://livingatl.example/paths/a", currentUrl: url, referrer: "https://t.co/abc" }),
+    ).toBe(false);
+    expect(
+      isSharedClipArrival({ loadedUrl: url, currentUrl: url, referrer: "https://livingatl.example/paths/a" }),
+    ).toBe(false);
   });
 });

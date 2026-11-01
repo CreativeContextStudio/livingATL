@@ -34,7 +34,7 @@ export const LISTENING_PATHS: ListeningPath[] = [
   {
     slug: "sweet-auburn-1920s",
     title: "Sweet Auburn, 1920s",
-    dek: "Five moments from the decade Auburn Avenue became the center of Black Atlanta.",
+    dek: "Five chapters from the decade Auburn Avenue became the center of Black Atlanta.",
     intro: null,
     selection:
       "Draft: highlighted moments tagged Sweet Auburn / Auburn Avenue whose era overlaps 1920–1929, chronological, shortest-first among same-narrator options.",
@@ -49,12 +49,12 @@ export const LISTENING_PATHS: ListeningPath[] = [
   {
     slug: "integration-five-voices",
     title: "Integration, in five voices",
-    dek: "Five narrators on how Atlanta's color line moved, and who moved it.",
+    dek: "Five storytellers on how Atlanta's color line held, and how it moved.",
     intro: null,
     selection:
-      "Draft: one highlighted moment tagged `integration` per narrator, five narrators, ordered by era start.",
+      "Draft: one highlighted moment per narrator, ordered by era start. Alice Adams (a domestic worker on the streetcar) replaced L.D. Milton 2026-11-01 so the path isn't mostly civic leaders: three men, two women.",
     steps: [
-      { catalogNumber: "MSS 637.103.001", momentIndex: 9, interstitial: null }, // L.D. Milton — 'the Negro question fell by the wayside' (1921–1979)
+      { catalogNumber: "MSS 637.002.001", momentIndex: 9, interstitial: null }, // Alice Adams — Jim Crow on the streetcar (1932–1962)
       { catalogNumber: "MSS 637.104.001", momentIndex: 10, interstitial: null }, // James Moore — 1939 convention, first integrated dining
       { catalogNumber: "MSS 637.021.001", momentIndex: 8, interstitial: null }, // William Holmes Borders — voter registration, first Black police (1946–1953)
       { catalogNumber: "MSS 637.007.002", momentIndex: 5, interstitial: null }, // Clarence Bacote — coalition politics, Ivan Allen (1950–1970)

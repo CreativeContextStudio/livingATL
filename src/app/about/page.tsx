@@ -11,8 +11,9 @@ import { fetchArchiveStatsOrNull } from "@/lib/queries/recordings";
  *
  * Copy rules (2026-10-29 rewrite): plain and brief; state only what is
  * true today. WRFG recorded and digitized the tapes; the Atlanta History
- * Center houses the collection. AI drafts, the project team reviews — no
- * absolute promises about review.
+ * Center houses the collection. AI drafts; human review hasn't happened yet,
+ * and the page says so. Change that wording only when a named reviewer signs
+ * off.
  *
  * Design: sibling of `/browse`, `/contact` and `<PreviewHero />` — same
  * `max-w-7xl` shell, mono eyebrow + `font-heading` hero, `rounded-xl
@@ -20,7 +21,7 @@ import { fetchArchiveStatsOrNull } from "@/lib/queries/recordings";
  */
 
 export const metadata: Metadata = {
-  title: "About · livingATL",
+  title: "About",
   description:
     "livingATL puts WRFG's Living Atlanta interviews online: Atlantans recorded in the late 1970s, telling stories of the city from 1914 to 1977.",
 };
@@ -33,12 +34,12 @@ const PRINCIPLES: Array<{ heading: string; body: string; accent: string }> = [
   },
   {
     heading: "Linked to the source",
-    body: "Chapters, summaries, and Portal answers point to the place in the recording they come from, so you can hear it for yourself.",
+    body: "Chapters, summaries, and Ask answers point to the place in the recording they come from, so you can hear it for yourself.",
     accent: "bg-amber-500/80",
   },
   {
-    heading: "AI helps, people review",
-    body: "AI drafts transcripts, chapters, and topic tags, and the project team reviews them. Transcripts can still contain errors. If you find one, please tell us.",
+    heading: "AI-drafted, awaiting review",
+    body: "Software writes the transcripts, and AI drafts the chapters, summaries, topic tags, and content notes. These drafts are awaiting human review, so expect errors. If you find one, please tell us.",
     accent: "bg-teal-500/80",
   },
 ];
@@ -57,8 +58,8 @@ const STEPS: Array<{ label: string; body: string }> = [
     body: "An AI model (Claude) reads the transcript and drafts chapters, summaries, places, and topics, and marks passages that need a content note.",
   },
   {
-    label: "Review",
-    body: "The project team checks the drafts and fixes what it finds. Corrections from listeners come in through the Contact page.",
+    label: "Review, still to come",
+    body: "Human review comes next, starting with the recordings that carry content notes. Until then, everything above is a draft. Corrections from listeners come in through the Contact page.",
   },
 ];
 
@@ -67,12 +68,6 @@ export default async function AboutPage() {
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-6 py-10 lg:gap-12 lg:py-14">
       <header className="flex max-w-3xl flex-col gap-4">
-        <div className="flex items-center gap-3">
-          <div aria-hidden className="h-1.5 w-20 rounded-full bg-primary" />
-          <p className="font-mono text-xs tracking-[0.22em] uppercase text-muted-foreground">
-            About
-          </p>
-        </div>
         <h1 className="font-heading text-3xl leading-tight font-bold tracking-tight sm:text-4xl">
           A public home for the Living Atlanta interviews
         </h1>
@@ -85,9 +80,9 @@ export default async function AboutPage() {
           <span className="font-medium text-foreground">Living Atlanta</span>{" "}
           series. Atlantans described the city they knew from 1914 to 1977:
           their neighborhoods, jobs, churches, and schools, and life under
-          segregation. WRFG aired the series in the early 1980s and later
-          digitized the tapes. The Atlanta History Center houses the
-          collection.
+          segregation. WRFG aired the series in the early 1980s, and 249 of
+          the tapes have been digitized so far. The Atlanta History Center
+          houses the collection.
         </p>
         <p>
           livingATL puts the interviews online with transcripts, chapters, and
@@ -147,8 +142,8 @@ export default async function AboutPage() {
             Who&apos;s behind it
           </p>
           <p className="text-sm leading-relaxed text-foreground/85">
-            WRFG recorded and digitized the interviews. The Atlanta History
-            Center houses the collection. Creative Context Studio designed and
+            WRFG recorded the interviews. The Atlanta History Center houses
+            the collection. Creative Context Studio designed and
             built livingATL. Questions, corrections, or want to help? Get in
             touch.
           </p>
@@ -160,6 +155,18 @@ export default async function AboutPage() {
           Contact
           <ArrowUpRightIcon aria-hidden className="size-3.5" />
         </Link>
+      </section>
+
+      <section aria-label="Further reading" className="flex max-w-3xl flex-col gap-2">
+        <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
+          Further reading
+        </p>
+        <p className="text-sm leading-relaxed text-foreground/85">
+          The interviewers wrote their own book from these recordings: Clifford
+          M. Kuhn, Harlon E. Joye, and E. Bernard West,{" "}
+          <cite>Living Atlanta: An Oral History of the City, 1914&ndash;1948</cite>{" "}
+          (University of Georgia Press, 1990).
+        </p>
       </section>
     </main>
   );

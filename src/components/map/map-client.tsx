@@ -8,8 +8,7 @@ import { NeighborhoodPreview } from "./neighborhood-preview";
 import { neighborhoodColor } from "@/components/shared/category-colors";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/lib/use-media-query";
-import type { BrowserRecording } from "@/lib/queries/recordings";
-import type { GeoJSONGeometry, NeighborhoodGeometry } from "@/lib/queries/map";
+import type { GeoJSONGeometry, MapRecording, NeighborhoodGeometry } from "@/lib/queries/map";
 
 /**
  * Interactive Map — PRD §7.5, drawn version (2026-10-29).
@@ -29,20 +28,24 @@ import type { GeoJSONGeometry, NeighborhoodGeometry } from "@/lib/queries/map";
  * the preview: right column on desktop, bottom sheet on phones.
  *
  * 3D (2026-10-30): where WebGL works, `map-3d.tsx` (MapLibre, our own
- * OpenStreetMap-derived streets + building blocks) loads lazily over this
+ * static vector tiles of streets + buildings) loads lazily over this
  * drawing and replaces it once ready; this drawn map is what renders first
  * and what stays when 3D can't run.
  */
 
 const Map3D = dynamic(() => import("./map-3d").then((m) => m.Map3D), { ssr: false });
 
-/** WebGL support, checked once on the client (false on the server). */
+/** Can this browser draw the 3D map? It needs WebGL, plus DecompressionStream
+ *  for the gzipped tiles (iOS before 16.4 has no such thing, and without it
+ *  the map would load blank). Checked once on the client; false on the server. */
 let webglSupport: boolean | null = null;
 function detectWebGL(): boolean {
   if (webglSupport == null) {
     try {
       const c = document.createElement("canvas");
-      webglSupport = Boolean(c.getContext("webgl2") ?? c.getContext("webgl"));
+      webglSupport =
+        typeof DecompressionStream !== "undefined" &&
+        Boolean(c.getContext("webgl2") ?? c.getContext("webgl"));
     } catch {
       webglSupport = false;
     }
@@ -52,7 +55,7 @@ function detectWebGL(): boolean {
 const subscribeNoop = () => () => {};
 
 export type MapClientProps = {
-  recordings: BrowserRecording[];
+  recordings: MapRecording[];
   allRecordingCount: number;
   neighborhoods: NeighborhoodGeometry[];
   counts: Record<string, number>;
@@ -392,7 +395,7 @@ export function MapClient({
           <div
             ref={frameRef}
             role="group"
-            aria-label="Map of Atlanta neighborhoods mentioned in the recordings"
+            aria-label="Map of Atlanta neighborhoods mentioned in the interviews"
             aria-describedby="map-keyboard-help"
             className="relative w-full overflow-hidden rounded-xl bg-card ring-1 ring-border"
             style={{ aspectRatio: tall3D ? "4 / 5" : `${VB_W} / ${VB_H}` }}
@@ -455,7 +458,7 @@ export function MapClient({
                   onMouseEnter={() => !empty && setHovered(p.name)}
                   onMouseLeave={() => setHovered(null)}
                   className={cn(
-                    "absolute -translate-x-1/2 -translate-y-1/2 rounded-full transition-transform focus:outline-none",
+                    "absolute -translate-x-1/2 -translate-y-1/2 rounded-full transition-transform focus:outline-none pointer-coarse:after:absolute pointer-coarse:after:-inset-3 pointer-coarse:after:content-['']",
                     empty
                       ? "cursor-default bg-muted-foreground/30"
                       : "cursor-pointer font-mono text-[11px] font-semibold tabular-nums shadow-sm ring-2 ring-card hover:z-10 hover:scale-110",
@@ -554,7 +557,7 @@ export function MapClient({
                   ? "Use two fingers to move, zoom and turn the map; the cube button tilts it."
                   : "Drag to move; Ctrl/⌘ + scroll to zoom; right-drag or the cube button to tilt and turn."}{" "}
                 Streets and buildings are today&apos;s city, for orientation; many of the places in the
-                stories are gone. Map data © OpenStreetMap contributors.
+                stories are gone. Map data © OpenStreetMap contributors and Overture Maps.
               </>
             ) : null}
           </figcaption>
@@ -572,7 +575,7 @@ export function MapClient({
       </div>
 
       <p id="map-keyboard-help" className="sr-only">
-        Map of neighborhoods mentioned in the recordings. To explore by keyboard, use the
+        Map of neighborhoods mentioned in the interviews. To explore by keyboard, use the
         neighborhood list below the map.
       </p>
       <section aria-labelledby="map-neighborhood-list" className="flex flex-col gap-2">
@@ -613,9 +616,9 @@ export function MapClient({
       <DialogPrimitive.Root open={!isDesktop && activeNeighborhood != null} onOpenChange={(open) => !open && handleClose()}>
         <DialogPrimitive.Portal>
           <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/20 supports-backdrop-filter:backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 lg:hidden" />
-          <DialogPrimitive.Popup className="fixed inset-x-0 bottom-0 z-50 flex max-h-[70dvh] flex-col overflow-hidden rounded-t-2xl border-t border-border bg-background pb-[env(safe-area-inset-bottom)] shadow-xl outline-none data-open:animate-in data-open:slide-in-from-bottom data-closed:animate-out data-closed:slide-out-to-bottom lg:hidden">
+          <DialogPrimitive.Popup className="fixed inset-x-0 bottom-0 z-50 flex max-h-[70dvh] flex-col overflow-hidden overscroll-contain rounded-t-2xl border-t border-border bg-background pb-[env(safe-area-inset-bottom)] shadow-xl outline-none data-open:animate-in data-open:slide-in-from-bottom data-closed:animate-out data-closed:slide-out-to-bottom lg:hidden">
             <DialogPrimitive.Title className="sr-only">{activeNeighborhood ?? "Neighborhood"} recordings</DialogPrimitive.Title>
-            <DialogPrimitive.Description className="sr-only">Oral history recordings that touch this neighborhood.</DialogPrimitive.Description>
+            <DialogPrimitive.Description className="sr-only">Oral history interviews that touch this neighborhood.</DialogPrimitive.Description>
             <div aria-hidden className="mx-auto mt-2 h-1.5 w-10 shrink-0 rounded-full bg-foreground/20" />
             <NeighborhoodPreview
               activeNeighborhood={activeNeighborhood}

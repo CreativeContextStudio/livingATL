@@ -9,5 +9,5 @@ export default function ErrorBoundary({
   error: unknown;
   retry: () => void;
 }) {
-  return <RouteError error={error} retry={retry} surface="The AI Portal" />;
+  return <RouteError error={error} retry={retry} surface="Ask" />;
 }

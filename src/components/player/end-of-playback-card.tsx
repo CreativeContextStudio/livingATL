@@ -80,14 +80,20 @@ export function EndOfPlaybackCard({
           <p className="font-heading text-sm leading-tight font-semibold group-hover:text-primary-ink">
             {label}
           </p>
-          {related.briefOverview ? (
-            <p className="text-xs leading-relaxed text-muted-foreground line-clamp-2">
-              {related.briefOverview}
+          {related.cardLine ? (
+            <p className="text-xs leading-relaxed text-muted-foreground line-clamp-3">
+              {related.cardLine}
             </p>
           ) : null}
           <p className="font-mono text-[10px] tabular-nums text-muted-foreground">
             {formatDuration(related.durationSeconds)} · {related.catalogNumber}
           </p>
+        </Link>
+        <Link
+          href="/contact?kind=other"
+          className="self-start text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          Have a story of your own? Tell us.
         </Link>
       </div>
       <Button

@@ -19,10 +19,11 @@ import { attributionLine } from "@/lib/story-cards";
  * Letter page; each carries the narrator's own (machine-transcribed) words,
  * who/where/when, a QR code to that exact clip, and the required
  * "generated from stories by …" attribution plus the collection credit, so
- * a card cut from the sheet still stands on its own.
+ * a card cut from the sheet still stands on its own. Flagged passages show
+ * the recording's card line and a content note instead of a quote.
  */
 export const metadata: Metadata = {
-  title: "Story cards · livingATL",
+  title: "Story cards",
   robots: { index: false, follow: false },
 };
 
@@ -55,7 +56,7 @@ export default async function CardsPage({
         <h1 className="font-heading text-3xl font-bold leading-tight tracking-tight">{set.heading}</h1>
         <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">
           {set.cards.length} cards, four to a letter-size page. Print, then cut along the dashed
-          lines. Each card&apos;s QR code opens that moment in the recording.
+          lines. Each card&apos;s QR code opens that chapter in the interview.
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <PrintButton />
@@ -79,6 +80,9 @@ export default async function CardsPage({
 
 function Card({ card, host }: { card: StoryCard; host: string }) {
   const meta = [card.place, card.era].filter(Boolean).join(" · ");
+  const recorded = card.recorded ? (
+    <span className="font-normal text-muted-foreground print:text-neutral-700">, recorded {card.recorded}</span>
+  ) : null;
   return (
     <article className="flex w-full flex-col gap-3 rounded-xl border border-border bg-card p-5 text-foreground print:h-[4.85in] print:rounded-none print:border-dashed print:border-neutral-400 print:bg-white print:p-[0.3in] print:text-black">
       <p className="flex items-baseline justify-between gap-2 font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground print:text-neutral-600">
@@ -88,17 +92,31 @@ function Card({ card, host }: { card: StoryCard; host: string }) {
         <span>Living Atlanta oral histories</span>
       </p>
       <h2 className="font-heading text-sm font-semibold leading-snug">{card.title}</h2>
-      <blockquote className="font-heading text-[15px] leading-relaxed print:text-[12pt]">
-        <p className="line-clamp-6">&ldquo;{card.quote}&rdquo;</p>
-        <footer className="mt-2 text-sm font-semibold not-italic">
-          — {card.speaker}
-          {card.recorded ? <span className="font-normal text-muted-foreground print:text-neutral-700">, recorded {card.recorded}</span> : null}
-        </footer>
-      </blockquote>
+      {card.quote ? (
+        <blockquote className="font-heading text-[15px] leading-relaxed print:text-[12pt]">
+          <p className="line-clamp-6">&ldquo;{card.quote}&rdquo;</p>
+          <footer className="mt-2 text-sm font-semibold not-italic">
+            — {card.speaker}
+            {recorded}
+          </footer>
+        </blockquote>
+      ) : (
+        // A summary, not their words: no quotation marks, no signature line.
+        <div className="flex flex-col gap-1 text-sm leading-relaxed print:text-[11pt]">
+          <p className="font-semibold">
+            {card.speaker}
+            {recorded}
+          </p>
+          <p>
+            <span className="text-muted-foreground print:text-neutral-700">About this interview (AI-drafted): </span>
+            {card.line}
+          </p>
+        </div>
+      )}
       {meta ? <p className="text-xs text-muted-foreground print:text-neutral-700">{meta}</p> : null}
       {card.notice ? (
         <p className="text-[11px] font-medium text-[color:var(--color-warning-ink)] print:text-black">
-          Content notice: {card.notice}. Presented as spoken.
+          Content note: {card.notice}. Presented as spoken; scan to hear it in context.
         </p>
       ) : null}
       <div className="mt-auto flex items-end gap-3">

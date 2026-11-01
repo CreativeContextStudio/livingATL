@@ -23,7 +23,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const path = findPath((await params).slug);
-  return path ? { title: `${path.title} · Listening paths · livingATL`, description: path.dek } : {};
+  return path ? { title: `${path.title} · Listening paths`, description: path.dek } : {};
 }
 
 function minutes(seconds: number): string {
@@ -58,7 +58,7 @@ export default async function PathPage({ params }: { params: Promise<{ slug: str
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-10">
       <header className="flex flex-col gap-3">
-        <nav aria-label="Breadcrumb" className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
+        <nav aria-label="Breadcrumb" className="[&_a]:inline-flex [&_a]:min-h-6 [&_a]:items-center pointer-coarse:[&_a]:min-h-11 font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
           <Link href="/paths" className="underline-offset-4 hover:text-foreground hover:underline">
             Listening paths
           </Link>
@@ -66,13 +66,13 @@ export default async function PathPage({ params }: { params: Promise<{ slug: str
         <h1 className="font-heading text-4xl font-bold leading-tight tracking-tight">{path.title}</h1>
         <p className="text-base leading-relaxed text-foreground/80">{path.dek}</p>
         <p className="text-sm text-muted-foreground">
-          {steps.length} moments · {voices} voice{voices === 1 ? "" : "s"} · {minutes(total)}
+          {steps.length} chapters · {voices} voice{voices === 1 ? "" : "s"} · {minutes(total)}
         </p>
         <div className="flex flex-wrap items-center gap-3">
-          <PlayPathButton moments={steps.map((s) => s.moment)} title={path.title} />
+          <PlayPathButton moments={steps.map((s) => s.moment)} title={path.title} slug={path.slug} />
           <Link
             href={`/cards?path=${path.slug}`}
-            className="text-sm font-medium text-primary-ink underline-offset-4 hover:underline"
+            className="inline-flex min-h-6 items-center text-sm font-medium text-primary-ink underline-offset-4 hover:underline pointer-coarse:min-h-11"
           >
             Print story cards
           </Link>

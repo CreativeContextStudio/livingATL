@@ -3,6 +3,7 @@ import "server-only";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { GATE_COOKIE, signInviteCookie } from "@/lib/access";
+import { INVITE_EVENT_COOKIE, INVITE_EVENT_MAX_AGE_S } from "@/lib/analytics/invite-event";
 import { hashInviteToken, looksLikeInviteToken } from "@/lib/invite-token";
 import { findActiveInvite, recordInviteUse } from "@/lib/invites";
 import { clientIp, createRateLimiter } from "@/lib/rate-limit";
@@ -65,6 +66,14 @@ export async function GET(
     sameSite: "lax",
     path: "/",
     maxAge: Math.max(0, expiresAt - Math.floor(Date.now() / 1000)),
+  });
+  // Readable on purpose: the browser sends `invite_redeemed` and clears it.
+  // `cookies.set` encodes the value itself.
+  res.cookies.set(INVITE_EVENT_COOKIE, invite.label, {
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: INVITE_EVENT_MAX_AGE_S,
   });
   return res;
 }

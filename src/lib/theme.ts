@@ -16,6 +16,13 @@ export const DEFAULT_THEME: Theme = "light";
 
 export const THEME_COOKIE = "livingatl-theme";
 
+/** Page background per theme: the browser bar's `theme-color`. */
+export const THEME_BACKGROUND: Record<Theme, string> = {
+  light: "#fff8f5",
+  dark: "#232326",
+  geist: "#ffffff",
+};
+
 /** Max-age: 1 year. Theme preference is low-stakes; long expiry. */
 export const THEME_COOKIE_MAX_AGE_S = 60 * 60 * 24 * 365;
 

@@ -44,6 +44,9 @@ type Resolved = {
   isHighlight: boolean;
 };
 
+/** Narrower chapters stay unlabeled; their title shows on hover. */
+const MIN_LABEL_WIDTH_PCT = 5;
+
 /** Summary-row label: the playing chapter's title, else the first one. */
 function activeChapterLabel(chapters: Resolved[]): string {
   const c = chapters.find((ch) => ch.isActive) ?? chapters[0];
@@ -113,7 +116,7 @@ export function ChapterScrubber({
       <div className="relative min-h-20 w-full overflow-hidden bg-muted/60">
         <div className="absolute inset-0 flex items-center justify-center">
           <p className="rounded-full bg-background/80 px-3 py-1 font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-muted-foreground backdrop-blur-sm md:text-[10px]">
-            No chapter moments authored yet. AI summary in sidebar
+            No chapters yet.
           </p>
         </div>
       </div>
@@ -191,18 +194,18 @@ export function ChapterScrubber({
       >
         {chapters.map((c, i) => {
           const themes = c.moment.themes ?? [];
-          // Per-recording accent drives the chapter fills. Active (currently
-          // playing) chapter uses the solid `bgStrong`; highlighted moments
-          // take the soft tint but brightened. Inactive/non-highlight
-          // chapters fall back to a muted ghost.
+          const label = c.moment.title ?? themes.map((t) => t.replace(/_/g, " ")).join(" · ");
+          // Per-recording accent drives the chapter fills: highlighted
+          // moments take the medium tint, the rest a muted ghost. The playing
+          // chapter inverts, so it stands out in every palette.
           const bgClass = c.isActive
-            ? accent.bgStrong
+            ? "bg-foreground"
             : c.isHighlight
               ? accent.bgMedium
               : accent.bgSoft;
-          const labelClass = c.isActive
-            ? accent.textOn
-            : accent.text;
+          // Neutral ink, not the accent: these are titles people read, and
+          // no per-theme color holds 4.5:1 on all three fills.
+          const labelClass = c.isActive ? "text-background" : "text-foreground";
           return (
             <Tooltip key={`${c.start}-${i}`}>
               <TooltipTrigger
@@ -211,34 +214,17 @@ export function ChapterScrubber({
                     type="button"
                     onClick={() => seekAndPlay(c.start)}
                     aria-label={`Jump to "${c.moment.title ?? "chapter"}" at ${formatTimestamp(c.start)}`}
+                    aria-current={c.isActive ? "true" : undefined}
+                    data-playing={c.isActive ? "" : undefined}
                     className={cn(
                       "absolute top-0 bottom-0 flex flex-col items-start gap-1 overflow-hidden border-r border-background/50 px-1.5 py-1.5 text-left transition-[background,transform] hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                       bgClass,
                     )}
                     style={{ left: `${c.startPct}%`, width: `${c.widthPct}%` }}
                   >
-                    {themes.length > 0 ? (
-                      <span className="flex flex-wrap gap-x-1 gap-y-0.5 leading-tight">
-                        {themes.map((t) => (
-                          <span
-                            key={t}
-                            className={cn(
-                              "text-[11px] font-medium tracking-tight whitespace-nowrap md:text-[10px]",
-                              labelClass,
-                            )}
-                          >
-                            {t.replace(/_/g, " ")}
-                          </span>
-                        ))}
-                      </span>
-                    ) : c.moment.title ? (
-                      <span
-                        className={cn(
-                          "text-[11px] font-medium tracking-tight leading-tight md:text-[10px]",
-                          labelClass,
-                        )}
-                      >
-                        {c.moment.title}
+                    {label && c.widthPct >= MIN_LABEL_WIDTH_PCT ? (
+                      <span className={cn("line-clamp-4 w-full break-words text-[11px] font-medium leading-tight", labelClass)}>
+                        {label}
                       </span>
                     ) : null}
                   </button>
@@ -299,7 +285,7 @@ export function ChapterCountsLabel({
         Chapters
       </p>
       <p className="font-mono tabular-nums">
-        {counts.total} moments · {counts.highlights} highlights
+        {counts.total} chapters · {counts.highlights} highlights
       </p>
     </div>
   );

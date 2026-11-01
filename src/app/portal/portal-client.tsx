@@ -144,7 +144,7 @@ function describePortalError(error: Error | undefined): string | null {
   if (!error) return null;
   const message = error.message.toLowerCase();
   if (message.includes("preview_mode")) {
-    return "The archive is not yet public. This Portal is gated behind preview mode.";
+    return "The archive is not yet public. Ask opens when the archive does.";
   }
   if (message.includes("rate_limited")) {
     return "You're asking faster than the archive can answer. Wait a minute and try again.";

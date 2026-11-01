@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { captureEvent } from "@/lib/analytics/posthog";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,7 @@ import {
   type AdvisoryVersion,
 } from "@/lib/content-advisory";
 import type { ContentAdvisory } from "@/lib/queries/recordings";
+import { usePlayerCatalog } from "./use-player-catalog";
 
 /**
  * Pre-playback content-advisory gate — PRD §7.2 + §8.5.
@@ -38,9 +40,14 @@ export function AdvisoryGate({
   advisory: ContentAdvisory | null;
   onAccept: () => void;
 }) {
+  const catalog = usePlayerCatalog();
   const text = getAdvisoryText(
     (advisory?.advisory_version ?? null) as AdvisoryVersion | null,
   );
+
+  useEffect(() => {
+    captureEvent("advisory_shown", { catalog });
+  }, [catalog]);
 
   // Belt-and-suspenders: if some future base-ui change leaks an ESC close,
   // trap the key here so the gate still can't be skipped without a click.
@@ -75,11 +82,14 @@ export function AdvisoryGate({
             href="/browse"
             className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Back to Browser
+            Back to interviews
           </Link>
           <Button
             size="lg"
-            onClick={onAccept}
+            onClick={() => {
+              captureEvent("advisory_continue", { catalog });
+              onAccept();
+            }}
             className="bg-primary text-primary-foreground"
             autoFocus
           >

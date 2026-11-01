@@ -7,16 +7,18 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { BoxIcon, MinusIcon, PlusIcon, RotateCcwIcon, SquareIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { BASEMAP_TILES } from "@/lib/basemap-tiles";
 import { MAPLIBRE_WORKER_URL } from "@/lib/maplibre-worker";
 import type { NeighborhoodGeometry } from "@/lib/queries/map";
 
 /**
  * Map — 3D view (2026-10-30). MapLibre (open source, no token) draws only
- * our own files: streets, rail, creeks, water and parks from OpenStreetMap
- * (`public/geo/atlanta-base.json`) and building blocks raised to their
- * height (`public/geo/atlanta-buildings.json`, core neighborhoods for now),
- * both built by `livingatl-pipeline/scripts/build_basemap.py`. No tiles,
- * glyphs or sprites — labels and pins are HTML markers in the site's type.
+ * our own static vector tiles (`public/tiles/<version>/`, built by
+ * `livingatl-pipeline/scripts/build_basemap.py`): streets, rail, creeks,
+ * water and parks from OpenStreetMap, and every building in the map area
+ * raised to its height (Overture Maps; mostly lidar-measured). The browser
+ * fetches only the tiles in view. No glyphs or sprites — labels and pins are
+ * HTML markers in the site's type.
  *
  * Loaded lazily by `MapClient`, which shows the flat drawn map until this
  * reports `onReady`, and keeps it if WebGL isn't available (`onFail`).
@@ -58,16 +60,26 @@ const TILT = 55;
 const OVERVIEW_PITCH = 40;
 const LABEL_H = 14;
 const ATTRIBUTION =
-  '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>';
+  '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a> · <a href="https://overturemaps.org" target="_blank" rel="noopener">Overture Maps</a>';
 
-/** True when this browser can draw WebGL (the 3D view's only hard need). */
-export function canUse3D(): boolean {
-  try {
-    const c = document.createElement("canvas");
-    return Boolean(c.getContext("webgl2") ?? c.getContext("webgl"));
-  } catch {
-    return false;
-  }
+// Tiles are stored gzipped as plain static files (no Content-Encoding header
+// to depend on), so they're fetched through this protocol and unzipped here.
+const TILE_PROTOCOL = "atl-tiles";
+let tileProtocolAdded = false;
+function addTileProtocol() {
+  if (tileProtocolAdded) return;
+  tileProtocolAdded = true;
+  maplibregl.addProtocol(TILE_PROTOCOL, async (params, abort) => {
+    const res = await fetch(params.url.replace(`${TILE_PROTOCOL}://`, "/"), { signal: abort.signal });
+    // Empty tiles aren't written; a miss is an empty tile.
+    if (res.status === 404) return { data: new ArrayBuffer(0) };
+    if (!res.ok) throw new Error(`Map tile ${res.status}`);
+    const buf = await res.arrayBuffer();
+    const head = new Uint8Array(buf, 0, 2);
+    if (head[0] !== 0x1f || head[1] !== 0x8b) return { data: buf };
+    const stream = new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"));
+    return { data: await new Response(stream).arrayBuffer() };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -156,20 +168,22 @@ function layers(p: Palette, shapeColor: (name: string) => string, shapes: Neighb
   });
   return [
     { id: "land", type: "background", paint: { "background-color": p.land } },
-    { id: "park", type: "fill", source: "base", filter: kind("park"), paint: { "fill-color": p.park } },
-    { id: "cemetery", type: "fill", source: "base", filter: kind("cemetery"), paint: { "fill-color": p.cemetery } },
-    { id: "water", type: "fill", source: "base", filter: kind("water"), paint: { "fill-color": p.water } },
+    { id: "park", type: "fill", source: "basemap", "source-layer": "base", filter: kind("park"), paint: { "fill-color": p.park } },
+    { id: "cemetery", type: "fill", source: "basemap", "source-layer": "base", filter: kind("cemetery"), paint: { "fill-color": p.cemetery } },
+    { id: "water", type: "fill", source: "basemap", "source-layer": "base", filter: kind("water"), paint: { "fill-color": p.water } },
     {
       id: "waterway",
       type: "line",
-      source: "base",
+      source: "basemap",
+      "source-layer": "base",
       filter: kind(["river", "stream"]),
       paint: { "line-color": p.waterLine, "line-width": width([[11, 0.8], [16, 3]]) },
     },
     {
       id: "street",
       type: "line",
-      source: "base",
+      source: "basemap",
+      "source-layer": "base",
       minzoom: 13,
       filter: kind("street"),
       paint: { "line-color": p.street, "line-width": width([[13, 0.6], [17, 7]]), "line-opacity": 0.85 },
@@ -178,7 +192,8 @@ function layers(p: Palette, shapeColor: (name: string) => string, shapes: Neighb
     {
       id: "minor",
       type: "line",
-      source: "base",
+      source: "basemap",
+      "source-layer": "base",
       filter: kind("minor"),
       paint: { "line-color": p.minor, "line-width": width([[11, 0.7], [17, 9]]) },
       layout: { "line-cap": "round", "line-join": "round" },
@@ -186,7 +201,8 @@ function layers(p: Palette, shapeColor: (name: string) => string, shapes: Neighb
     {
       id: "major",
       type: "line",
-      source: "base",
+      source: "basemap",
+      "source-layer": "base",
       filter: kind("major"),
       paint: { "line-color": p.major, "line-width": width([[11, 1.2], [17, 12]]) },
       layout: { "line-cap": "round", "line-join": "round" },
@@ -194,7 +210,8 @@ function layers(p: Palette, shapeColor: (name: string) => string, shapes: Neighb
     {
       id: "motorway",
       type: "line",
-      source: "base",
+      source: "basemap",
+      "source-layer": "base",
       filter: kind("motorway"),
       paint: { "line-color": p.motorway, "line-width": width([[11, 1.8], [17, 16]]) },
       layout: { "line-cap": "round", "line-join": "round" },
@@ -202,7 +219,8 @@ function layers(p: Palette, shapeColor: (name: string) => string, shapes: Neighb
     {
       id: "rail",
       type: "line",
-      source: "base",
+      source: "basemap",
+      "source-layer": "base",
       filter: kind("rail"),
       paint: { "line-color": p.rail, "line-width": width([[11, 0.8], [17, 3]]), "line-dasharray": [3, 2] },
     },
@@ -210,12 +228,14 @@ function layers(p: Palette, shapeColor: (name: string) => string, shapes: Neighb
     {
       id: "buildings",
       type: "fill-extrusion",
-      source: "buildings",
+      source: "basemap",
+      "source-layer": "buildings",
       minzoom: 12,
       paint: {
         "fill-extrusion-color": p.building,
         "fill-extrusion-height": ["get", "h"],
-        "fill-extrusion-base": 0,
+        // Parts of stepped towers start above the ground.
+        "fill-extrusion-base": ["coalesce", ["get", "b"], 0],
         "fill-extrusion-opacity": ["interpolate", ["linear"], ["zoom"], 12, 0, 12.6, 0.92],
         "fill-extrusion-vertical-gradient": true,
       },
@@ -225,8 +245,14 @@ function layers(p: Palette, shapeColor: (name: string) => string, shapes: Neighb
 
 function buildStyle(p: Palette, shapeColor: (name: string) => string, shapes: NeighborhoodGeometry[]): StyleSpecification {
   const sources: StyleSpecification["sources"] = {
-    base: { type: "geojson", data: "/geo/atlanta-base.json", attribution: ATTRIBUTION },
-    buildings: { type: "geojson", data: "/geo/atlanta-buildings.json" },
+    basemap: {
+      type: "vector",
+      tiles: [`${TILE_PROTOCOL}:/${BASEMAP_TILES.path}/{z}/{x}/{y}.pbf`],
+      minzoom: BASEMAP_TILES.minzoom,
+      maxzoom: BASEMAP_TILES.maxzoom,
+      bounds: [...BASEMAP_TILES.bounds],
+      attribution: ATTRIBUTION,
+    },
   };
   shapes.forEach((s, i) => {
     sources[`shape-${i}`] = { type: "geojson", data: s.geometry as unknown as GeoJSONData };
@@ -292,12 +318,25 @@ function layoutMarkers(
   return out;
 }
 
-let measureCtx: CanvasRenderingContext2D | null = null;
+// Label widths, measured once per name (relayout runs while the camera
+// moves). Dropped when the font changes: a web font landing, or a theme switch.
+const textWidths = new Map<string, number>();
+let measure: CanvasRenderingContext2D | null = null;
+let measuredFor = "";
 function textWidth(text: string): number {
-  measureCtx ??= document.createElement("canvas").getContext("2d");
-  if (!measureCtx) return text.length * 7;
-  measureCtx.font = `11px ${getComputedStyle(document.body).fontFamily}`;
-  return measureCtx.measureText(text).width;
+  const fontState = `${document.documentElement.dataset.theme}|${document.fonts.status}`;
+  if (fontState !== measuredFor) {
+    measuredFor = fontState;
+    textWidths.clear();
+    measure ??= document.createElement("canvas").getContext("2d");
+    if (measure) measure.font = `11px ${getComputedStyle(document.body).fontFamily}`;
+  }
+  let w = textWidths.get(text);
+  if (w === undefined) {
+    w = measure ? measure.measureText(text).width : text.length * 7;
+    textWidths.set(text, w);
+  }
+  return w;
 }
 
 // ---------------------------------------------------------------------------
@@ -356,8 +395,11 @@ export function Map3D({ pins: rawPins, shapes, shapeColor, bounds, fivePoints, a
     let map: maplibregl.Map;
     try {
       maplibregl.setWorkerUrl(MAPLIBRE_WORKER_URL);
+      addTileProtocol();
       map = new maplibregl.Map({
         container,
+        // 3x phone screens draw 2.25x the pixels of 2x for no visible gain.
+        pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
         style: buildStyle(readPalette(), shapeColor, shapes),
         bounds,
         fitBoundsOptions: { padding: 24 },
@@ -387,16 +429,25 @@ export function Map3D({ pins: rawPins, shapes, shapeColor, bounds, fivePoints, a
       if (el) markers.push(new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat(p.lngLat).addTo(map));
     }
 
+    // Re-place pins ~12 times a second while the camera moves (MapLibre keeps
+    // them anchored in between), and exactly once it stops.
     let frame = 0;
-    const schedule = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        relayout();
-      });
+    let last = 0;
+    const run = () => {
+      frame = 0;
+      last = performance.now();
+      relayout();
     };
-    map.on("move", schedule);
-    map.on("resize", schedule);
+    const onMove = () => {
+      if (!frame && performance.now() - last > 80) frame = requestAnimationFrame(run);
+    };
+    const settle = () => {
+      if (frame) cancelAnimationFrame(frame);
+      run();
+    };
+    map.on("move", onMove);
+    map.on("moveend", settle);
+    map.on("resize", settle);
     map.on("rotate", () => setBearing(map.getBearing()));
     map.on("pitch", () => setPitch(map.getPitch()));
     map.on("load", () => {
@@ -508,7 +559,7 @@ export function Map3D({ pins: rawPins, shapes, shapeColor, bounds, fivePoints, a
               onMouseEnter={() => !empty && setHovered(p.name)}
               onMouseLeave={() => setHovered(null)}
               className={cn(
-                "flex items-center justify-center rounded-full transition-transform focus:outline-none",
+                "relative flex items-center justify-center rounded-full transition-transform focus:outline-none pointer-coarse:after:absolute pointer-coarse:after:-inset-3 pointer-coarse:after:content-['']",
                 empty
                   ? "cursor-default bg-muted-foreground/40"
                   : cn(

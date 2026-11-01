@@ -5,6 +5,7 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ArrowRightIcon, MinusIcon, PlusIcon, RotateCcwIcon, SparklesIcon } from "lucide-react";
 
+import { captureEvent } from "@/lib/analytics/posthog";
 import { cn } from "@/lib/utils";
 import {
   FAMILY_KEYS,
@@ -517,9 +518,11 @@ export function TimelineClient({ data }: { data: TimelineData }) {
   const stepJourney = useCallback(
     (dir: -1 | 1) => {
       const target = dir < 0 ? journeyStop?.earlier : journeyStop?.later;
-      if (target) visit(target, { play: listening });
+      if (!target) return;
+      captureEvent("journey_step", { direction: dir < 0 ? "earlier" : "later", scope: journeyScope });
+      visit(target, { play: listening });
     },
-    [journeyStop, listening, visit],
+    [journeyStop, journeyScope, listening, visit],
   );
 
   const startJourney = useCallback(() => {
@@ -528,8 +531,9 @@ export function TimelineClient({ data }: { data: TimelineData }) {
     // From the left edge of what's on screen, unless that's everything.
     const isFull = view[1] - view[0] >= bounds[1] - bounds[0] - 0.5;
     const first = isFull ? list[0] : (list.find((m) => (momentStartYear(m) ?? 0) >= view[0]) ?? list[0]);
+    captureEvent("journey_start", { scope: journeyScope, stops: list.length });
     visit(first, { zoomIn: true });
-  }, [journey.list, view, bounds, visit]);
+  }, [journey.list, journeyScope, view, bounds, visit]);
 
   // Phones: the story opens in a bottom sheet over the lower half of the
   // screen. While journeying, pad the page by the sheet's height and keep
@@ -577,8 +581,11 @@ export function TimelineClient({ data }: { data: TimelineData }) {
       setListening(false);
       return;
     }
-    if (pinnedMoment && playInQueue(pinnedMoment)) setListening(true);
-  }, [listening, pinnedMoment, playInQueue]);
+    if (pinnedMoment && playInQueue(pinnedMoment)) {
+      captureEvent("journey_listen", { scope: journeyScope });
+      setListening(true);
+    }
+  }, [journeyScope, listening, pinnedMoment, playInQueue]);
 
   const journeyState = useMemo<JourneyState | null>(() => {
     if (!journeyStop) return null;
@@ -1019,20 +1026,20 @@ export function TimelineClient({ data }: { data: TimelineData }) {
           <StartJourneyButton count={journey.list.length} highlights={journey.useHighlights} onStart={startJourney} />
         ) : null}
         <p className="px-1 text-xs leading-relaxed text-muted-foreground">
-          Each dot is a moment from an interview, placed at the year it begins; dots with a light
+          Each dot is a chapter of an interview, placed at the year it begins; dots with a light
           center are highlights. Ticks under the axis are historical events.{" "}
           <span className="hidden sm:inline">
-            Start the journey to step through the stories in year order (← →). Drag to pan; pinch or
+            Start the journey to step through the chapters in year order (← →). Drag to pan; pinch or
             Ctrl/⌘ + scroll to zoom.
           </span>
-          <span className="sm:hidden">Start the journey to step through the stories in year order. Drag to pan.</span>
+          <span className="sm:hidden">Start the journey to step through the chapters in year order. Drag to pan.</span>
         </p>
       </div>
 
       {/* Desktop: sticky side panel. The chart never moves on selection. */}
       {isDesktop ? (
         <aside
-          aria-label="Selected moment"
+          aria-label="Selected chapter"
           data-journey-scope=""
           className="sticky top-20 max-h-[calc(100dvh-6rem)] overflow-y-auto rounded-2xl border border-border bg-card"
         >
@@ -1065,7 +1072,7 @@ export function TimelineClient({ data }: { data: TimelineData }) {
       <DialogPrimitive.Root open={!isDesktop && pinned != null} onOpenChange={(open) => !open && onClearPin()}>
         <DialogPrimitive.Portal>
           <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/15 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 lg:hidden" />
-          <DialogPrimitive.Popup data-journey-scope="" className="fixed inset-x-0 bottom-0 z-50 flex max-h-[56dvh] flex-col overflow-y-auto rounded-t-2xl border-t border-border bg-background pb-[env(safe-area-inset-bottom)] shadow-xl outline-none data-open:animate-in data-open:slide-in-from-bottom data-closed:animate-out data-closed:slide-out-to-bottom lg:hidden">
+          <DialogPrimitive.Popup data-journey-scope="" className="fixed inset-x-0 bottom-0 z-50 flex max-h-[56dvh] flex-col overflow-y-auto overscroll-contain rounded-t-2xl border-t border-border bg-background pb-[env(safe-area-inset-bottom)] shadow-xl outline-none data-open:animate-in data-open:slide-in-from-bottom data-closed:animate-out data-closed:slide-out-to-bottom lg:hidden">
             <DialogPrimitive.Title className="sr-only">
               {pinned?.kind === "moment" ? pinned.moment.title : pinned?.kind === "event" ? pinned.event.label : "Timeline detail"}
             </DialogPrimitive.Title>
@@ -1165,7 +1172,7 @@ function StartJourneyButton({
         <ArrowRightIcon aria-hidden className="size-4 transition-transform group-hover:translate-x-0.5" />
       </button>
       <p className="px-1 text-xs leading-relaxed text-muted-foreground">
-        {count} {highlights ? "highlights" : "stories"} in year order. Step through them, or listen as you go.
+        {count} {highlights ? "highlights" : "chapters"} in year order. Step through them, or listen as you go.
       </p>
     </div>
   );

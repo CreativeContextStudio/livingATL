@@ -226,7 +226,7 @@ export function Transport({
                   variant={showAlerts ? "secondary" : "ghost"}
                   size="icon-sm"
                   aria-pressed={showAlerts}
-                  aria-label="Show content advisories on timeline"
+                  aria-label="Show content notes on the timeline"
                   onClick={() => setShowAlerts(!showAlerts)}
                 >
                   <AlertTriangleIcon className="size-4" aria-hidden />
@@ -235,8 +235,8 @@ export function Transport({
             />
             <TooltipContent side="top">
               {showAlerts
-                ? "Hide content advisories on timeline"
-                : "Show content advisories on timeline"}
+                ? "Hide content notes on the timeline"
+                : "Show content notes on the timeline"}
             </TooltipContent>
           </Tooltip>
 

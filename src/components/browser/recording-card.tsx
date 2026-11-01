@@ -13,7 +13,6 @@ import { cn } from "@/lib/utils";
 import {
   formatDuration,
   formatRecordingDate,
-  firstSentence,
   formatSpeakerName,
 } from "@/lib/format";
 import { AdvisoryBadge } from "./advisory-badge";
@@ -29,10 +28,7 @@ function formatInterviewees(list: BrowserRecordingCard["interviewees"]): string 
 
 export function RecordingCard({ recording }: { recording: BrowserRecordingCard }) {
   const intervieweeLabel = formatInterviewees(recording.interviewees);
-  const summary = firstSentence(
-    recording.briefOverview ?? recording.aiSummary,
-    220,
-  );
+  const summary = recording.cardLine;
   const dateLabel = formatRecordingDate(
     recording.recordingDate,
     recording.recordingDatePrecision as

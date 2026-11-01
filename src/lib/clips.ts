@@ -22,6 +22,24 @@ export function parseClipRange(
   return { start, end: Math.min(stop, start + MAX_CLIP_SECONDS) };
 }
 
+/**
+ * Did this page view arrive from a shared link? The clip must be in the URL
+ * the document loaded with (not reached by moving around the site), and the
+ * visitor must have come from outside it.
+ */
+export function isSharedClipArrival({
+  loadedUrl,
+  currentUrl,
+  referrer,
+}: {
+  loadedUrl: string | undefined;
+  currentUrl: string;
+  referrer: string;
+}): boolean {
+  if (loadedUrl !== currentUrl) return false;
+  return !referrer || new URL(referrer).host !== new URL(currentUrl).host;
+}
+
 type TimedSegment = { start: number; end: number; text: string };
 
 /** Clip covering whole segments `first..last` (indices, any order). */

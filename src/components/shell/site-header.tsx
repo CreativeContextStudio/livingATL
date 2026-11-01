@@ -5,7 +5,9 @@ import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 import { MobileNavSheet } from "@/components/shell/mobile-nav-sheet";
+import { SectionTabs } from "@/components/shell/section-tabs";
 import { ThemeSwitcher } from "@/components/shell/theme-switcher";
+import { NAV_SECTIONS, activeSection } from "@/lib/site-nav";
 import type { Theme } from "@/lib/theme";
 
 /**
@@ -21,20 +23,6 @@ import type { Theme } from "@/lib/theme";
  * the enforcement point — this is purely a visual decision.
  */
 
-const NAV_LINKS = [
-  { href: "/browse", label: "Collection" },
-  { href: "/portal", label: "Portal" },
-  { href: "/map", label: "Map" },
-  { href: "/timeline", label: "Timeline" },
-  { href: "/about", label: "About" },
-  { href: "/contact", label: "Contact" },
-] as const;
-
-function isActive(pathname: string, href: string): boolean {
-  if (href === "/") return pathname === "/";
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
 export function SiteHeader({
   initialTheme,
   navEnabled,
@@ -44,9 +32,10 @@ export function SiteHeader({
    *  cookie is httpOnly, so the server layout resolves this. */
   navEnabled: boolean;
 }) {
-  const pathname = usePathname() ?? "/";
+  const section = activeSection(usePathname() ?? "/");
 
   return (
+    <>
     <header className="sticky top-0 z-20 w-full print:hidden border-b border-border/60 bg-background/85 backdrop-blur">
       <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between px-6">
         <Link
@@ -59,17 +48,17 @@ export function SiteHeader({
         <div className="flex items-center gap-3">
           {navEnabled ? (
             <>
-              <nav aria-label="Primary" className="hidden md:block">
+              <nav aria-label="Primary" className="hidden sm:block">
                 <ul className="flex items-center gap-6">
-                  {NAV_LINKS.map((link) => {
-                    const active = isActive(pathname, link.href);
+                  {NAV_SECTIONS.map((link) => {
+                    const active = link.href === section?.href;
                     return (
                       <li key={link.href}>
                         <Link
                           href={link.href}
-                          aria-current={active ? "page" : undefined}
+                          aria-current={active ? "true" : undefined}
                           className={cn(
-                            "font-mono text-xs tracking-[0.18em] uppercase transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded",
+                            "inline-flex h-11 items-center font-mono text-xs tracking-[0.18em] uppercase transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded",
                             active
                               ? "text-foreground"
                               : "text-muted-foreground hover:text-foreground",
@@ -82,8 +71,8 @@ export function SiteHeader({
                   })}
                 </ul>
               </nav>
-              <div className="md:hidden">
-                <MobileNavSheet links={NAV_LINKS} />
+              <div className="sm:hidden">
+                <MobileNavSheet links={NAV_SECTIONS} />
               </div>
             </>
           ) : null}
@@ -91,5 +80,7 @@ export function SiteHeader({
         </div>
       </div>
     </header>
+    {navEnabled ? <SectionTabs /> : null}
+    </>
   );
 }

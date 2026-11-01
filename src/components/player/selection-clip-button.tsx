@@ -5,9 +5,11 @@ import { createPortal } from "react-dom";
 import { CheckIcon, ScissorsIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { captureEvent } from "@/lib/analytics/posthog";
 import { clipForSegments, clipHref, type ClipRange } from "@/lib/clips";
 import { formatTimestamp } from "@/lib/player";
 import type { TranscriptSegment } from "@/lib/queries/player";
+import { usePlayerCatalog } from "./use-player-catalog";
 
 type Pending = { clip: ClipRange; top: number; left: number };
 
@@ -29,6 +31,7 @@ export function SelectionClipButton({
   containerRef: RefObject<HTMLElement | null>;
   segments: TranscriptSegment[];
 }) {
+  const catalog = usePlayerCatalog();
   const [pending, setPending] = useState<Pending | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -83,6 +86,12 @@ export function SelectionClipButton({
         onMouseDown={(e) => e.preventDefault()}
         onClick={async () => {
           const href = clipHref(window.location.href, pending.clip);
+          captureEvent("clip_create", {
+            method: "selection",
+            catalog,
+            start: pending.clip.start,
+            seconds: pending.clip.end - pending.clip.start,
+          });
           try {
             await navigator.clipboard.writeText(href);
             setCopied(true);
@@ -99,6 +108,9 @@ export function SelectionClipButton({
         {copied ? <CheckIcon aria-hidden className="size-3.5" /> : <ScissorsIcon aria-hidden className="size-3.5" />}
         {copied ? "Copied" : `Share clip · ${length}`}
       </Button>
+      <span role="status" className="sr-only">
+        {copied ? "Clip link copied" : ""}
+      </span>
     </div>,
     document.body,
   );

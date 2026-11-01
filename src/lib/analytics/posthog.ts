@@ -30,7 +30,30 @@ export type AnalyticsEvent =
   | "player_citation_click"
   // Collection Browser — PRD §7.1 (placeholder)
   | "browser_filter_change"
-  | "browser_search";
+  | "browser_search"
+  // Sharing and clips (F-clips, F-portal-share)
+  | "share_click"
+  | "clip_create"
+  | "shared_clip_landing"
+  | "clip_continue"
+  // Pre-playback content note — PRD §8.5
+  | "advisory_shown"
+  | "advisory_continue"
+  // Listening queue, resume, paths, journey
+  | "queue_add"
+  | "queue_item_complete"
+  | "resume_offered"
+  | "resume_continue"
+  | "resume_restart"
+  | "path_start"
+  | "path_complete"
+  | "journey_start"
+  | "journey_step"
+  | "journey_listen"
+  // Home, story cards, invites
+  | "home_clip_play"
+  | "story_cards_print"
+  | "invite_redeemed";
 
 type EventProps = Record<string, string | number | boolean | null | undefined>;
 

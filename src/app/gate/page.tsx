@@ -16,7 +16,7 @@ import { safeNextPath } from "@/lib/safe-next";
  * here with `?error=invite|revoked`.
  */
 export const metadata: Metadata = {
-  title: "livingATL. Enter",
+  title: "Enter",
   description: "Password-protected preview of the Living Atlanta oral history collection.",
   robots: { index: false, follow: false },
 };

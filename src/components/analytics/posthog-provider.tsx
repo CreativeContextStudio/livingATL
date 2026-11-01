@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 
-import { capturePageview } from "@/lib/analytics/posthog";
+import { INVITE_EVENT_COOKIE, inviteLabelFromCookies } from "@/lib/analytics/invite-event";
+import { captureEvent, capturePageview } from "@/lib/analytics/posthog";
 
 /**
  * Fires a `$pageview` event on every App Router navigation. The Next.js
@@ -23,6 +24,14 @@ export function PostHogPageviewProvider() {
     if (!pathname) return;
     capturePageview(`${pathname}${window.location.search}`);
   }, [pathname]);
+
+  // An invite link just redirected here: send its event once.
+  useEffect(() => {
+    const label = inviteLabelFromCookies(document.cookie);
+    if (!label) return;
+    captureEvent("invite_redeemed", { label });
+    document.cookie = `${INVITE_EVENT_COOKIE}=; Max-Age=0; Path=/`;
+  }, []);
 
   return null;
 }

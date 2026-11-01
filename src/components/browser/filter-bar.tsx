@@ -161,7 +161,7 @@ function FilterGroup({
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            className="min-h-6 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground pointer-coarse:min-h-11"
           >
             {expanded ? "Show fewer" : `Show ${moreCount} more`}
           </button>

@@ -13,12 +13,12 @@ export function PortalIntro() {
         </p>
       </div>
       <h1 className="font-heading text-3xl font-bold leading-[1.1] tracking-tight text-foreground sm:text-4xl">
-        Fifty years of Atlanta voices, answering back.
+        Ask about six decades of Atlanta.
       </h1>
       <p className="leading-relaxed text-foreground/80">
-        Ask about a person, a neighborhood, an era, an event. The Portal
-        answers from the Living Atlanta oral history collection and cites the
-        recordings and timestamps it drew from. If the archive doesn&rsquo;t
+        Ask about a person, a neighborhood, an era, an event. Answers
+        come from the Living Atlanta oral history collection and cite the
+        recordings and timestamps they drew from. If the archive doesn&rsquo;t
         cover your question, it will say so.
       </p>
     </header>

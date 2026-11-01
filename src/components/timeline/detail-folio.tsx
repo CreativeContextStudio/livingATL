@@ -150,7 +150,7 @@ function FolioMomentBody({
         ) : null}
         {advisoryNote ? (
           <p className="rounded-md border border-[color:var(--color-warning)]/40 bg-[color:var(--color-warning)]/10 px-3 py-2 text-xs leading-relaxed text-foreground/85">
-            <span className="font-semibold text-[color:var(--color-warning-ink)]">Content advisory. </span>
+            <span className="font-semibold text-[color:var(--color-warning-ink)]">Content note. </span>
             {advisoryNote}
           </p>
         ) : null}
@@ -176,8 +176,8 @@ function FolioEventBody({
   const kindLabel = event.category.replace(/_/g, " ");
   const referencedSummary =
     event.recordingCount === 1
-      ? "One narrator in the collection returned to this."
-      : `${event.recordingCount} narrators in the collection returned to this.`;
+      ? "One storyteller in the collection returned to this."
+      : `${event.recordingCount} storytellers in the collection returned to this.`;
 
   return (
     <>
@@ -285,7 +285,7 @@ function MomentDetailDialog({
           {advisoryNote ? (
             <div className="rounded-lg border border-[color:var(--color-warning)]/40 bg-[color:var(--color-warning)]/10 p-4">
               <p className="font-mono text-[10px] tracking-[0.18em] uppercase text-destructive">
-                Content advisory
+                Content note
               </p>
               <p className="mt-1 text-sm leading-relaxed text-foreground/90">
                 {advisoryNote}
@@ -436,7 +436,7 @@ function advisoryProse(moment: TimelineMoment): string | null {
   if (moment.contentAdvisory?.display_advisory !== true) return null;
   const themes = moment.contentAdvisory.sensitive_themes ?? [];
   if (themes.length === 0) {
-    return "This recording carries a pre-playback advisory. The archive preserves original language.";
+    return "This recording opens with a content note. It plays as spoken.";
   }
   const list = themes
     .slice(0, 3)

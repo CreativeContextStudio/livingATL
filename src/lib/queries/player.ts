@@ -19,6 +19,7 @@ import type {
   HistoricalEventCategory,
   OrganizationCategory,
 } from "@/components/shared/category-colors";
+import { cardSummary } from "@/lib/format";
 import { playableAudioUrl } from "@/lib/player";
 
 // ---------------------------------------------------------------------------
@@ -103,6 +104,8 @@ export type RelatedRecording = {
   themes: string[];
   contentAdvisory: ContentAdvisory | null;
   briefOverview: string | null;
+  /** Card summary: the authored `brief.card_line`, else cut from the overview. */
+  cardLine: string;
   score: number;
 };
 
@@ -138,6 +141,8 @@ export type PlayerData = {
 
   // JSONB payloads
   briefOverview: string | null;
+  /** Card summary: the authored `brief.card_line`, else cut from the overview. */
+  cardLine: string;
   briefMoments: BriefMoment[];
   flaggedSpans: FlaggedSpan[];
   keyQuotes: KeyQuote[];
@@ -323,6 +328,7 @@ export async function fetchPlayerData(
       (row.historicalEvents ?? []) as unknown,
     ),
     briefOverview: brief?.overview ?? null,
+    cardLine: brief?.card_line ?? cardSummary(brief?.overview ?? row.aiSummary, 220),
     briefMoments: brief?.moments ?? [],
     flaggedSpans: sensitivity?.flagged_spans ?? [],
     keyQuotes: (row.keyQuotes ?? []) as KeyQuote[],
@@ -472,6 +478,7 @@ export async function fetchRelatedRecordings(
       themes: row.themes ?? [],
       contentAdvisory: (row.content_advisory ?? null) as ContentAdvisory | null,
       briefOverview: brief?.overview ?? null,
+      cardLine: brief?.card_line ?? cardSummary(brief?.overview, 220),
       score: row.score,
     };
   });

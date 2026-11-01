@@ -26,7 +26,7 @@ export function ContentNotice({ notes, className }: { notes: ContentNote[]; clas
     >
       <AlertTriangleIcon aria-hidden className="mt-px size-3 shrink-0" />
       <span>
-        <span className="font-semibold">Content notice:</span> {contentNoticeText(notes)}
+        <span className="font-semibold">Content note:</span> {contentNoticeText(notes)}
       </span>
     </p>
   );

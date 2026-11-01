@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { formatTimestamp } from "@/lib/player";
 import { cn } from "@/lib/utils";
 import type { KeyQuote } from "@/lib/queries/player";
+import { FoldPanel } from "./fold-panel";
 import { usePlayerControls } from "./player-context";
 
 /**
@@ -22,7 +23,6 @@ import { usePlayerControls } from "./player-context";
  */
 export function KeyQuotesList({ quotes }: { quotes: KeyQuote[] }) {
   const { seek } = usePlayerControls();
-  const [sectionOpen, setSectionOpen] = useState(false);
   const [openDetails, setOpenDetails] = useState<Set<number>>(() => new Set());
   if (quotes.length === 0) return null;
 
@@ -36,32 +36,8 @@ export function KeyQuotesList({ quotes }: { quotes: KeyQuote[] }) {
   };
 
   return (
-    <div className="flex shrink-0 flex-col gap-3 rounded-xl border border-border bg-card/40 p-5">
-      <button
-        type="button"
-        onClick={() => setSectionOpen((v) => !v)}
-        aria-expanded={sectionOpen}
-        aria-controls="key-quotes-list"
-        className="flex items-baseline justify-between gap-3 rounded-sm text-left transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <span className="flex items-center gap-2">
-          <ChevronDownIcon
-            aria-hidden
-            className={cn(
-              "size-3.5 text-muted-foreground transition-transform duration-200",
-              sectionOpen ? "rotate-0" : "-rotate-90",
-            )}
-          />
-          <h3 className="font-heading text-xs font-semibold tracking-[0.14em] uppercase">
-            Key quotes
-          </h3>
-        </span>
-        <p className="font-mono text-[11px] text-muted-foreground">
-          {quotes.length}
-        </p>
-      </button>
-      {sectionOpen ? (
-        <ol id="key-quotes-list" className="flex flex-col gap-4">
+    <FoldPanel title="Key quotes" aside={quotes.length}>
+        <ol className="flex flex-col gap-4">
           {quotes.map((q, i) => {
             const detailOpen = openDetails.has(i);
             return (
@@ -118,7 +94,6 @@ export function KeyQuotesList({ quotes }: { quotes: KeyQuote[] }) {
             );
           })}
         </ol>
-      ) : null}
-    </div>
+    </FoldPanel>
   );
 }

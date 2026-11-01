@@ -130,7 +130,7 @@ export function SearchInput({ initialValue = "" }: { initialValue?: string }) {
         placeholder="Search storytellers, titles, summaries…"
         value={value}
         onChange={(e) => onChange(e.currentTarget.value)}
-        aria-label="Search recordings"
+        aria-label="Search interviews"
         className={cn(
           "h-full min-w-0 flex-1 bg-transparent px-2.5 text-sm text-foreground placeholder:text-muted-foreground",
           "focus:outline-none [&::-webkit-search-cancel-button]:hidden",

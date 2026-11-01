@@ -48,7 +48,7 @@ export function AIAdvisoryLink({
           className,
         )}
       >
-        AI advisory
+        How AI was used
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg gap-6 p-6 sm:max-w-lg">

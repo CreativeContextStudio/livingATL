@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CheckIcon, CopyIcon, Share2Icon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { captureEvent } from "@/lib/analytics/posthog";
 import type { PortalCitation } from "@/app/api/portal/chat/route";
 
 /**
@@ -26,6 +27,7 @@ export function ShareAnswer({
   const [copied, setCopied] = useState(false);
 
   async function create() {
+    captureEvent("share_click", { surface: "portal" });
     setState({ kind: "saving" });
     try {
       const res = await fetch("/api/portal/share", {

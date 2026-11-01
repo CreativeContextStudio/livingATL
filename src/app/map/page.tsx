@@ -8,7 +8,7 @@ import {
   fetchBrowserRecordings,
   type BrowserFilter,
 } from "@/lib/queries/recordings";
-import { fetchNeighborhoodGeometries } from "@/lib/queries/map";
+import { fetchNeighborhoodGeometries, toMapRecording } from "@/lib/queries/map";
 import { requireArchiveAccess } from "@/lib/access-request";
 
 /**
@@ -79,9 +79,6 @@ export default async function MapPage({
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-6 py-8">
       <header className="flex flex-col gap-2">
-        <p className="font-mono text-xs tracking-[0.2em] text-muted-foreground uppercase">
-          Collection · Place
-        </p>
         <h1 className="font-heading text-3xl leading-tight font-bold tracking-tight sm:text-4xl">
           Atlanta, in place
         </h1>
@@ -97,7 +94,7 @@ export default async function MapPage({
       </header>
 
       <MapLoader
-        recordings={filtered}
+        recordings={filtered.map(toMapRecording)}
         allRecordingCount={totalRecordings}
         neighborhoods={neighborhoodGeometries}
         counts={counts}

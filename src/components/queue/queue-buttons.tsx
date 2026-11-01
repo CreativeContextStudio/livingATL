@@ -3,6 +3,7 @@
 import { CheckIcon, ListMusicIcon, ListPlusIcon, PlayIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { captureEvent } from "@/lib/analytics/posthog";
 import { formatSpeakerName } from "@/lib/format";
 import { useListeningQueue, type QueueItem } from "./listening-queue";
 
@@ -97,12 +98,29 @@ export function PlayCitationsButton({
 }
 
 /** Listening path (F-paths) → queue every step in order and start the first. */
-export function PlayPathButton({ moments, title }: { moments: QueueableMoment[]; title: string }) {
+export function PlayPathButton({
+  moments,
+  title,
+  slug,
+}: {
+  moments: QueueableMoment[];
+  title: string;
+  slug: string;
+}) {
   const { enqueue } = useListeningQueue();
-  const items = moments.map(momentQueueItem).filter((i): i is QueueItem => i !== null);
+  const items = moments
+    .map(momentQueueItem)
+    .filter((i): i is QueueItem => i !== null)
+    .map((i) => ({ ...i, path: slug }));
   if (items.length === 0) return null;
   return (
-    <Button onClick={() => enqueue(items, { play: true })} aria-label={`Play the whole path: ${title}`}>
+    <Button
+      onClick={() => {
+        captureEvent("path_start", { path: slug, steps: items.length });
+        enqueue(items, { play: true });
+      }}
+      aria-label={`Play the whole path: ${title}`}
+    >
       <PlayIcon aria-hidden className="size-4" />
       Play the whole path
     </Button>

@@ -28,7 +28,7 @@ import type { LucideIcon } from "lucide-react";
  * the rest of the site without introducing new visual grammar.
  */
 export const metadata: Metadata = {
-  title: "Contact · livingATL",
+  title: "Contact",
   description:
     "Reach the livingATL stewards (WRFG, Atlanta History Center, and Creative Context Studio) about the collection, the AI-augmented metadata, or anything that seems to undermine the goal of preserving authentic Atlanta voices.",
 };
@@ -82,8 +82,8 @@ const SUPPORT_TRACKS: SupportTrack[] = [
   {
     index: "03",
     label: "Volunteer reviewers",
-    heading: "Queue up for human review",
-    body: "Historians, archivists, and community members review AI-augmented transcripts and metadata before anything goes public. Low-confidence chunks and flagged sensitive passages sit in a queue that only ships after a human signs off. We're building the reviewer cohort now.",
+    heading: "Help review the drafts",
+    body: "The transcripts, chapters, summaries, and content notes online now are AI-drafted and awaiting human review. Historians, archivists, and community members will check them, starting with the recordings that carry content notes. We're building the reviewer cohort now.",
     cta: "Reviewer signup · Forthcoming",
     icon: UsersRoundIcon,
     accent: "bg-teal-500/15 text-teal-700 dark:text-teal-400",
@@ -105,7 +105,7 @@ const PARTNERS: Partner[] = [
     role: "Broadcast partner",
     name: "WRFG",
     descriptor: "Radio Free Georgia · 89.3 FM",
-    body: "Atlanta's community radio station. WRFG recorded the Living Atlanta interviews in the late 1970s, aired the series in the early 1980s, and later digitized the tapes.",
+    body: "Atlanta's community radio station. WRFG recorded the Living Atlanta interviews in the late 1970s and aired the series in the early 1980s.",
     accent: "bg-primary",
   },
   {
@@ -144,16 +144,13 @@ export default async function ContactPage({
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-6 py-10 lg:py-14">
       <header className="flex flex-col gap-3">
-        <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
-          Contact · Stewardship
-        </p>
         <h1 className="font-heading text-4xl leading-tight font-bold tracking-tight sm:text-5xl">
           Reach the stewards
         </h1>
         <p className="text-base leading-relaxed text-muted-foreground">
           livingATL is assembled and maintained by three partners. Use the
           form below to report an error, question an AI-authored summary, or,
-          if you are a narrator or a narrator&apos;s family, ask for a
+          if you are a storyteller or a storyteller&apos;s family, ask for a
           correction, restriction or takedown.
         </p>
       </header>
@@ -249,7 +246,7 @@ export default async function ContactPage({
         </div>
 
         <p className="text-sm leading-relaxed text-muted-foreground">
-          livingATL is actively seeking partners, sponsors, volunteer reviewers, and creative collaborators. The recordings and briefs are not accessible until they clear human review.
+          livingATL is actively seeking partners, sponsors, volunteer reviewers, and creative collaborators. This invite-only preview shows AI-drafted material that is still awaiting human review.
         </p>
 
         <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

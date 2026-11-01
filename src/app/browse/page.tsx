@@ -102,28 +102,11 @@ export default async function BrowsePage({
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10 lg:py-14">
       <header className="flex flex-col gap-3">
-        <p className="font-mono text-xs tracking-[0.2em] text-muted-foreground uppercase">
-          Collection
-        </p>
         <h1 className="font-heading text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
           Atlanta, in its own voice
         </h1>
         <p className="text-base leading-relaxed text-muted-foreground">
-          The Living Atlanta collection (1914–1977).
-          <br />
-          Filter by era, neighborhood, or theme; search across storytellers,
-          titles, and summaries.
-        </p>
-        <p className="text-sm text-muted-foreground">
-          New here? Start with a{" "}
-          <Link href="/paths" className="font-medium text-primary-ink underline-offset-4 hover:underline">
-            listening path
-          </Link>{" "}
-          or explore by{" "}
-          <Link href="/places" className="font-medium text-primary-ink underline-offset-4 hover:underline">
-            neighborhood
-          </Link>
-          .
+          Filter by era, neighborhood, or theme, or search for a name.
         </p>
       </header>
 
@@ -187,7 +170,7 @@ function EmptyState() {
   return (
     <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card/40 px-6 py-16 text-center">
       <p className="font-heading text-lg font-semibold">
-        No recordings match those filters yet.
+        No interviews match those filters yet.
       </p>
       <p className="max-w-md text-sm text-muted-foreground">
         Try removing a filter, widening your era or theme selection, or

@@ -5,6 +5,7 @@ import { PlayIcon, RotateCcwIcon } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { captureEvent } from "@/lib/analytics/posthog";
 import { formatTimestamp } from "@/lib/player";
 import { readResume, writeResume } from "@/lib/resume";
 import { usePlayer } from "./player-context";
@@ -56,9 +57,15 @@ export function ResumeBanner({ catalogNumber }: { catalogNumber: string }) {
   }, [isPlaying, catalogNumber, timeStore]);
 
   const deepLinked = searchParams.has("t");
-  if (!saved || deepLinked || dismissed || !isReady || started) {
-    return null;
-  }
+  const offering = Boolean(saved) && !deepLinked && !dismissed && isReady && !started;
+  const offeredRef = useRef(false);
+  useEffect(() => {
+    if (!offering || offeredRef.current) return;
+    offeredRef.current = true;
+    captureEvent("resume_offered", { catalog: catalogNumber });
+  }, [offering, catalogNumber]);
+
+  if (!saved || !offering) return null;
 
   const at = formatTimestamp(saved);
   return (
@@ -70,13 +77,21 @@ export function ResumeBanner({ catalogNumber }: { catalogNumber: string }) {
         You were at <span className="font-mono tabular-nums">{at}</span> last time.
       </p>
       <div className="flex items-center gap-2">
-        <Button size="sm" variant="outline" onClick={() => setDismissed(true)}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            captureEvent("resume_restart", { catalog: catalogNumber });
+            setDismissed(true);
+          }}
+        >
           <RotateCcwIcon aria-hidden className="size-3.5" />
           Start from the beginning
         </Button>
         <Button
           size="sm"
           onClick={() => {
+            captureEvent("resume_continue", { catalog: catalogNumber, position: Math.round(saved) });
             setDismissed(true);
             seekAndPlay(saved);
           }}

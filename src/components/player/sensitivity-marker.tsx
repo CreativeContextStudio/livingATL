@@ -67,7 +67,7 @@ export function SensitivityMarker({ span }: { span: FlaggedSpan }) {
           render={
             <button
               type="button"
-              aria-label={`Content notice: ${humanCategory(span.category)}`}
+              aria-label={`Content note: ${humanCategory(span.category)}`}
               className={cn(
                 "inline-flex size-4 shrink-0 items-center justify-center rounded-full text-[color:var(--color-warning-ink)] transition-[background]",
                 weight.bg,

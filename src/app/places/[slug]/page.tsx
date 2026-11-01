@@ -43,8 +43,8 @@ export async function generateMetadata({
   const name = await resolvePlace((await params).slug);
   return name
     ? {
-        title: `${name} · Places · livingATL`,
-        description: `Recordings and moments from the Living Atlanta oral histories that touch ${name}.`,
+        title: `${name} · Places`,
+        description: `Interviews and chapters from the Living Atlanta oral histories that touch ${name}.`,
       }
     : {};
 }
@@ -101,7 +101,7 @@ export default async function PlacePage({ params }: { params: Promise<{ slug: st
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-6 py-10">
       <header className="flex flex-col gap-4">
-        <nav aria-label="Breadcrumb" className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
+        <nav aria-label="Breadcrumb" className="[&_a]:inline-flex [&_a]:min-h-6 [&_a]:items-center pointer-coarse:[&_a]:min-h-11 font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
           <Link href="/places" className="hover:text-foreground hover:underline underline-offset-4">
             Places
           </Link>{" "}
@@ -112,7 +112,7 @@ export default async function PlacePage({ params }: { params: Promise<{ slug: st
           <h1 className="font-heading text-4xl font-bold leading-tight tracking-tight sm:text-5xl">{name}</h1>
         </div>
         <p className="text-sm text-muted-foreground">
-          {recordings.length} recording{recordings.length === 1 ? "" : "s"} · {moments.length} moment
+          {recordings.length} recording{recordings.length === 1 ? "" : "s"} · {moments.length} chapter
           {moments.length === 1 ? "" : "s"}
           {span ? ` · stories spanning ${span}` : ""}
         </p>
@@ -121,10 +121,10 @@ export default async function PlacePage({ params }: { params: Promise<{ slug: st
             See on the map
           </PlaceLink>
           <PlaceLink href={`/timeline?neighborhoods=${q}`} icon={CalendarRangeIcon}>
-            Moments on the timeline
+            Chapters on the timeline
           </PlaceLink>
           <PlaceLink href={`/browse?neighborhood=${q}`} icon={LibraryIcon}>
-            Browse recordings
+            Browse interviews
           </PlaceLink>
         </div>
       </header>
@@ -185,7 +185,7 @@ export default async function PlacePage({ params }: { params: Promise<{ slug: st
         <section aria-labelledby="place-moments" className="flex flex-col gap-3">
           <div className="flex items-baseline justify-between gap-3">
             <h2 id="place-moments" className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
-              Moments set in {name}
+              Chapters set in {name}
             </h2>
             {moments.length > shown.length ? (
               <Link
@@ -216,7 +216,7 @@ export default async function PlacePage({ params }: { params: Promise<{ slug: st
                 <h3 className="font-heading font-semibold leading-snug">
                   <Link
                     href={`/player/${encodeURIComponent(m.catalogNumber)}?t=${formatTimestamp(m.startTime)}`}
-                    className="hover:underline underline-offset-4"
+                    className="inline-flex min-h-6 items-center pointer-coarse:min-h-11 hover:underline underline-offset-4"
                   >
                     {m.title}
                   </Link>

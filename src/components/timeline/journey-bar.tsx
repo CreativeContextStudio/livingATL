@@ -45,7 +45,7 @@ function stepYear(m: TimelineMoment): string {
 
 export function JourneyBar({ journey, onStep, onToggleListen, onScope, onClose }: Props) {
   const { position, total, progress, earlier, later, scope, canScopeHighlights, listening, canListen } = journey;
-  const noun = scope === "highlights" && canScopeHighlights ? "highlights" : "stories";
+  const noun = scope === "highlights" && canScopeHighlights ? "highlights" : "chapters";
   return (
     <div className="sticky top-0 z-10 flex flex-col gap-3 border-b border-border bg-card/95 px-4 pb-3 pt-4 backdrop-blur supports-backdrop-filter:bg-card/85">
       <div className="flex items-center gap-2">
@@ -79,7 +79,7 @@ export function JourneyBar({ journey, onStep, onToggleListen, onScope, onClose }
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close story"
+          aria-label="Close chapter"
           className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:size-11"
         >
           <XIcon aria-hidden className="size-3.5" />
@@ -112,7 +112,7 @@ export function JourneyBar({ journey, onStep, onToggleListen, onScope, onClose }
                 onClick={() => onScope(s)}
                 aria-pressed={scope === s}
                 // Distinct from the toolbar's "Highlights" filter.
-                aria-label={s === "highlights" ? "Journey through highlights" : "Journey through all stories"}
+                aria-label={s === "highlights" ? "Journey through highlights" : "Journey through all chapters"}
                 className={cn(
                   "h-7 rounded-full px-2.5 font-mono text-[10px] tracking-[0.14em] uppercase transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:h-9",
                   scope === s ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
@@ -137,7 +137,7 @@ function StepButton({
   target: TimelineMoment | null;
   onStep: (dir: -1 | 1) => void;
 }) {
-  const label = dir < 0 ? "Earlier story" : "Later story";
+  const label = dir < 0 ? "Earlier chapter" : "Later chapter";
   return (
     <button
       type="button"

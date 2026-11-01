@@ -5,6 +5,40 @@ import { unstable_cache } from "next/cache";
 
 import { db } from "@/db";
 import { neighborhoods } from "@/db/schema";
+import type { BrowserRecording } from "@/lib/queries/recordings";
+
+/**
+ * What the Map sends to the browser per recording: only the fields the pin
+ * counts and the preview cards use, with the card's one-line summary. The full Browser row carries both long summaries for every
+ * recording (~350 KB of page data for the collection); this is ~10x smaller.
+ */
+export type MapRecording = Pick<
+  BrowserRecording,
+  | "id"
+  | "catalogNumber"
+  | "title"
+  | "durationSeconds"
+  | "recordingDate"
+  | "recordingDatePrecision"
+  | "contentAdvisory"
+  | "neighborhoods"
+  | "interviewees"
+> & { summary: string };
+
+export function toMapRecording(r: BrowserRecording): MapRecording {
+  return {
+    id: r.id,
+    catalogNumber: r.catalogNumber,
+    title: r.title,
+    durationSeconds: r.durationSeconds,
+    recordingDate: r.recordingDate,
+    recordingDatePrecision: r.recordingDatePrecision,
+    contentAdvisory: r.contentAdvisory,
+    neighborhoods: r.neighborhoods,
+    interviewees: r.interviewees,
+    summary: r.cardLine,
+  };
+}
 
 export type NeighborhoodGeometryKind =
   | "polygon"

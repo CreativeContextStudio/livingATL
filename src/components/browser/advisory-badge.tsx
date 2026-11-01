@@ -22,13 +22,13 @@ export function AdvisoryBadge({
     <Badge
       variant="outline"
       className="gap-1.5 border-[color:var(--color-warning)]/40 bg-[color:var(--color-warning)]/10 px-2 text-[10px] font-semibold tracking-[0.14em] text-[color:var(--color-warning-ink)] uppercase"
-      title={`Advisory: ${advisory.advisory_version ?? "current"}`}
+      title="This recording opens with a content note"
     >
       <span
         aria-hidden
         className="inline-block size-1.5 rounded-full bg-[color:var(--color-warning)]"
       />
-      Advisory
+      Content note
     </Badge>
   );
 }

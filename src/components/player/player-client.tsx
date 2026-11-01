@@ -456,7 +456,7 @@ export function PlayerClient({
                   overview so the listener arrives oriented, not idle.
                   Fades out on `isReady`; `pointer-events-none` so hovering
                   chapters still works during the fade tail. */}
-              {data.briefOverview ? (
+              {data.cardLine ? (
                 <div
                   className={cn(
                     "pointer-events-none absolute inset-0 flex items-center justify-center bg-background/90 px-6 backdrop-blur-sm transition-opacity duration-500",
@@ -466,10 +466,10 @@ export function PlayerClient({
                 >
                   <div className="flex max-w-xl flex-col items-center gap-2 text-center">
                     <p className="font-mono text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground">
-                      Preparing recording
+                      Getting the audio ready
                     </p>
                     <p className="text-sm leading-relaxed text-foreground/80 line-clamp-3">
-                      {data.briefOverview}
+                      {data.cardLine}
                     </p>
                   </div>
                 </div>
@@ -550,10 +550,15 @@ export function PlayerClient({
                   column. On narrow screens this stacks vertically. The
                   transcript is always open — no accordion. */}
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                <div className="flex items-center gap-3 self-start">
-                  <h2 className="font-heading text-xs font-semibold tracking-[0.14em] uppercase">
-                    Transcript
-                  </h2>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 self-start">
+                  <div className="flex flex-col">
+                    <h2 className="font-heading text-xs font-semibold tracking-[0.14em] uppercase">
+                      Transcript
+                    </h2>
+                    <p className="text-[11px] leading-tight text-muted-foreground">
+                      Machine transcript; may contain errors
+                    </p>
+                  </div>
                   <Button
                     size="xs"
                     variant={followAlong ? "secondary" : "ghost"}
@@ -578,9 +583,6 @@ export function PlayerClient({
                     onNext={onSearchNext}
                     onPrev={onSearchPrev}
                   />
-                  <p className="font-mono text-[11px] text-muted-foreground">
-                    {data.transcriptSegments.length} segments
-                  </p>
                 </div>
               </div>
               <TranscriptPane

@@ -7,7 +7,6 @@ import { AdvisoryBadge } from "@/components/browser/advisory-badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  firstSentence,
   formatDuration,
   formatRecordingDate,
   formatSpeakerName,
@@ -15,7 +14,7 @@ import {
 } from "@/lib/format";
 import { placeHref } from "@/lib/places";
 import { cn } from "@/lib/utils";
-import type { BrowserRecording } from "@/lib/queries/recordings";
+import type { MapRecording } from "@/lib/queries/map";
 
 /**
  * Side panel shown to the right of the Map. Two states:
@@ -38,7 +37,7 @@ export function NeighborhoodPreview({
   className,
 }: {
   activeNeighborhood: string | null;
-  recordings: BrowserRecording[];
+  recordings: MapRecording[];
   total: number;
   onClose: () => void;
   /** Optional overrides — used by the mobile bottom-sheet to strip the
@@ -58,7 +57,7 @@ export function NeighborhoodPreview({
         </p>
         <p className="mt-3 max-w-xs text-xs leading-relaxed text-muted-foreground">
           Click any pin to hear the storytellers whose lives unfolded there.
-          Pin size tracks how many recordings touch that place.
+          Pin size tracks how many interviews touch that place.
         </p>
       </aside>
     );
@@ -106,7 +105,7 @@ export function NeighborhoodPreview({
         <ul className="flex flex-col gap-2 p-4">
           {recordings.length === 0 ? (
             <li className="px-2 py-4 text-center text-xs text-muted-foreground">
-              No recordings in the current filter touch {activeNeighborhood}.
+              No interviews in the current filter touch {activeNeighborhood}.
             </li>
           ) : null}
           {recordings.map((r) => {
@@ -117,10 +116,6 @@ export function NeighborhoodPreview({
             const label = interviewee
               ? `${formatSpeakerName(interviewee.name)}${life}`
               : titleForCard(r.title);
-            const summary = firstSentence(
-              r.briefOverview ?? r.aiSummary,
-              160,
-            );
             return (
               <li key={r.id}>
                 <Link
@@ -135,8 +130,8 @@ export function NeighborhoodPreview({
                       <AdvisoryBadge advisory={r.contentAdvisory} />
                     ) : null}
                   </div>
-                  <p className="text-xs leading-relaxed text-muted-foreground line-clamp-2">
-                    {summary}
+                  <p className="text-xs leading-relaxed text-muted-foreground line-clamp-3">
+                    {r.summary}
                   </p>
                   <p className="font-mono text-[10px] tabular-nums text-muted-foreground">
                     {formatDuration(r.durationSeconds)} ·{" "}

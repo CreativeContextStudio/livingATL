@@ -9,7 +9,7 @@ import { SiteHeader } from "@/components/shell/site-header";
 import { GATE_COOKIE, canViewArchive, resolveAccess } from "@/lib/access";
 import { nonceFromCsp } from "@/lib/csp";
 import { siteUrl } from "@/lib/site-url";
-import { THEME_COOKIE, resolveTheme } from "@/lib/theme";
+import { THEME_BACKGROUND, THEME_COOKIE, resolveTheme } from "@/lib/theme";
 import "./globals.css";
 import { ListeningQueueProvider } from "@/components/queue/listening-queue";
 
@@ -56,15 +56,15 @@ export const metadata: Metadata = {
     "A public platform where Atlanta's stories live, grow, and find their way back into the spaces where they happened.",
 };
 
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fff8f5" },
-    { media: "(prefers-color-scheme: dark)", color: "#232326" },
-  ],
-};
+export async function generateViewport(): Promise<Viewport> {
+  const theme = resolveTheme((await cookies()).get(THEME_COOKIE)?.value);
+  return {
+    width: "device-width",
+    initialScale: 1,
+    viewportFit: "cover",
+    themeColor: THEME_BACKGROUND[theme],
+  };
+}
 
 export default async function RootLayout({
   children,

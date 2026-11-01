@@ -1,11 +1,11 @@
 /**
  * Portal empty-state prompt library.
  *
- * Grounded in the corpus's canonical narrators, neighborhoods, events, and
+ * Grounded in the corpus's canonical storytellers, neighborhoods, events, and
  * institutions (see `livingatl-pipeline/scripts/config.py` for the canonical
  * vocabulary and `evals/ai-portal/evals.jsonl` for the eval-confirmed
  * material). Every prompt names something real that lives in the archive:
- * a named narrator, a named neighborhood, a named event, or a named
+ * a named storyteller, a named neighborhood, a named event, or a named
  * institution.
  *
  * Scope: the corpus covers 1914–1977. Prompts about post-1977 Atlanta
@@ -19,7 +19,7 @@
  * topics) and expanded via config.py's theme/neighborhood/event taxonomies.
  *
  * Voice: conversational but grounded. Specific over generic — "what did
- * narrators remember about Auburn Avenue nightlife in the 1940s" beats
+ * storytellers remember about Auburn Avenue nightlife in the 1940s" beats
  * "tell me about Auburn Avenue". Under ~95 characters per prompt so the
  * existing chip-style card keeps a clean two-line max.
  */
@@ -55,29 +55,29 @@ export const PROMPT_LIBRARY: ReadonlyArray<PromptGroup> = [
     prompts: [
       "What did Atlanta feel like in the 1940s?",
       "How did life change for Black Atlantans from the 1920s to the 1970s?",
-      "What do narrators remember about the 1906 Atlanta Race Massacre?",
+      "What do storytellers remember about the 1906 Atlanta Race Massacre?",
       "What did interviewees witness during the 1917 Great Fire?",
       "How did the Great Depression reshape daily life in Atlanta?",
       "What was the 1934 Textile Workers' Strike like for mill families?",
       "How did World War I change Atlanta's Black business district?",
-      "What did narrators remember about WWII on the home front?",
+      "What did storytellers remember about WWII on the home front?",
       "What was the Jim Crow streetcar like before desegregation?",
-      "How did narrators describe the arrival of electricity in their homes?",
+      "How did storytellers describe the arrival of electricity in their homes?",
       "What do interviews say about the 1946 Columbia, Tennessee race riot's aftermath in Atlanta?",
-      "How did narrators describe the first Black voter registration drives?",
+      "How did storytellers describe the first Black voter registration drives?",
       "What did Atlanta look like during Prohibition and early bootlegging?",
       "How did wages and working hours change between the 1920s and 1960s?",
-      "What do narrators say about the 1930s fight to unionize cotton mills?",
-      "How did segregation in public accommodations end, according to narrators?",
+      "What do storytellers say about the 1930s fight to unionize cotton mills?",
+      "How did segregation in public accommodations end, according to storytellers?",
       "What was it like to grow up poor in 1920s Atlanta?",
       "How did radio change entertainment for Atlanta families in the 1930s?",
-      "What did narrators remember about the Angelo Herndon trial?",
+      "What did storytellers remember about the Angelo Herndon trial?",
       "How did housing change after University Homes opened in 1937?",
       "What do interviews say about returning Black veterans after WWII?",
       "How did Atlanta's streetcars and buses desegregate in the 1950s?",
       "What was the 1960s school integration fight like from the inside?",
       "How did the New Deal reach working-class Atlantans?",
-      "What do narrators say about voting rights victories in the 1940s?",
+      "What do storytellers say about voting rights victories in the 1940s?",
       "What did Black Atlantans do for fun in the pre-WWII years?",
       "How did medicine and home remedies work before hospitals were open to all?",
       "How did the cotton economy shape early 20th-century Atlanta life?",
@@ -94,32 +94,32 @@ export const PROMPT_LIBRARY: ReadonlyArray<PromptGroup> = [
     prompts: [
       "Tell me about the music scene on Auburn Avenue.",
       "What was Summerhill like before the stadium?",
-      "What do narrators remember about Sweet Auburn in its heyday?",
+      "What do storytellers remember about Sweet Auburn in its heyday?",
       "How did Cabbagetown's mill workers live in the 1930s?",
       "What was it like to move into University Homes in 1937?",
-      "How did narrators describe the Pittsburgh neighborhood in the 1920s?",
+      "How did storytellers describe the Pittsburgh neighborhood in the 1920s?",
       "What businesses lined Auburn Avenue before urban renewal?",
       "What do interviews say about Beaver Slide before it was cleared?",
       "How did Vine City change between the 1930s and the 1970s?",
-      "What was the Old Fourth Ward like when narrators were growing up?",
-      "How did narrators describe West End before integration?",
+      "What was the Old Fourth Ward like when storytellers were growing up?",
+      "How did storytellers describe West End before integration?",
       "What do interviews say about the Georgian Terrace Hotel from staff who worked there?",
       "What was Buckhead like from the perspective of Black workers in white homes?",
       "How did Mechanicsville families experience the Depression?",
-      "What do narrators remember about Courtland Street boarding houses?",
-      "How did narrators describe Atlanta University Center in the 1930s and 40s?",
+      "What do storytellers remember about Courtland Street boarding houses?",
+      "How did storytellers describe Atlanta University Center in the 1930s and 40s?",
       "What do interviews say about Wheat Street Baptist Church's role on Auburn Avenue?",
       "What was the Decatur area like for rural-to-urban migrants?",
       "How did the Exposition Cotton Mills shape life in its surrounding neighborhood?",
-      "What do narrators say about East Point before annexation?",
-      "How did narrators describe Boulevard and Memorial Drive in the 1920s?",
+      "What do storytellers say about East Point before annexation?",
+      "How did storytellers describe Boulevard and Memorial Drive in the 1920s?",
       "What was the Royal Peacock and Auburn Avenue nightlife like?",
       "How did Collier Heights grow into a Black middle-class enclave?",
       "What do interviews say about the block around Fulton Bag & Cotton Mill?",
-      "How did narrators describe Hunter Street before it was renamed?",
+      "How did storytellers describe Hunter Street before it was renamed?",
       "What do interviews say about segregated Grant Park and Piedmont Park?",
       "How did the Ashby Street corridor change across the decades?",
-      "What do narrators remember about the Black side of Marietta Street?",
+      "What do storytellers remember about the Black side of Marietta Street?",
     ],
   },
   {
@@ -139,27 +139,27 @@ export const PROMPT_LIBRARY: ReadonlyArray<PromptGroup> = [
       "How did L.D. Milton build Citizens Trust Bank on Auburn Avenue?",
       "What was William Holmes Borders's role in Atlanta's civil rights fight?",
       "How did Clarence Bacote teach Black Atlantans about voting?",
-      "Which narrators describe personal encounters with the Ku Klux Klan?",
+      "Which storytellers describe personal encounters with the Ku Klux Klan?",
       "What did Arthur Idlett remember about playing for the Atlanta Black Crackers?",
       "How did Nannie Washburn come to join the Communist Party?",
       "What does Marian Doom say about Atlanta's washerwomen and domestic workers?",
-      "How did narrators describe the Angelo Herndon trial and its meaning?",
+      "How did storytellers describe the Angelo Herndon trial and its meaning?",
       "Who organized the first Black voter registration drives in Atlanta?",
-      "What did narrators say about John Hope and Morehouse College?",
-      "How did the NAACP show up in narrators' lives?",
+      "What did storytellers say about John Hope and Morehouse College?",
+      "How did the NAACP show up in storytellers' lives?",
       "What role did Wheat Street Baptist Church play in Atlanta organizing?",
-      "How did the SCLC figure into narrators' memories of the movement?",
-      "Who were the washerwomen organizers narrators remember by name?",
-      "What did narrators say about Eugene Talmadge and Georgia politics?",
+      "How did the SCLC figure into storytellers' memories of the movement?",
+      "Who were the washerwomen organizers storytellers remember by name?",
+      "What did storytellers say about Eugene Talmadge and Georgia politics?",
       "How does James 'Red' Moore describe Atlanta baseball's Black leagues?",
-      "What do narrators remember about E. Bernard West, who conducted many interviews?",
+      "What do storytellers remember about E. Bernard West, who conducted many interviews?",
       "Who fought for school integration from inside Atlanta schools?",
-      "What do narrators say about Booker T. Washington High School?",
+      "What do storytellers say about Booker T. Washington High School?",
       "How did Heman Perry build Atlanta's early Black insurance industry?",
-      "Which narrators describe the Atlanta Civic and Political League's work?",
-      "How did narrators describe Clayton Yates and the Yates and Milton Drugstore?",
-      "What did women narrators say about organizing domestic labor?",
-      "How did narrators describe the All-Citizens Registration Committee?",
+      "Which storytellers describe the Atlanta Civic and Political League's work?",
+      "How did storytellers describe Clayton Yates and the Yates and Milton Drugstore?",
+      "What did women storytellers say about organizing domestic labor?",
+      "How did storytellers describe the All-Citizens Registration Committee?",
     ],
   },
 ] as const;

@@ -16,6 +16,7 @@ import { usePathname } from "next/navigation";
 import { ListMusicIcon, PauseIcon, PlayIcon, SkipForwardIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { captureEvent } from "@/lib/analytics/posthog";
 import { formatTimestamp } from "@/lib/player";
 
 /**
@@ -38,6 +39,8 @@ export type QueueItem = {
   audioUrl: string;
   start: number;
   end: number;
+  /** Set when queued as part of a listening path (`path_complete`). */
+  path?: string;
 };
 
 type QueueApi = {
@@ -96,6 +99,11 @@ export function ListeningQueueProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "/";
   const onPlayerPage = pathname.startsWith("/player/");
   const current = currentIndex >= 0 ? items[currentIndex] : undefined;
+  // Last clip reported as played to its end; a clip's tail can fire both
+  // `timeupdate` and `ended`.
+  const finishedRef = useRef<string | null>(null);
+  // Clips played to the end this visit, for `path_complete`.
+  const completedRef = useRef(new Set<string>());
 
   useEffect(() => {
     try {
@@ -111,6 +119,7 @@ export function ListeningQueueProvider({ children }: { children: ReactNode }) {
       const item = list[index];
       if (!audio || !item) return;
       setCurrentIndex(index);
+      finishedRef.current = null;
       const src = new URL(item.audioUrl, window.location.href).toString();
       const start = () => {
         audio.currentTime = item.start;
@@ -129,10 +138,18 @@ export function ListeningQueueProvider({ children }: { children: ReactNode }) {
 
   const enqueue = useCallback<QueueApi["enqueue"]>(
     (incoming, opts) => {
+      captureEvent("queue_add", {
+        count: incoming.length,
+        play: Boolean(opts?.play),
+        surface: window.location.pathname.split("/")[1] || "home",
+      });
+      const byId = new Map(incoming.map((i) => [i.id, i]));
       setItems((prev) => {
         const known = new Set(prev.map((i) => i.id));
         const fresh = incoming.filter((i) => !known.has(i.id));
-        const next = [...prev, ...fresh];
+        // A clip already queued on its own still counts toward a path.
+        const kept = prev.map((i) => (byId.get(i.id)?.path ? { ...i, path: byId.get(i.id)?.path } : i));
+        const next = [...kept, ...fresh];
         if (opts?.play) {
           // Start at the first item passed in, wherever it sits — even if
           // it (or a later one) was already queued. After this state
@@ -160,12 +177,27 @@ export function ListeningQueueProvider({ children }: { children: ReactNode }) {
     }
   }, [currentIndex, items, playIndex]);
 
+  // The current clip played to its end (not skipped).
+  const finishClip = () => {
+    if (current && finishedRef.current !== current.id) {
+      finishedRef.current = current.id;
+      captureEvent("queue_item_complete", { catalog: current.catalogNumber, path: current.path ?? null });
+      completedRef.current.add(current.id);
+      const steps = items.filter((i) => current.path && i.path === current.path);
+      if (steps.length > 0 && steps.every((i) => completedRef.current.has(i.id))) {
+        captureEvent("path_complete", { path: current.path });
+        for (const step of steps) completedRef.current.delete(step.id);
+      }
+    }
+    next();
+  };
+
   // Advance when the current clip's range is done.
   const onTimeUpdate = () => {
     const audio = audioRef.current;
     if (!audio || !current) return;
     setPosition(audio.currentTime);
-    if (audio.currentTime >= current.end - 0.05) next();
+    if (audio.currentTime >= current.end - 0.05) finishClip();
   };
 
   // The Player page owns playback there.
@@ -239,7 +271,7 @@ export function ListeningQueueProvider({ children }: { children: ReactNode }) {
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onTimeUpdate={onTimeUpdate}
-        onEnded={next}
+        onEnded={finishClip}
       />
       {showBar ? (
         <>
@@ -247,7 +279,7 @@ export function ListeningQueueProvider({ children }: { children: ReactNode }) {
           <div aria-hidden className="h-16 print:hidden" />
           <section
             aria-label="Listening queue"
-            className="fixed inset-x-0 bottom-0 z-[var(--z-overlay)] print:hidden border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+            className="fixed inset-x-0 bottom-0 z-[var(--z-overlay)] print:hidden border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] backdrop-blur"
           >
             {open ? (
               <ol className="mx-auto max-h-[40dvh] w-full max-w-7xl overflow-y-auto border-b border-border px-4 py-2">

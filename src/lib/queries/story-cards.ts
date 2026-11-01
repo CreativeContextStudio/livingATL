@@ -4,6 +4,7 @@ import QRCode from "qrcode";
 
 import { formatSpeakerName } from "@/lib/format";
 import { findPath, momentKey } from "@/lib/paths";
+import { hasSlur } from "@/lib/off-site-text";
 import { contentNotesFor, formatTimestamp, humanCategory } from "@/lib/player";
 import { fetchPlayerData, type PlayerData } from "@/lib/queries/player";
 import { fetchTimelineData } from "@/lib/queries/timeline";
@@ -14,13 +15,18 @@ import { momentRange, narratorQuote } from "@/lib/story-cards";
  * Story cards for a listening path or one recording's highlights (F-story).
  * Each card: the narrator's words for the moment, who/where/when, and a QR
  * code (inline SVG, rendered here — no client JS) that opens that exact
- * clip in the Player.
+ * clip in the Player. A card cut from the sheet has no pre-playback note in
+ * front of it, so a flagged passage isn't quoted: the card carries the
+ * recording's card line and a content note, and the QR leads to the audio.
  */
 
 export type StoryCard = {
   key: string;
   title: string;
-  quote: string;
+  /** The narrator's words; null when the passage is flagged. */
+  quote: string | null;
+  /** Shown instead of `quote` (the recording's card line). */
+  line: string;
   speaker: string;
   place: string | null;
   era: string | null;
@@ -59,10 +65,15 @@ async function toCard(pick: Pick, data: PlayerData): Promise<StoryCard> {
     `/player/${encodeURIComponent(pick.catalogNumber)}?t=${formatTimestamp(pick.start)}&end=${formatTimestamp(pick.end)}`,
     siteUrl(),
   ).toString();
+  const words = narratorQuote(data.transcriptSegments, pick.start, pick.end);
+  const notes = contentNotesFor(data.flaggedSpans, pick.start, pick.end).map((n) => humanCategory(n.category));
+  // Spans can miss a passage; a slur in the words themselves still counts.
+  if (notes.length === 0 && hasSlur(words)) notes.push(humanCategory("period_racial_slurs"));
   return {
     key: momentKey(pick.catalogNumber, pick.momentIndex),
     title: pick.title,
-    quote: narratorQuote(data.transcriptSegments, pick.start, pick.end),
+    quote: notes.length > 0 ? null : words,
+    line: data.cardLine,
     speaker: interviewee ? formatSpeakerName(interviewee.name) : data.title,
     place: pick.neighborhoods[0] ?? data.neighborhoods[0] ?? null,
     era: pick.era,
@@ -71,12 +82,7 @@ async function toCard(pick: Pick, data: PlayerData): Promise<StoryCard> {
     range: `${formatTimestamp(pick.start)}–${formatTimestamp(pick.end)}`,
     url,
     qrSvg: await QRCode.toString(url, { type: "svg", margin: 0, errorCorrectionLevel: "M" }),
-    // A card cut from the sheet has no pre-playback gate in front of it, so
-    // it carries its own notice when the clip overlaps a flagged passage.
-    notice:
-      contentNotesFor(data.flaggedSpans, pick.start, pick.end)
-        .map((n) => humanCategory(n.category))
-        .join(", ") || null,
+    notice: notes.join(", ") || null,
   };
 }
 

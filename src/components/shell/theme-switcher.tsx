@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import {
   THEME_COOKIE,
+  THEME_BACKGROUND,
   THEME_COOKIE_MAX_AGE_S,
   THEME_LABELS,
   THEMES,
@@ -46,6 +47,7 @@ export function ThemeSwitcher({ initialTheme }: { initialTheme: Theme }) {
     if (!isValidTheme(next)) return;
     setTheme(next);
     document.documentElement.dataset.theme = next;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_BACKGROUND[next]);
     writeThemeCookie(next);
   }, []);
 
@@ -53,7 +55,7 @@ export function ThemeSwitcher({ initialTheme }: { initialTheme: Theme }) {
     <Select value={theme} onValueChange={onChange}>
       <SelectTrigger
         aria-label={`Theme: ${THEME_LABELS[theme]}`}
-        className="size-9 justify-center rounded-lg px-0"
+        className="size-9 justify-center rounded-lg px-0 pointer-coarse:size-11"
       >
         <PaletteIcon aria-hidden className="size-4 text-muted-foreground" />
         <SelectValue className="sr-only">

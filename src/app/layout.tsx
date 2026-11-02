@@ -46,6 +46,10 @@ const jetBrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+// A stalled database query must fail fast, not hold a visitor for Vercel's
+// 300-second default. No page here needs more than a few seconds.
+export const maxDuration = 30;
+
 export const metadata: Metadata = {
   metadataBase: siteUrl(),
   title: {

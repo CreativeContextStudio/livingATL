@@ -22,9 +22,19 @@ if (!databaseUrl) {
  * which multiplexes clients onto a few server connections.
  *
  * `prepare: false` is required in transaction-pooling mode.
+ *
+ * `max_pipeline: 0` keeps each connection to one query at a time. postgres.js
+ * pipelines by default and pairs answers with queries by order alone, so one
+ * lost answer hands every later query the wrong result and then stalls the
+ * connection. That happened in production twice on 2026-11-01. With this off,
+ * a lost answer can only stall its own query. It has to be 0: the query in
+ * flight isn't counted, so 1 still sends two.
  */
+const noPipelining = { max_pipeline: 0 }; // honored, but missing from the package's types
+
 function createClient(url: string) {
   return postgres(url, {
+    ...noPipelining,
     prepare: false,
     max: Number(process.env.DATABASE_POOL_MAX ?? 4),
     idle_timeout: 20,

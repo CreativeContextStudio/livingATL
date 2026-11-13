@@ -133,7 +133,6 @@ export type PlayerData = {
 
   // Metadata
   aiSummary: string | null;
-  modernContextNotes: string | null;
   themes: string[];
   neighborhoods: string[];
   organizations: TaggedOrganization[];
@@ -233,7 +232,6 @@ export async function fetchPlayerData(
       rightsHolder: recordings.rightsHolder,
       license: recordings.license,
       aiSummary: metadataExtracted.aiSummary,
-      modernContextNotes: metadataExtracted.modernContextNotes,
       themes: metadataExtracted.themes,
       neighborhoods: metadataExtracted.neighborhoods,
       organizations: metadataExtracted.organizations,
@@ -314,7 +312,6 @@ export async function fetchPlayerData(
     transcriptLowConfidenceCount:
       transcriptRow?.lowConfidenceSegments ?? 0,
     aiSummary: row.aiSummary,
-    modernContextNotes: row.modernContextNotes,
     themes: row.themes ?? [],
     neighborhoods: row.neighborhoods ?? [],
     // organizations / historical_events are jsonb arrays of tagged objects
@@ -331,7 +328,15 @@ export async function fetchPlayerData(
     cardLine: brief?.card_line ?? cardSummary(brief?.overview ?? row.aiSummary, 220),
     briefMoments: brief?.moments ?? [],
     flaggedSpans: sensitivity?.flagged_spans ?? [],
-    keyQuotes: (row.keyQuotes ?? []) as KeyQuote[],
+    // Named fields only: the stored quotes also carry editors' correction notes.
+    keyQuotes: ((row.keyQuotes ?? []) as KeyQuote[]).map(
+      ({ text, context, start_time, end_time }) => ({
+        text,
+        context,
+        start_time,
+        end_time,
+      }),
+    ),
   };
 }
 

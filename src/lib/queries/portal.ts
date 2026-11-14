@@ -1,8 +1,10 @@
 import "server-only";
 
 import { sql } from "drizzle-orm";
+import { unstable_cache } from "next/cache";
 
 import { db } from "@/db";
+import { assertRows } from "@/lib/assert-rows";
 import { contentNotesFor, playableAudioUrl, type ContentNote } from "@/lib/player";
 
 /**
@@ -69,6 +71,8 @@ type PortalChunkRow = {
 export async function retrieveRelevantChunks(
   queryEmbedding: number[],
   limit = 8,
+  /** Search only these recordings (a storyteller the question names). */
+  recordingIds?: string[],
 ): Promise<PortalChunk[]> {
   if (queryEmbedding.length !== 1536) {
     throw new Error(
@@ -77,6 +81,18 @@ export async function retrieveRelevantChunks(
   }
 
   const vectorLiteral = `[${queryEmbedding.join(",")}]`;
+  const distance = sql`tc.embedding <=> ${vectorLiteral}::vector(1536)`;
+  const onlyRecordings =
+    recordingIds && recordingIds.length > 0
+      ? sql`AND tc.recording_id IN (${sql.join(
+          recordingIds.map((id) => sql`${id}::uuid`),
+          sql`, `,
+        )})`
+      : sql``;
+  // With a recording filter, order by an expression the HNSW index can't
+  // serve: the index would return its nearest ~40 chunks overall and the
+  // filter would then drop most of them. A few hundred chunks sort exactly.
+  const orderBy = recordingIds?.length ? sql`(${distance}) + 0` : distance;
 
   const rows = await db.execute<PortalChunkRow>(sql`
     SELECT
@@ -113,7 +129,8 @@ export async function retrieveRelevantChunks(
     INNER JOIN public.recordings r ON r.id = tc.recording_id
     LEFT JOIN public.metadata_extracted m ON m.recording_id = r.id
     WHERE r.transcription_status = 'completed'
-    ORDER BY tc.embedding <=> ${vectorLiteral}::vector(1536)
+      ${onlyRecordings}
+    ORDER BY ${orderBy}
     LIMIT ${limit}
   `);
 
@@ -135,3 +152,34 @@ export async function retrieveRelevantChunks(
     ),
   }));
 }
+
+type StorytellerRow = { name: string; recording_ids: string[] };
+
+async function _fetchStorytellers(): Promise<{ name: string; recordingIds: string[] }[]> {
+  const rows = await db.execute<StorytellerRow>(sql`
+    SELECT sp.name, array_agg(DISTINCT r.id::text) AS recording_ids
+    FROM public.recording_speakers rs
+    INNER JOIN public.speakers sp ON sp.id = rs.speaker_id
+    INNER JOIN public.recordings r ON r.id = rs.recording_id
+    WHERE rs.role = 'interviewee'
+      AND r.transcription_status = 'completed'
+    GROUP BY sp.name
+  `);
+  const list = Array.from(rows);
+  assertRows(
+    list,
+    (r) => typeof r.name === "string" && Array.isArray(r.recording_ids) && r.recording_ids.length > 0,
+    "portal storytellers",
+  );
+  return list.map((r) => ({ name: r.name, recordingIds: r.recording_ids }));
+}
+
+/**
+ * Every storyteller (interviewee) with their recordings, for matching names
+ * in Ask questions (`src/lib/portal/storyteller-match.ts`). Changes only on
+ * ingest, which revalidates `facets`.
+ */
+export const fetchStorytellers = unstable_cache(_fetchStorytellers, ["portal-storytellers-v1"], {
+  tags: ["facets"],
+  revalidate: 3600,
+});

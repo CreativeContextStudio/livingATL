@@ -26,7 +26,12 @@ import {
 } from "@/lib/portal/sanitize-messages";
 import type { ContentNote } from "@/lib/player";
 import { shareSecret, signAnswer } from "@/lib/portal/share";
-import { retrieveRelevantChunks } from "@/lib/queries/portal";
+import { matchStorytellers } from "@/lib/portal/storyteller-match";
+import {
+  fetchStorytellers,
+  retrieveRelevantChunks,
+  type PortalChunk,
+} from "@/lib/queries/portal";
 import { clientIp, createRateLimiter } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -57,6 +62,53 @@ export const runtime = "nodejs";
 // at K=12 so we're not expecting the extra noise to break refusals.
 const RETRIEVE_TOP_K = 16;
 const SIMILARITY_THRESHOLD = 0.25;
+
+// When a question names storytellers, up to this many of the excerpts come
+// from their recordings (2026-11-14). Search over the whole archive didn't
+// know who was speaking: "What does Hugh McDonald say about women who died
+// kneeling?" missed his own account, which ranks first among his chunks.
+// The total stays at RETRIEVE_TOP_K, so the prompt doesn't grow.
+const NAMED_STORYTELLER_K = 6;
+const MAX_NAMED_STORYTELLERS = 3;
+
+/** Named storytellers' chunks first, then the archive-wide ones, capped at
+ *  `limit` and returned in similarity order. */
+function mergeChunks(named: PortalChunk[], general: PortalChunk[], limit: number): PortalChunk[] {
+  const seen = new Set<string>();
+  const out: PortalChunk[] = [];
+  for (const chunk of [...named, ...general]) {
+    if (out.length >= limit) break;
+    if (seen.has(chunk.chunkId)) continue;
+    seen.add(chunk.chunkId);
+    out.push(chunk);
+  }
+  return out.sort((a, b) => b.similarity - a.similarity);
+}
+
+async function retrieveNamedStorytellerChunks(
+  question: string,
+  embedding: number[],
+): Promise<PortalChunk[]> {
+  let storytellers;
+  try {
+    storytellers = matchStorytellers(question, await fetchStorytellers()).slice(
+      0,
+      MAX_NAMED_STORYTELLERS,
+    );
+  } catch (err) {
+    // Matching is an extra; a failed lookup shouldn't fail the answer.
+    Sentry.captureException(err);
+    return [];
+  }
+  const perStoryteller = Math.ceil(NAMED_STORYTELLER_K / Math.max(storytellers.length, 1));
+  const chunks: PortalChunk[] = [];
+  // One at a time: see the pipelining note in src/db/index.ts.
+  for (const s of storytellers) {
+    const rows = await retrieveRelevantChunks(embedding, perStoryteller, s.recordingIds);
+    chunks.push(...rows);
+  }
+  return chunks;
+}
 
 // Output caps. The longest answer in the 15-question live eval was ~1,600
 // characters (~400 tokens), so 1,200 leaves headroom without letting one
@@ -183,8 +235,11 @@ export async function POST(req: Request): Promise<Response> {
     value: question,
   });
 
-  // Retrieve top-K chunks and filter by similarity threshold.
-  const retrieved = await retrieveRelevantChunks(embedding, RETRIEVE_TOP_K);
+  // Retrieve top-K chunks, add the best chunks from any storyteller the
+  // question names, and filter by similarity threshold.
+  const general = await retrieveRelevantChunks(embedding, RETRIEVE_TOP_K);
+  const named = await retrieveNamedStorytellerChunks(question, embedding);
+  const retrieved = mergeChunks(named, general, RETRIEVE_TOP_K);
   const relevant = retrieved.filter((c) => c.similarity >= SIMILARITY_THRESHOLD);
 
   if (process.env.NODE_ENV !== "production") {
@@ -194,6 +249,7 @@ export async function POST(req: Request): Promise<Response> {
         question: question.slice(0, 120),
         retrieved_count: retrieved.length,
         relevant_count: relevant.length,
+        named_count: named.length,
         similarities: retrieved.map((c) => Number(c.similarity.toFixed(3))),
         top_catalogs: retrieved.slice(0, 5).map((c) => c.catalogNumber),
       }),

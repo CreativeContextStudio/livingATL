@@ -303,7 +303,7 @@ export function PortalClient() {
       {/* Question box, pinned to the bottom of the screen (above the
           listening-queue bar when it's showing). */}
       <div
-        className="sticky z-20 mt-auto -mx-5 bg-gradient-to-t from-background from-70% to-transparent px-5 pt-6 pb-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
+        className="sticky z-20 mt-auto -mx-5 bg-gradient-to-t from-background from-70% to-transparent px-5 pt-6 pb-4 sm:-mx-6 sm:px-6"
         style={{ bottom: "var(--queue-bar-h, 0px)" }}
       >
         <p id="portal-input-help" className="sr-only">

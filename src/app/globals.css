@@ -454,13 +454,10 @@ html[data-theme="geist"] samp {
 @utility page-container {
   margin-inline: auto;
   width: 100%;
-  max-width: var(--container-7xl);
+  max-width: 80rem; /* = max-w-7xl */
   padding-inline: 1.25rem;
   @media (width >= 40rem) {
     padding-inline: 1.5rem;
-  }
-  @media (width >= 64rem) {
-    padding-inline: 2rem;
   }
 }
 @utility page-y {

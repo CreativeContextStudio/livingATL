@@ -161,7 +161,7 @@ function FilterGroup({
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="min-h-6 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground pointer-coarse:min-h-11"
+            className="min-h-6 rounded-sm text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11"
           >
             {expanded ? "Show fewer" : `Show ${moreCount} more`}
           </button>
@@ -240,7 +240,7 @@ function FilterChip({
     <button
       type="button"
       onClick={onClick}
-      className="transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-4xl"
+      className="inline-flex items-center rounded-4xl transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11"
       aria-pressed={displayActive}
     >
       <Badge
@@ -254,7 +254,7 @@ function FilterChip({
         )}
       >
         {label}
-        <span className="ml-1 text-[10px] font-normal tabular-nums">{option.count}</span>
+        <span className="ml-1 text-[11px] font-normal tabular-nums">{option.count}</span>
       </Badge>
     </button>
   );
@@ -299,7 +299,7 @@ function ActiveFilterStrip({
             variant="outline"
             className={cn("gap-1", style.bg, style.border, style.text)}
           >
-            <span className="text-[10px] uppercase tracking-[0.1em]">
+            <span className="text-[11px] uppercase tracking-[0.1em]">
               {keyLabel(key)}
             </span>
             <span>{displayValue}</span>
@@ -309,7 +309,7 @@ function ActiveFilterStrip({
       <button
         type="button"
         onClick={clearAll}
-        className="ml-auto text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        className="ml-auto inline-flex min-h-6 items-center rounded-sm text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11"
       >
         Clear all
       </button>

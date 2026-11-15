@@ -465,7 +465,7 @@ export function PlayerClient({
                   aria-hidden={isReady}
                 >
                   <div className="flex max-w-xl flex-col items-center gap-2 text-center">
-                    <p className="font-mono text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground">
+                    <p className="font-mono text-[11px] font-semibold tracking-[0.2em] uppercase text-muted-foreground">
                       Getting the audio ready
                     </p>
                     <p className="text-sm leading-relaxed text-foreground/80 line-clamp-3">
@@ -495,9 +495,9 @@ export function PlayerClient({
 
         <div
           className={cn(
-            // Mobile reserves space below the content so the sticky mini-player
-            // never overlaps the footer; reverts at `lg` where the bar is hidden.
-            "mt-6 grid grid-cols-1 gap-5 pb-20 lg:pb-0",
+            // The mobile mini-player reserves its own space after the footer
+            // (--mini-player-h in globals.css).
+            "mt-6 grid grid-cols-1 gap-5",
             sidebarOpen
               ? "lg:grid-cols-[18rem_1fr] xl:grid-cols-[22rem_1fr]"
               : "lg:grid-cols-[3rem_1fr]",
@@ -543,7 +543,7 @@ export function PlayerClient({
           </div>
 
           <div className="order-1 flex flex-col gap-5 lg:order-2">
-            <section className="flex flex-col gap-3 rounded-xl border border-border bg-card/50 p-5">
+            <section aria-label="Transcript" className="flex flex-col gap-3 rounded-xl border border-border bg-card/50 p-5">
               {/* Header row: "Transcript" title on the left, search bar
                   right-aligned. Segment count lives directly beneath the
                   search so the hit counter reads as part of the same

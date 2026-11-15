@@ -906,7 +906,7 @@ export function TimelineClient({ data }: { data: TimelineData }) {
                 <div className="absolute inset-y-0 w-0.5 -translate-x-1/2 bg-primary/70" />
                 <span
                   className={cn(
-                    "absolute top-1.5 whitespace-nowrap rounded-full bg-primary px-2 py-0.5 font-mono text-[10px] font-medium tabular-nums text-primary-foreground shadow-sm",
+                    "absolute top-1.5 whitespace-nowrap rounded-full bg-primary px-2 py-0.5 font-mono text-[11px] font-medium tabular-nums text-primary-foreground shadow-sm",
                     hereDot.x > width - 72 ? "right-1.5" : "left-1.5",
                   )}
                 >
@@ -1139,7 +1139,7 @@ function SpanBar({ moment, view, pinned }: { moment: TimelineMoment; view: [numb
   const right = Math.min(100, rawRight);
   const color = familyColorVar(momentFamily(moment));
   const single = end <= start;
-  const label = "absolute top-1/2 -translate-y-1/2 whitespace-nowrap font-mono text-[10px] leading-none tabular-nums text-foreground";
+  const label = "absolute top-1/2 -translate-y-1/2 whitespace-nowrap font-mono text-[11px] leading-none tabular-nums text-foreground";
   return (
     <div className={cn("absolute inset-y-0", pinned ? "opacity-100" : "opacity-80")} style={{ left: `${left}%`, width: `${Math.max(0.6, right - left)}%` }}>
       <div className={cn("absolute top-1/2 -translate-y-1/2 rounded-full", single ? "left-1/2 h-3 w-1 -translate-x-1/2" : "inset-x-0 h-1.5")} style={{ background: color }} />

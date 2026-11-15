@@ -115,7 +115,7 @@ export function ChapterScrubber({
     return (
       <div className="relative min-h-20 w-full overflow-hidden bg-muted/60">
         <div className="absolute inset-0 flex items-center justify-center">
-          <p className="rounded-full bg-background/80 px-3 py-1 font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-muted-foreground backdrop-blur-sm md:text-[10px]">
+          <p className="rounded-full bg-background/80 px-3 py-1 font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-muted-foreground backdrop-blur-sm">
             No chapters yet.
           </p>
         </div>
@@ -132,7 +132,7 @@ export function ChapterScrubber({
           its title, and a timestamp. Hidden at `md` where the bar takes over. */}
       {/* Collapsed by default so the transport stays near the top on
           phones; the summary row names the chapter that's playing. */}
-      <details className="group/chapters bg-muted/40 md:hidden">
+      <details className="group/chapters bg-muted/40 lg:hidden">
         <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset [&::-webkit-details-marker]:hidden">
           <span className="font-mono text-[11px] tracking-[0.14em] uppercase text-muted-foreground">
             Chapters ({chapters.length})
@@ -186,9 +186,9 @@ export function ChapterScrubber({
       </ul>
       </details>
 
-      <div className="hidden w-full overflow-x-auto scrollbar-soft md:block md:overflow-x-visible">
+      <div className="hidden w-full overflow-x-auto scrollbar-soft lg:block lg:overflow-x-visible">
       <div
-        className="relative min-h-20 w-full min-w-[640px] overflow-hidden bg-muted/60 md:min-w-0"
+        className="relative min-h-20 w-full min-w-[640px] overflow-hidden bg-muted/60 lg:min-w-0"
         role="group"
         aria-label="Chapter scrubber"
       >
@@ -280,7 +280,7 @@ export function ChapterCountsLabel({
   return (
     // Below md the collapsed "Chapters (N)" summary row already carries the
     // count, so this label only shows alongside the desktop chapter bar.
-    <div className="hidden items-baseline justify-between text-[11px] text-muted-foreground md:flex">
+    <div className="hidden items-baseline justify-between text-[11px] text-muted-foreground lg:flex">
       <p className="font-heading font-semibold tracking-[0.12em] uppercase">
         Chapters
       </p>

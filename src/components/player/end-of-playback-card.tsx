@@ -70,7 +70,7 @@ export function EndOfPlaybackCard({
       className="flex w-full items-start gap-3 bg-card/80 px-4 py-3 backdrop-blur-sm"
     >
       <div className="flex flex-1 flex-col gap-1.5">
-        <p className="font-mono text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground">
+        <p className="font-mono text-[11px] font-semibold tracking-[0.2em] uppercase text-muted-foreground">
           Up next
         </p>
         <Link
@@ -85,7 +85,7 @@ export function EndOfPlaybackCard({
               {related.cardLine}
             </p>
           ) : null}
-          <p className="font-mono text-[10px] tabular-nums text-muted-foreground">
+          <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
             {formatDuration(related.durationSeconds)} · {related.catalogNumber}
           </p>
         </Link>

@@ -106,16 +106,17 @@ export function ShareButton() {
       </span>
       {fallbackUrl ? (
         <div className="flex max-w-[20rem] flex-col items-end gap-1">
-          <p className="text-[10px] text-muted-foreground">
+          <p className="text-[11px] text-muted-foreground">
             Clipboard refused. Select to copy:
           </p>
           <input
             type="text"
             value={fallbackUrl}
             readOnly
+            aria-label="Link to copy"
             onFocus={(e) => e.currentTarget.select()}
             onClick={(e) => e.currentTarget.select()}
-            className="w-full rounded border border-border bg-background px-2 py-1 font-mono text-[10px] text-foreground"
+            className="w-full rounded border border-input-border bg-background px-2 py-1 font-mono text-xs text-foreground"
           />
         </div>
       ) : null}

@@ -434,9 +434,9 @@ export function MapClient({
               <svg viewBox="-8 -17 16 24" className="h-5 w-4">
                 <path d="M 0 -16 L 7 6 L 0 1 L -7 6 Z" fill="currentColor" fillOpacity={0.6} />
               </svg>
-              <span className="font-mono text-[10px]">N</span>
+              <span className="font-mono text-[11px]">N</span>
             </div>
-            <div aria-hidden className="pointer-events-none absolute bottom-3 left-3 flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
+            <div aria-hidden className="pointer-events-none absolute bottom-3 left-3 flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
               <span className="h-1.5 border-x-2 border-b-2 border-current" style={{ width: `${mileOfWidth * size.w}px` }} />
               1 mile
             </div>
@@ -502,7 +502,7 @@ export function MapClient({
                   <span
                     key="label-five-points"
                     aria-hidden
-                    className="pointer-events-none absolute whitespace-nowrap font-mono text-[10px] leading-none tracking-[0.12em] uppercase text-muted-foreground"
+                    className="pointer-events-none absolute whitespace-nowrap font-mono text-[11px] leading-none tracking-[0.12em] uppercase text-muted-foreground"
                     style={{ left: l.x, top: l.y, transform: `translate(${l.anchor === "start" ? "0" : l.anchor === "end" ? "-100%" : "-50%"}, -50%)` }}
                   >
                     Five Points
@@ -515,7 +515,7 @@ export function MapClient({
                   aria-hidden
                   className={cn(
                     "pointer-events-none absolute whitespace-nowrap text-[11px] leading-none",
-                    active ? "font-semibold text-foreground" : pin.count > 0 ? "text-foreground/80" : "text-muted-foreground/70",
+                    active ? "font-semibold text-foreground" : pin.count > 0 ? "text-foreground/80" : "text-muted-foreground",
                   )}
                   style={{
                     left: l.x,

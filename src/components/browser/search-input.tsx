@@ -114,8 +114,9 @@ export function SearchInput({ initialValue = "" }: { initialValue?: string }) {
 
   return (
     <div
+      role="search"
       className={cn(
-        "group relative flex h-9 w-full items-center rounded-lg border border-input bg-background",
+        "group relative flex h-11 w-full items-center rounded-lg border border-input-border bg-background sm:h-9",
         "transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring",
       )}
     >
@@ -132,7 +133,7 @@ export function SearchInput({ initialValue = "" }: { initialValue?: string }) {
         onChange={(e) => onChange(e.currentTarget.value)}
         aria-label="Search interviews"
         className={cn(
-          "h-full min-w-0 flex-1 bg-transparent px-2.5 text-sm text-foreground placeholder:text-muted-foreground",
+          "h-full min-w-0 flex-1 bg-transparent px-2.5 text-base text-foreground sm:text-sm placeholder:text-muted-foreground",
           "focus:outline-none [&::-webkit-search-cancel-button]:hidden",
         )}
       />
@@ -153,7 +154,7 @@ export function SearchInput({ initialValue = "" }: { initialValue?: string }) {
           aria-hidden
           className={cn(
             "mr-2 hidden select-none items-center gap-0.5 rounded-md border border-border/70 bg-muted/50 px-1.5 py-0.5",
-            "font-mono text-[10px] font-medium tracking-[0.08em] text-muted-foreground sm:inline-flex",
+            "font-mono text-[11px] font-medium tracking-[0.08em] text-muted-foreground sm:inline-flex",
           )}
         >
           <span className="text-[11px] leading-none">⌘</span>

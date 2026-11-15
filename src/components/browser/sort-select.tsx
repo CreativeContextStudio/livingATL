@@ -60,7 +60,7 @@ export function SortSelect({ value }: { value: BrowserSort }) {
     <div className="flex w-full items-center gap-2 sm:w-auto">
       <span
         aria-hidden
-        className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase"
+        className="font-mono text-[11px] tracking-[0.18em] text-muted-foreground uppercase"
       >
         Sort
       </span>

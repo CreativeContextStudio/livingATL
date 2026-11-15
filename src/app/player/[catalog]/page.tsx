@@ -268,7 +268,7 @@ function AboutThisRecording({
 }) {
   return (
     <section className="flex h-full flex-col rounded-xl border border-border bg-card/40 px-5 py-4">
-      <p className="font-mono text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground">
+      <p className="font-mono text-[11px] font-semibold tracking-[0.2em] uppercase text-muted-foreground">
         About this interview
       </p>
       {overview ? <p className="mt-2 mb-3 text-base leading-relaxed text-foreground/85">{overview}</p> : null}

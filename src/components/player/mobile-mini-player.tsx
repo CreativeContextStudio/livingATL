@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { PauseIcon, PlayIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,16 @@ export function MobileMiniPlayer({
   const currentTime = usePlayerTime(toQuarterSecond);
 
   const progress = duration > 0 ? currentTime / duration : 0;
+
+  // Reserve room at the end of the page (after the footer) while the bar is
+  // showing, so it never covers the footer. globals.css reads this below lg.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--mini-player-h", visible ? "4.5rem" : "0px");
+    return () => {
+      root.style.setProperty("--mini-player-h", "0px");
+    };
+  }, [visible]);
 
   return (
     <div

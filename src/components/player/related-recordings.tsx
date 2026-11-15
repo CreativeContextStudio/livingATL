@@ -16,7 +16,7 @@ export function RelatedRecordings({
   if (related.length === 0) return null;
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-border bg-card/40 p-5">
+    <section aria-label="Related interviews" className="flex flex-col gap-3 rounded-xl border border-border bg-card/40 p-5">
       <h3 className="font-heading text-xs font-semibold tracking-[0.14em] uppercase">
         Related interviews
       </h3>
@@ -41,7 +41,7 @@ export function RelatedRecordings({
                 <p className="line-clamp-3 text-xs text-muted-foreground">
                   {r.cardLine || titleForCard(r.title)}
                 </p>
-                <p className="font-mono text-[10px] tabular-nums text-muted-foreground">
+                <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
                   {formatDuration(r.durationSeconds)} · {r.catalogNumber}
                 </p>
               </Link>

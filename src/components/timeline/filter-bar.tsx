@@ -135,7 +135,7 @@ export function TimelineFilterBar({
             <button
               type="button"
               onClick={clearAll}
-              className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-[11px] uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex h-8 items-center gap-1 rounded-md px-2 pointer-coarse:h-11 text-[11px] uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <XIcon aria-hidden className="size-3" />
               Clear
@@ -175,7 +175,7 @@ function FilterTriggerShell({
       ref={ref}
       type="button"
       className={cn(
-        "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[11px] uppercase tracking-[0.12em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 pointer-coarse:h-11 text-[11px] uppercase tracking-[0.12em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active
           ? "border-primary/60 bg-primary/10 text-foreground"
           : "border-border bg-background text-muted-foreground hover:text-foreground",
@@ -184,7 +184,7 @@ function FilterTriggerShell({
     >
       <span>{label}</span>
       {count > 0 ? (
-        <span className="rounded-sm bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+        <span className="rounded-sm bg-primary px-1 text-[11px] font-semibold text-primary-foreground">
           {count}
         </span>
       ) : null}
@@ -222,7 +222,7 @@ function ThemeMultiSelect({
                   type="button"
                   onClick={() => onToggleFamily(familyFacets.map((f) => f.key))}
                   title={`Select all ${family.label} themes`}
-                  className="flex items-center gap-2 rounded-md px-2 pt-1 pb-0.5 text-left font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex items-center gap-2 rounded-md px-2 pt-1 pb-0.5 text-left font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <span aria-hidden className="inline-block size-2.5 shrink-0 rounded-full" style={{ backgroundColor: familyColorVar(family.key) }} />
                   {family.label}
@@ -257,7 +257,7 @@ function ThemeMultiSelect({
                         ) : null}
                       </span>
                       <span className="flex-1 truncate">{themeLabel(key)}</span>
-                      <span className="font-mono text-[10px] text-muted-foreground">
+                      <span className="font-mono text-[11px] text-muted-foreground">
                         {facetCount}
                       </span>
                     </button>
@@ -330,7 +330,7 @@ function NeighborhoodMultiSelect({
                       style={{ backgroundColor: color }}
                     />
                     <span className="flex-1 truncate">{name}</span>
-                    <span className="font-mono text-[10px] text-muted-foreground">
+                    <span className="font-mono text-[11px] text-muted-foreground">
                       {facetCount}
                     </span>
                   </button>
@@ -358,7 +358,7 @@ function HighlightToggle({
       onClick={onToggle}
       title="Show highlights only"
       className={cn(
-        "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[11px] uppercase tracking-[0.12em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 pointer-coarse:h-11 text-[11px] uppercase tracking-[0.12em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active
           ? "border-primary/70 bg-primary/15 text-primary-ink"
           : "border-border bg-background text-muted-foreground hover:text-foreground",

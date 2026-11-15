@@ -56,7 +56,7 @@ export function HoverTooltip({ tip }: { tip: HoverTip }) {
       ) : (
         <EventHoverBody event={tip.event} />
       )}
-      <span className="mt-1.5 block font-mono text-[9px] tracking-[0.18em] uppercase text-background/40">
+      <span className="mt-1.5 block font-mono text-[11px] tracking-[0.18em] uppercase text-background/70">
         Click to pin
       </span>
     </div>
@@ -76,9 +76,9 @@ function MomentHoverBody({ moment }: { moment: TimelineMoment }) {
           {moment.title}
         </span>
       </div>
-      <span className="font-heading text-[11px] font-bold tracking-tight text-primary-ink">
+      <span className="font-heading text-[11px] font-bold tracking-tight text-background">
         {year}
-        <span className="ml-2 font-sans font-normal text-background/60">
+        <span className="ml-2 font-sans font-normal text-background/80">
           {byline}
         </span>
       </span>
@@ -98,9 +98,9 @@ function EventHoverBody({ event }: { event: TimelineHistoricalEvent }) {
       <span className="font-heading text-[13px] font-semibold leading-tight text-background line-clamp-1">
         {event.label}
       </span>
-      <span className="font-heading text-[11px] font-bold tracking-tight text-primary-ink">
+      <span className="font-heading text-[11px] font-bold tracking-tight text-background">
         {when}
-        <span className="ml-2 font-sans font-normal uppercase tracking-[0.12em] text-background/60">
+        <span className="ml-2 font-sans font-normal uppercase tracking-[0.12em] text-background/80">
           {event.category.replace(/_/g, " ")}
         </span>
       </span>

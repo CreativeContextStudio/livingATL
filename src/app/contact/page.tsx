@@ -204,10 +204,10 @@ export default async function ContactPage({
                 />
 
                 <div className="flex items-baseline justify-between gap-2">
-                  <p className="font-mono text-[10px] font-semibold tracking-[0.22em] uppercase text-muted-foreground">
+                  <p className="font-mono text-[11px] font-semibold tracking-[0.22em] uppercase text-muted-foreground">
                     {p.role}
                   </p>
-                  <p className="font-mono text-[10px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
+                  <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
                     {p.index}
                   </p>
                 </div>
@@ -216,7 +216,7 @@ export default async function ContactPage({
                   <h3 className="font-heading text-xl font-semibold leading-tight tracking-tight">
                     {p.name}
                   </h3>
-                  <p className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
+                  <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted-foreground">
                     {p.descriptor}
                   </p>
                 </div>
@@ -226,7 +226,7 @@ export default async function ContactPage({
                 </p>
 
                 <div className="mt-auto border-t border-border/70 pt-3">
-                  <p className="font-mono text-[10px] tracking-[0.22em] uppercase text-muted-foreground">
+                  <p className="font-mono text-[11px] tracking-[0.22em] uppercase text-muted-foreground">
                     Link · Forthcoming
                   </p>
                 </div>
@@ -266,13 +266,13 @@ export default async function ContactPage({
                     >
                       <Icon className="size-5" strokeWidth={1.75} />
                     </span>
-                    <p className="font-mono text-[10px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
+                    <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
                       {t.index}
                     </p>
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <p className="font-mono text-[10px] font-semibold tracking-[0.22em] uppercase text-muted-foreground">
+                    <p className="font-mono text-[11px] font-semibold tracking-[0.22em] uppercase text-muted-foreground">
                       {t.label}
                     </p>
                     <h3 className="font-heading text-xl font-semibold leading-tight tracking-tight">
@@ -285,7 +285,7 @@ export default async function ContactPage({
                   </p>
 
                   <div className="mt-auto border-t border-border/70 pt-3">
-                    <p className="font-mono text-[10px] tracking-[0.22em] uppercase text-muted-foreground">
+                    <p className="font-mono text-[11px] tracking-[0.22em] uppercase text-muted-foreground">
                       {t.cta}
                     </p>
                   </div>

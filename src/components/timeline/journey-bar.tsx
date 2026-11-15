@@ -93,7 +93,7 @@ export function JourneyBar({ journey, onStep, onToggleListen, onScope, onClose }
           disabled={!canListen && !listening}
           aria-pressed={listening}
           className={cn(
-            "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:h-10",
+            "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:h-11",
             listening
               ? "border-primary bg-primary text-primary-foreground hover:opacity-90"
               : "border-border bg-background hover:bg-muted",
@@ -114,7 +114,7 @@ export function JourneyBar({ journey, onStep, onToggleListen, onScope, onClose }
                 // Distinct from the toolbar's "Highlights" filter.
                 aria-label={s === "highlights" ? "Journey through highlights" : "Journey through all chapters"}
                 className={cn(
-                  "h-7 rounded-full px-2.5 font-mono text-[10px] tracking-[0.14em] uppercase transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:h-9",
+                  "h-7 rounded-full px-2.5 font-mono text-[11px] tracking-[0.14em] uppercase transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:h-11",
                   scope === s ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
                 )}
               >

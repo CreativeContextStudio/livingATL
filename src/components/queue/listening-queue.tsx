@@ -289,7 +289,7 @@ export function ListeningQueueProvider({ children }: { children: ReactNode }) {
                       type="button"
                       onClick={() => playIndex(i, items)}
                       aria-current={i === currentIndex ? "true" : undefined}
-                      className="min-w-0 flex-1 truncate text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[current=true]:font-semibold"
+                      className="min-h-8 min-w-0 flex-1 truncate text-left hover:underline pointer-coarse:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[current=true]:font-semibold"
                     >
                       {item.title}
                       <span className="text-muted-foreground"> · {item.storyteller ?? item.catalogNumber}</span>
@@ -301,7 +301,7 @@ export function ListeningQueueProvider({ children }: { children: ReactNode }) {
                       type="button"
                       onClick={() => remove(i)}
                       aria-label={`Remove ${item.title} from the queue`}
-                      className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="grid size-8 shrink-0 place-items-center rounded-md pointer-coarse:size-11 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <XIcon aria-hidden className="size-4" />
                     </button>

@@ -83,7 +83,7 @@ export function FilterTabs({
           {tabs.map((t) => {
             const activeCount = t.activeValue ? 1 : 0;
             return (
-              <TabsTrigger key={t.value} value={t.value} className="h-7 px-3">
+              <TabsTrigger key={t.value} value={t.value} className="h-7 px-3 pointer-coarse:h-11">
                 <span>{t.label}</span>
                 {activeCount > 0 && (
                   <span className="ml-1 inline-flex size-5 items-center justify-center rounded-full bg-primary/15 text-[11px] font-semibold text-primary-ink">

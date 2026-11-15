@@ -565,6 +565,14 @@ html {
   scroll-padding-bottom: calc(var(--queue-bar-h, 0px) + 1rem);
 }
 
+/* The fixed mobile mini-player (Player page, below lg) sets --mini-player-h
+ * while it is showing; padding the body keeps the footer above it. */
+@media (width < 64rem) {
+  body {
+    padding-bottom: var(--mini-player-h, 0px);
+  }
+}
+
 /* A long word in a big heading can be wider than a phone at 200% text. */
 h1,
 h2,

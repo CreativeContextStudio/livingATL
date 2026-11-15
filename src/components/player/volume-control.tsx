@@ -87,7 +87,7 @@ export function VolumeControl({
                 "data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 transition-opacity duration-150",
               )}
             >
-              <span className="font-mono text-[10px] font-semibold tabular-nums text-muted-foreground">
+              <span className="font-mono text-[11px] font-semibold tabular-nums text-muted-foreground">
                 {pct}%
               </span>
               <Slider

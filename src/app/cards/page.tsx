@@ -86,7 +86,7 @@ function Card({ card, host }: { card: StoryCard; host: string }) {
   ) : null;
   return (
     <article className="flex w-full flex-col gap-3 rounded-xl border border-border bg-card p-5 text-foreground print:h-[4.85in] print:rounded-none print:border-dashed print:border-neutral-400 print:bg-white print:p-[0.3in] print:text-black">
-      <p className="flex items-baseline justify-between gap-2 font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground print:text-neutral-600">
+      <p className="flex items-baseline justify-between gap-2 font-mono text-[11px] tracking-[0.18em] uppercase text-muted-foreground print:text-neutral-600">
         <span className="font-heading text-sm font-bold normal-case tracking-tight text-foreground print:text-black">
           living<span className="text-primary-ink print:text-black">ATL</span>
         </span>
@@ -128,7 +128,7 @@ function Card({ card, host }: { card: StoryCard; host: string }) {
           // SVG produced server-side by `qrcode` from our own URL.
           dangerouslySetInnerHTML={{ __html: card.qrSvg }}
         />
-        <div className="flex min-w-0 flex-col gap-1 text-[10px] leading-snug text-muted-foreground print:text-neutral-700">
+        <div className="flex min-w-0 flex-col gap-1 text-[11px] leading-snug text-muted-foreground print:text-neutral-700">
           <p className="font-medium text-foreground print:text-black">Scan to hear it in their voice</p>
           <p className="break-all font-mono">
             {host} · {card.catalogNumber} · {card.range}

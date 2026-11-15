@@ -274,7 +274,7 @@ export function TranscriptPane({
             >
               <p
                 className={cn(
-                  "font-mono text-[10px] font-semibold tracking-[0.18em] uppercase",
+                  "font-mono text-[11px] font-semibold tracking-[0.18em] uppercase",
                   group.role === "interviewer" && "text-muted-foreground",
                   group.role === "interviewee" && "text-primary-ink",
                   group.role === "other" && "text-muted-foreground",

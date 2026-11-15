@@ -71,7 +71,7 @@ export function TranscriptSearch({
           placeholder="Search transcript…"
           aria-label="Search transcript"
           className={cn(
-            "h-8 w-full rounded-md border border-border bg-background pr-7 pl-8 text-sm text-foreground placeholder:text-muted-foreground",
+            "h-11 w-full rounded-md border border-input-border bg-background pr-11 pl-8 text-base text-foreground sm:h-8 sm:pr-8 sm:text-sm placeholder:text-muted-foreground",
             "transition-colors focus-visible:outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring",
           )}
         />
@@ -80,7 +80,7 @@ export function TranscriptSearch({
             type="button"
             onClick={() => onQueryChange("")}
             aria-label="Clear search"
-            className="absolute right-1.5 rounded p-0.5 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="absolute right-1 inline-flex size-9 items-center justify-center rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:right-0.5 sm:size-7"
           >
             <XIcon className="size-3.5" />
           </button>

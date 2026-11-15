@@ -48,6 +48,8 @@ export function MomentQueueButtons({ moment }: { moment: QueueableMoment }) {
         variant="outline"
         onClick={() => enqueue([item])}
         disabled={queued}
+        // Keeps keyboard focus on the button after it's pressed.
+        focusableWhenDisabled
         // Accessible name starts with the visible text (WCAG 2.5.3).
         aria-label={queued ? `Queued: ${moment.title}` : `Add to queue: ${moment.title}`}
       >

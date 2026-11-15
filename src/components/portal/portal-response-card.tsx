@@ -118,14 +118,14 @@ export function PortalResponseCard({ text, citations, loading }: Props) {
       )}
 
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <p className="font-mono text-[10px] tracking-[0.12em] uppercase text-muted-foreground">
+        <p className="font-mono text-[11px] tracking-[0.12em] uppercase text-muted-foreground">
           {sourceCountLabel}
         </p>
         {loading ? null : (
           <>
             <span
               aria-hidden
-              className="font-mono text-[10px] tracking-[0.12em] text-muted-foreground"
+              className="font-mono text-[11px] tracking-[0.12em] text-muted-foreground"
             >
               ·
             </span>

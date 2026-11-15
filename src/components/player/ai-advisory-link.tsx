@@ -44,7 +44,7 @@ export function AIAdvisoryLink({
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          "inline-flex items-center gap-1 font-mono text-[10px] tracking-[0.12em] uppercase text-muted-foreground underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm",
+          "inline-flex items-center gap-1 font-mono text-[11px] tracking-[0.12em] uppercase text-muted-foreground underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm",
           className,
         )}
       >

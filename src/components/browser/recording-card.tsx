@@ -5,7 +5,6 @@ import {
   CardContent,
   CardFooter,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { neighborhoodStyle, themeStyle } from "@/components/shared/category-colors";
@@ -61,14 +60,15 @@ export function RecordingCard({ recording }: { recording: BrowserRecordingCard }
         }
       >
         <CardHeader className="gap-2">
-          <CardTitle className="font-heading text-xl leading-tight">
+          {/* An h2 (CardTitle is a div) so screen-reader users can jump card to card. */}
+          <h2 data-slot="card-title" className="font-heading text-xl leading-tight font-medium tracking-normal">
             <Link
               href={`/player/${encodeURIComponent(recording.catalogNumber)}`}
               className="after:absolute after:inset-0 after:rounded-xl after:content-[''] focus-visible:outline-none"
             >
               {intervieweeLabel}
             </Link>
-          </CardTitle>
+          </h2>
         </CardHeader>
 
         <CardContent className="flex flex-1 flex-col gap-3">
@@ -125,7 +125,7 @@ export function RecordingCard({ recording }: { recording: BrowserRecordingCard }
                 </>
               ) : null}
             </div>
-            <span className="font-mono text-[10px] tracking-tight">
+            <span className="font-mono text-[11px] tracking-tight">
               {recording.catalogNumber}
             </span>
           </div>

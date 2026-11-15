@@ -133,7 +133,7 @@ export function NeighborhoodPreview({
                   <p className="text-xs leading-relaxed text-muted-foreground line-clamp-3">
                     {r.summary}
                   </p>
-                  <p className="font-mono text-[10px] tabular-nums text-muted-foreground">
+                  <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
                     {formatDuration(r.durationSeconds)} ·{" "}
                     {formatRecordingDate(
                       r.recordingDate,

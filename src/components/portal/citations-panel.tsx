@@ -76,7 +76,7 @@ export function CitationsPanel({
         onClick={() => setToggled(true)}
         className={cn(
           "inline-flex items-center gap-1 self-start rounded-md px-1 py-0.5",
-          "font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground",
+          "font-mono text-[11px] tracking-[0.18em] uppercase text-muted-foreground",
           "transition-colors hover:text-foreground",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         )}
@@ -96,7 +96,7 @@ export function CitationsPanel({
     >
       <Heading
         id={headingId}
-        className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground"
+        className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted-foreground"
       >
         Sources · {citations.length}
       </Heading>
@@ -115,7 +115,7 @@ export function CitationsPanel({
               <div className="flex items-start gap-2">
                 <span
                   aria-hidden
-                  className="mt-[3px] inline-flex h-5 min-w-5 items-center justify-center rounded-[min(var(--radius-md),10px)] border border-border bg-background px-1.5 font-mono text-[10px] font-medium tabular-nums text-muted-foreground"
+                  className="mt-[3px] inline-flex h-5 min-w-5 items-center justify-center rounded-[min(var(--radius-md),10px)] border border-border bg-background px-1.5 font-mono text-[11px] font-medium tabular-nums text-muted-foreground"
                 >
                   {citation.index}
                 </span>
@@ -184,7 +184,7 @@ function SnippetButton({ citation }: { citation: PortalCitation }) {
         )
       }
       aria-label={`Play ${seconds} s: ${citation.recordingTitle} at ${formatTimestamp(citation.startTime)}`}
-      className="inline-flex h-6 items-center gap-1 rounded-md border border-border/60 bg-background px-1.5 font-mono text-[10px] tabular-nums text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="inline-flex h-6 items-center gap-1 rounded-md border border-border/60 bg-background px-1.5 font-mono text-[11px] tabular-nums text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <PlayIcon aria-hidden className="size-3" />
       {seconds} s

@@ -56,7 +56,7 @@ export function KeyQuotesList({ quotes }: { quotes: KeyQuote[] }) {
                     variant="outline"
                     size="xs"
                     onClick={() => seek(q.start_time)}
-                    className="gap-1.5 font-mono text-[10px] tabular-nums"
+                    className="gap-1.5 font-mono text-[11px] tabular-nums"
                     aria-label={`Jump to ${formatTimestamp(q.start_time)}`}
                   >
                     <span>▶</span>
@@ -69,7 +69,7 @@ export function KeyQuotesList({ quotes }: { quotes: KeyQuote[] }) {
                       onClick={() => toggleDetail(i)}
                       aria-expanded={detailOpen}
                       aria-controls={`key-quote-${i}-detail`}
-                      className="gap-1 text-[10px] text-muted-foreground hover:text-foreground"
+                      className="gap-1 text-[11px] text-muted-foreground hover:text-foreground"
                     >
                       <ChevronDownIcon
                         aria-hidden

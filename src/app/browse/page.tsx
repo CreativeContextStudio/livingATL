@@ -124,7 +124,7 @@ export default async function BrowsePage({
         />
       </section>
 
-      <section className="flex flex-col gap-4">
+      <section aria-label="Interviews" className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 rounded-xl border border-border bg-card/60 p-3 sm:flex-row sm:items-center sm:gap-4 sm:p-3">
           <div className="min-w-0 flex-1 sm:max-w-md">
             <SearchInput initialValue={filter.search ?? ""} />
@@ -135,7 +135,7 @@ export default async function BrowsePage({
             aria-live="polite"
             aria-atomic="true"
           >
-            <span className="font-mono text-[10px] tracking-[0.18em] uppercase">
+            <span className="font-mono text-[11px] tracking-[0.18em] uppercase">
               Showing
             </span>
             <span className="text-sm font-medium text-foreground">

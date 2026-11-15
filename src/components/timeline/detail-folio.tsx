@@ -42,7 +42,11 @@ type Props = {
 
 function TimelineDetailFolioImpl({ selected, onClear, hideClear = false }: Props) {
   return (
-    <section aria-live="polite" className="relative flex flex-col p-5">
+    // Announce only the new title, not the whole panel, when the selection changes.
+    <section aria-label="Selected chapter" className="relative flex flex-col p-5">
+      <p role="status" className="sr-only">
+        {selected.kind === "moment" ? selected.moment.title : selected.event.label}
+      </p>
       {selected.kind === "moment" ? (
         <FolioMomentBody moment={selected.moment} onClear={onClear} hideClear={hideClear} />
       ) : (
@@ -61,7 +65,7 @@ function ClearPinButton({ onClear }: { onClear: () => void }) {
       type="button"
       onClick={onClear}
       aria-label="Clear pinned selection"
-      className="absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-full pointer-coarse:size-11 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <XIcon aria-hidden className="size-3.5" />
     </button>
@@ -126,7 +130,7 @@ function FolioMomentBody({
             <button
               type="button"
               onClick={() => setDetailOpen(true)}
-              className="mt-1.5 ml-3 self-start font-mono text-[11px] tracking-[0.12em] uppercase text-primary-ink transition-colors hover:text-primary-ink/80 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="mt-1.5 ml-3 inline-flex min-h-6 items-center self-start font-mono text-[11px] tracking-[0.12em] uppercase text-primary-ink underline-offset-4 transition-colors hover:underline pointer-coarse:min-h-11 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-label={`Read more: ${moment.title}`}
             >
               Read more
@@ -263,7 +267,7 @@ function MomentDetailDialog({
 
           {moment.highlight && moment.highlightReason ? (
             <div className="rounded-lg border border-primary/40 bg-primary/10 p-4">
-              <p className="font-mono text-[10px] tracking-[0.18em] uppercase text-primary-ink">
+              <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-primary-ink">
                 Why this matters
               </p>
               <p className="mt-1 text-sm leading-relaxed text-foreground/90">
@@ -284,7 +288,7 @@ function MomentDetailDialog({
 
           {advisoryNote ? (
             <div className="rounded-lg border border-[color:var(--color-warning)]/40 bg-[color:var(--color-warning)]/10 p-4">
-              <p className="font-mono text-[10px] tracking-[0.18em] uppercase text-destructive">
+              <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-[color:var(--color-warning-ink)]">
                 Content note
               </p>
               <p className="mt-1 text-sm leading-relaxed text-foreground/90">
@@ -323,7 +327,7 @@ function TagRow({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
+      <span className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted-foreground">
         {label}
       </span>
       <ul className="flex flex-wrap gap-1.5">
@@ -357,7 +361,7 @@ function NeighborhoodTagRow({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
+      <span className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted-foreground">
         {label}
       </span>
       <ul className="flex flex-wrap gap-1.5">
@@ -381,7 +385,7 @@ function NeighborhoodTagRow({
 function ThemeTagRow({ label, themes }: { label: string; themes: string[] }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
+      <span className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted-foreground">
         {label}
       </span>
       <ul className="flex flex-wrap gap-1.5">

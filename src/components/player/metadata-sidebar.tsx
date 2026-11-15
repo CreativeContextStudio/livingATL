@@ -197,7 +197,7 @@ function RecordingFact({
 }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <dt className="font-mono text-[10px] font-medium tracking-[0.16em] uppercase text-muted-foreground">
+      <dt className="font-mono text-[11px] font-medium tracking-[0.16em] uppercase text-muted-foreground">
         {label}
       </dt>
       <dd
@@ -286,7 +286,7 @@ function CategoryChipGroup({
       <div className="flex flex-col gap-2">
         {groups.map((group) => (
           <div key={group.category} className="flex flex-col gap-1">
-            <span className="text-[10px] font-medium tracking-[0.12em] uppercase text-muted-foreground">
+            <span className="text-[11px] font-medium tracking-[0.12em] uppercase text-muted-foreground">
               {group.style.label}
             </span>
             <div className="flex flex-wrap gap-1.5">

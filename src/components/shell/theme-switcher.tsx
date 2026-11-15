@@ -55,7 +55,7 @@ export function ThemeSwitcher({ initialTheme }: { initialTheme: Theme }) {
     <Select value={theme} onValueChange={onChange}>
       <SelectTrigger
         aria-label={`Theme: ${THEME_LABELS[theme]}`}
-        className="size-9 justify-center rounded-lg px-0 pointer-coarse:size-11"
+        className="size-9 justify-center rounded-lg px-0 pointer-coarse:size-11 [&>svg:last-child]:hidden"
       >
         <PaletteIcon aria-hidden className="size-4 text-muted-foreground" />
         <SelectValue className="sr-only">

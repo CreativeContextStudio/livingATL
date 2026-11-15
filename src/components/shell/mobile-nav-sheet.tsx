@@ -66,10 +66,10 @@ export function MobileNavSheet({ links }: { links: readonly NavLink[] }) {
                           href={link.href}
                           aria-current={active ? "true" : undefined}
                           className={cn(
-                            "flex min-h-12 items-center rounded-md px-3 font-mono text-sm tracking-[0.18em] uppercase transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            "flex min-h-12 items-center rounded-md border-l-2 px-3 font-mono text-sm tracking-[0.18em] uppercase transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                             active
-                              ? "bg-accent text-foreground"
-                              : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                              ? "border-primary bg-accent text-foreground"
+                              : "border-transparent text-muted-foreground hover:bg-accent hover:text-foreground",
                           )}
                         >
                           {link.label}

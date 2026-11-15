@@ -16,7 +16,7 @@ export function SectionTabs() {
   if (!current) return null;
   return (
     <nav data-section-tabs="" aria-label={current.section.label} className="w-full border-b border-border/60 print:hidden">
-      <ul className="mx-auto flex w-full max-w-7xl items-center gap-6 px-6">
+      <ul className="page-container flex items-center gap-6 overflow-x-auto scrollbar-soft">
         {current.tabs.map((tab) => {
           const active = tab.href === current.active.href;
           return (
@@ -25,7 +25,7 @@ export function SectionTabs() {
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "-mb-px flex h-11 items-center border-b-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "-mb-px flex h-11 shrink-0 items-center whitespace-nowrap border-b-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   active
                     ? "border-primary font-medium text-foreground"
                     : "border-transparent text-muted-foreground hover:text-foreground",

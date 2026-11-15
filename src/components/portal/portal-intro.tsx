@@ -1,3 +1,5 @@
+import { PageHeader } from "@/components/shell/page-header";
+
 /**
  * Portal page intro: eyebrow, headline, and one short explainer. (The
  * former left-column rail — span bar, stats, "no fabricated quotes",
@@ -5,22 +7,11 @@
  */
 export function PortalIntro() {
   return (
-    <header className="flex flex-col gap-3">
-      <div className="flex items-center gap-3">
-        <div aria-hidden className="h-1.5 w-16 rounded-full bg-primary" />
-        <p className="font-mono text-[10px] tracking-[0.22em] uppercase text-muted-foreground">
-          Ask the archive
-        </p>
-      </div>
-      <h1 className="font-heading text-3xl font-bold leading-[1.1] tracking-tight text-foreground sm:text-4xl">
-        Ask about six decades of Atlanta.
-      </h1>
-      <p className="leading-relaxed text-foreground/80">
-        Ask about a person, a neighborhood, an era, an event. Answers
-        come from the Living Atlanta oral history collection and cite the
-        recordings and timestamps they drew from. If the archive doesn&rsquo;t
-        cover your question, it will say so.
-      </p>
-    </header>
+    <PageHeader
+      accentBar
+      eyebrow="Ask the archive"
+      title="Ask about six decades of Atlanta."
+      lead="Ask about a person, a neighborhood, an era, an event. Answers come from the Living Atlanta oral history collection and cite the recordings and timestamps they drew from. If the archive doesn’t cover your question, it will say so."
+    />
   );
 }

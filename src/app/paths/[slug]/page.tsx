@@ -9,6 +9,7 @@ import { formatSpeakerName } from "@/lib/format";
 import { findPath, momentKey } from "@/lib/paths";
 import { formatTimestamp } from "@/lib/player";
 import { fetchTimelineData, type TimelineMoment } from "@/lib/queries/timeline";
+import { leadClass, titleClass } from "@/components/shell/page-header";
 
 /**
  * One listening path (F-paths): steward intro, then each moment preceded
@@ -56,15 +57,15 @@ export default async function PathPage({ params }: { params: Promise<{ slug: str
   const voices = new Set(steps.map((s) => s.moment.intervieweeName ?? s.moment.catalogNumber)).size;
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-10">
-      <header className="flex flex-col gap-3">
-        <nav aria-label="Breadcrumb" className="[&_a]:inline-flex [&_a]:min-h-6 [&_a]:items-center pointer-coarse:[&_a]:min-h-11 font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
-          <Link href="/paths" className="underline-offset-4 hover:text-foreground hover:underline">
+    <main className="page-container page-y flex flex-col gap-8">
+      <header className="flex flex-col gap-3 sm:gap-4">
+        <nav aria-label="Breadcrumb" className="eyebrow [&_a]:inline-flex [&_a]:min-h-6 [&_a]:items-center pointer-coarse:[&_a]:min-h-11">
+          <Link href="/paths" className="rounded-sm underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             Listening paths
           </Link>
         </nav>
-        <h1 className="font-heading text-4xl font-bold leading-tight tracking-tight">{path.title}</h1>
-        <p className="text-base leading-relaxed text-foreground/80">{path.dek}</p>
+        <h1 className={titleClass()}>{path.title}</h1>
+        <p className={leadClass()}>{path.dek}</p>
         <p className="text-sm text-muted-foreground">
           {steps.length} chapters · {voices} voice{voices === 1 ? "" : "s"} · {minutes(total)}
         </p>
@@ -80,12 +81,12 @@ export default async function PathPage({ params }: { params: Promise<{ slug: str
       </header>
 
       {path.intro ? (
-        <p className="leading-relaxed text-foreground/85">{path.intro}</p>
+        <p className="max-w-3xl leading-relaxed text-pretty text-foreground/85">{path.intro}</p>
       ) : (
         <Placeholder label="Steward introduction" />
       )}
 
-      <ol className="flex flex-col gap-6">
+      <ol className="flex max-w-3xl flex-col gap-6">
         {steps.map(({ step, moment: m }, i) => (
           <li key={momentKey(m.catalogNumber, m.momentIndex)} className="flex flex-col gap-3">
             {step.interstitial ? (
@@ -105,7 +106,7 @@ export default async function PathPage({ params }: { params: Promise<{ slug: str
               <h2 className="font-heading text-lg font-semibold leading-snug">
                 <Link
                   href={`/player/${encodeURIComponent(m.catalogNumber)}?t=${formatTimestamp(m.startTime)}&end=${formatTimestamp(m.endTime)}`}
-                  className="underline-offset-4 hover:underline"
+                  className="rounded-sm underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {m.title}
                 </Link>

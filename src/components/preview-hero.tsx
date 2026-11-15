@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 
 import { HomeListen } from "@/components/home/home-listen";
+import { PageHeader } from "@/components/shell/page-header";
 import { archiveIsPublic } from "@/lib/access";
 import { canRequestViewArchive } from "@/lib/access-request";
 import { pickHomeClip } from "@/lib/home-clip";
@@ -62,30 +63,19 @@ export async function PreviewHero() {
   const entered = await canRequestViewArchive();
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-7xl flex-col gap-6 px-6 py-6 sm:gap-10 sm:py-10 lg:gap-12 lg:py-14">
-      <section className="flex flex-col gap-4 sm:gap-5">
-        <div className="flex items-center gap-3">
-          <div aria-hidden className="h-1.5 w-20 rounded-full bg-primary" />
-          {archiveIsPublic() ? null : (
-            <p className="font-mono text-xs tracking-[0.22em] uppercase text-muted-foreground">
-              Private preview
-            </p>
-          )}
-        </div>
-        <h1 className="max-w-4xl font-heading text-4xl leading-[1.05] font-bold tracking-tight sm:text-6xl">
-          Atlanta, in the words of the people who lived it.
-        </h1>
-        <p className="max-w-3xl text-base leading-relaxed text-foreground/85 sm:text-lg">
-          In the late 1970s, WRFG radio recorded more than 500 interviews about
-          life in the city from 1914 to 1977. livingATL puts them online so you
-          can listen.
-        </p>
-      </section>
+    <main className="page-container page-y flex flex-col gap-8 sm:gap-10 lg:gap-12">
+      <PageHeader
+        variant="hero"
+        accentBar
+        eyebrow={archiveIsPublic() ? undefined : "Private preview"}
+        title="Atlanta, in the words of the people who lived it."
+        lead="In the late 1970s, WRFG radio recorded more than 500 interviews about life in the city from 1914 to 1977. livingATL puts them online so you can listen."
+      />
 
       {entered ? <HomeListen clip={pickHomeClip()} /> : null}
 
       <section aria-label="Ways in">
-        <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:gap-5">
           {DOORS.map((d) => {
             const Icon = d.icon;
             const inner = (
@@ -105,10 +95,10 @@ export async function PreviewHero() {
                   ) : null}
                 </div>
                 <div className="flex flex-col gap-1">
-                  <p className="font-mono text-[10px] font-semibold tracking-[0.22em] uppercase text-muted-foreground">
+                  <p className="font-mono text-[11px] font-semibold tracking-[0.22em] uppercase text-muted-foreground">
                     {d.label}
                   </p>
-                  <h2 className="font-heading text-xl font-semibold leading-tight tracking-tight">
+                  <h2 className="font-heading text-lg font-semibold leading-tight tracking-tight lg:text-xl">
                     {d.heading}
                   </h2>
                 </div>
@@ -120,12 +110,12 @@ export async function PreviewHero() {
                 {entered ? (
                   <Link
                     href={d.href}
-                    className="group flex h-full w-full flex-col gap-4 rounded-xl border border-border bg-card/60 p-5 transition-colors hover:border-foreground/30 hover:bg-card/80 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="group flex h-full w-full flex-col gap-4 rounded-xl border border-border bg-card/60 p-5 lg:p-6 transition-colors hover:border-foreground/30 hover:bg-card/80 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {inner}
                   </Link>
                 ) : (
-                  <div className="flex h-full w-full flex-col gap-4 rounded-xl border border-border bg-card/60 p-5">
+                  <div className="flex h-full w-full flex-col gap-4 rounded-xl border border-border bg-card/60 p-5 lg:p-6">
                     {inner}
                   </div>
                 )}
@@ -135,11 +125,11 @@ export async function PreviewHero() {
         </ul>
       </section>
 
-      <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
+      <p className="text-sm leading-relaxed text-pretty text-muted-foreground">
         Recordings play as they were spoken, including the language of their
         time.{" "}
         {entered ? (
-          <Link href="/about" className="font-medium text-foreground underline-offset-4 hover:underline">
+          <Link href="/about" className="rounded-sm font-medium text-foreground underline decoration-foreground/40 underline-offset-4 hover:decoration-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             About the project
           </Link>
         ) : null}

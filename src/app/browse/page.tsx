@@ -13,6 +13,7 @@ import { SortSelect } from "@/components/browser/sort-select";
 import { SearchInput } from "@/components/browser/search-input";
 import { RecordingCard } from "@/components/browser/recording-card";
 import { requireArchiveAccess } from "@/lib/access-request";
+import { leadClass, titleClass } from "@/components/shell/page-header";
 
 /**
  * Collection Browser — PRD §7.1.
@@ -100,17 +101,17 @@ export default async function BrowsePage({
   );
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10 lg:py-14">
+    <main className="page-container page-y flex flex-col gap-8">
       <header className="flex flex-col gap-3">
-        <h1 className="font-heading text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
+        <h1 className={titleClass()}>
           Atlanta, in its own voice
         </h1>
-        <p className="text-base leading-relaxed text-muted-foreground">
+        <p className={leadClass()}>
           Filter by era, neighborhood, or theme, or search for a name.
         </p>
       </header>
 
-      <section className="flex flex-col gap-4">
+      <section aria-label="Filters" className="flex flex-col gap-4">
         <FilterTabs
           facets={facets}
           active={{

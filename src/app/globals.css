@@ -31,6 +31,9 @@
   --color-destructive: var(--destructive);
   --color-border: var(--border);
   --color-input: var(--input);
+  /* Edge of text fields and selects. --input is a near-surface fill (1.06:1),
+   * so field borders get their own token at >=3:1 (WCAG 1.4.11). */
+  --color-input-border: var(--input-border);
   --color-ring: var(--ring);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
@@ -107,6 +110,7 @@
   --destructive: #ff4057;       /* error */
   --border: #f0e5df;            /* derived neutral */
   --input: #fff0eb;
+  --input-border: #958179;      /* field edge: 3.51:1 on surface, 3.32:1 on card */
   --ring: #b8431f;              /* focus ring = coral ink: 5.18:1 (≥3:1 non-text) */
   --chart-1: #ff7f5c;
   --chart-2: #00a8cc;           /* interactive */
@@ -240,6 +244,7 @@
   --destructive: #ff4057;
   --border: #434347;
   --input: #37373b;
+  --input-border: #7a7a82;      /* field edge: 3.7:1 on charcoal */
   --ring: #ff7f5c;
   --chart-1: #ff7f5c;
   --chart-2: #00d4ff;           /* cyan — lifted from ABS interactive for dark */
@@ -366,6 +371,7 @@ html[data-theme="geist"] samp {
   --destructive: #dc2626;
   --border: #e4e4e7;
   --input: #f4f4f5;
+  --input-border: #8a8a93;      /* field edge: 3.4:1 on white */
   --ring: #0a0a0a;
   --chart-1: #0a0a0a;
   --chart-2: #71717a;
@@ -442,6 +448,40 @@ html[data-theme="geist"] samp {
   --theme-color-sports: #db2777;
 }
 
+/* Page layout primitives. Every route and the site chrome share one container
+ * so the header, page content and footer keep the same left edge at every
+ * breakpoint. */
+@utility page-container {
+  margin-inline: auto;
+  width: 100%;
+  max-width: var(--container-7xl);
+  padding-inline: 1.25rem;
+  @media (width >= 40rem) {
+    padding-inline: 1.5rem;
+  }
+  @media (width >= 64rem) {
+    padding-inline: 2rem;
+  }
+}
+@utility page-y {
+  padding-block: 2rem;
+  @media (width >= 40rem) {
+    padding-block: 2.5rem;
+  }
+  @media (width >= 64rem) {
+    padding-block: 3.5rem;
+  }
+}
+/* Mono, tracked, uppercase label above a heading. */
+@utility eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line-height, 1.5);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+
 @layer utilities {
   /* Rounded, inset native scrollbar — used in card-bound scroll regions
    * (e.g. the transcript pane) where the default flat-edge scrollbar
@@ -477,7 +517,12 @@ html[data-theme="geist"] samp {
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
+  }
+  /* Fallback focus indicator for controls without their own ring: full-
+   * strength ring colour (>=3:1), offset so it clears the element's edge. */
+  :focus-visible {
+    outline-offset: 2px;
   }
   html {
     @apply font-sans;

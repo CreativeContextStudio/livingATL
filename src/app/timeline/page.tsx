@@ -4,6 +4,7 @@ import { TimelineClient } from "@/components/timeline/timeline-client";
 import { requireArchiveAccess } from "@/lib/access-request";
 import { fetchArchiveStatsOrNull } from "@/lib/queries/recordings";
 import { fetchTimelineData } from "@/lib/queries/timeline";
+import { leadClass, titleClass } from "@/components/shell/page-header";
 
 /**
  * Interactive Timeline — PRD §7.3.
@@ -37,12 +38,12 @@ export default async function TimelinePage() {
   const [yearFrom, yearTo] = data.yearRange;
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
-      <header className="flex flex-col gap-2">
-        <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
+    <main className="page-container page-y flex flex-col gap-6">
+      <header className="flex flex-col gap-3 sm:gap-4">
+        <h1 className={titleClass()}>
           A century of Atlanta
         </h1>
-        <p className="max-w-3xl text-muted-foreground">
+        <p className={leadClass()}>
           {data.moments.length} chapters from {narratorCount} storytellers, placed on the years they
           describe, from about {yearFrom} to {yearTo}. Select a dot to read the chapter and hear it. Years are estimates drawn from each interview.
         </p>

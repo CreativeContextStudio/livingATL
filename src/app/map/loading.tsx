@@ -2,7 +2,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function MapLoading() {
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-7xl flex-col gap-5 px-6 py-8">
+    <main aria-busy="true" className="page-container flex flex-col gap-5 py-6 sm:py-8 lg:py-10">
+      <p role="status" className="sr-only">Loading…</p>
       <Skeleton className="h-4 w-36" />
       <div className="flex flex-col gap-2">
         <Skeleton className="h-3 w-40" />

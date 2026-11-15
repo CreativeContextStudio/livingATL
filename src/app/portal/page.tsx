@@ -26,7 +26,7 @@ export default async function PortalPage() {
   await requireArchiveAccess();
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-4 pt-8 sm:px-6 lg:pt-12">
+    <main className="page-container flex flex-1 flex-col gap-8 pt-8 sm:pt-10 lg:pt-14">
       <PortalIntro />
       <PortalClient />
     </main>

@@ -12,6 +12,7 @@ import {
 } from "@/lib/queries/story-cards";
 import { siteUrl } from "@/lib/site-url";
 import { attributionLine } from "@/lib/story-cards";
+import { leadClass, titleClass } from "@/components/shell/page-header";
 
 /**
  * Printable story cards — PRD §7.6 template mode, first cut (F-story).
@@ -48,19 +49,19 @@ export default async function CardsPage({
   const host = siteUrl().host;
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-10 print:max-w-none print:p-0">
+    <main className="page-container page-y flex flex-col gap-6 print:max-w-none print:p-0">
       <header className="flex flex-col gap-3 print:hidden">
-        <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
+        <p className="eyebrow">
           Story cards
         </p>
-        <h1 className="font-heading text-3xl font-bold leading-tight tracking-tight">{set.heading}</h1>
-        <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">
+        <h1 className={titleClass()}>{set.heading}</h1>
+        <p className={leadClass()}>
           {set.cards.length} cards, four to a letter-size page. Print, then cut along the dashed
           lines. Each card&apos;s QR code opens that chapter in the interview.
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <PrintButton />
-          <Link href={set.backHref} className="text-sm font-medium text-primary-ink underline-offset-4 hover:underline">
+          <Link href={set.backHref} className="inline-flex min-h-6 items-center rounded-sm text-sm font-medium text-primary-ink underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11">
             Back
           </Link>
         </div>

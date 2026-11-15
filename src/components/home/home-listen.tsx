@@ -23,9 +23,9 @@ export function HomeListen({ clip: CLIP }: { clip: HomeClip }) {
   const seconds = Math.round(CLIP.end - CLIP.start);
 
   return (
-    <section aria-label="Listen" className="grid grid-cols-1 gap-4 lg:grid-cols-[3fr_2fr]">
-      <article className="flex flex-col gap-3 rounded-xl border border-border bg-card/60 p-5 sm:gap-4 sm:p-6">
-        <blockquote className="font-heading text-lg font-semibold leading-snug tracking-tight sm:text-2xl">
+    <section aria-label="Listen" className="grid grid-cols-1 gap-4 lg:grid-cols-[3fr_2fr] lg:gap-5">
+      <article className="flex flex-col gap-3 rounded-xl border border-border bg-card/60 p-5 sm:gap-4 sm:p-6 lg:p-8">
+        <blockquote className="font-heading text-lg font-semibold leading-snug tracking-tight text-pretty sm:text-2xl">
           &ldquo;{CLIP.quote}&rdquo;
         </blockquote>
         <p className="text-sm text-muted-foreground">
@@ -35,6 +35,9 @@ export function HomeListen({ clip: CLIP }: { clip: HomeClip }) {
           <Button
             className="h-auto min-h-11 max-w-full whitespace-normal px-4"
             disabled={playing}
+            // Stays focusable while disabled: a natively disabled button drops
+            // keyboard focus to <body> the moment it is pressed.
+            focusableWhenDisabled
             onClick={() => {
               captureEvent("home_clip_play", { catalog: CLIP.catalogNumber, clip: CLIP.title });
               enqueue(
@@ -58,14 +61,14 @@ export function HomeListen({ clip: CLIP }: { clip: HomeClip }) {
           </Button>
           <Link
             href={`/player/${encodeURIComponent(CLIP.catalogNumber)}?t=${formatTimestamp(Math.floor(CLIP.start))}`}
-            className="inline-flex min-h-11 items-center text-sm font-medium text-primary-ink underline-offset-4 hover:underline"
+            className="inline-flex min-h-11 items-center rounded-sm text-sm font-medium text-primary-ink underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Open the full interview
           </Link>
         </div>
       </article>
 
-      <Form action="/browse" className="flex flex-col justify-center gap-3 rounded-xl border border-border bg-card/60 p-6">
+      <Form action="/browse" role="search" className="flex flex-col justify-center gap-3 rounded-xl border border-border bg-card/60 p-5 sm:p-6 lg:p-8">
         <label htmlFor="home-search" className="font-heading text-xl font-semibold leading-tight tracking-tight">
           Is your family in here?
         </label>
@@ -79,7 +82,7 @@ export function HomeListen({ clip: CLIP }: { clip: HomeClip }) {
             type="search"
             required
             placeholder="A name or place…"
-            className="h-11 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-11 min-w-0 flex-1 rounded-lg border border-input-border bg-background px-3 text-base sm:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           <Button type="submit" variant="outline" className="h-11" aria-label="Search the interviews">
             <SearchIcon aria-hidden className="size-4" />

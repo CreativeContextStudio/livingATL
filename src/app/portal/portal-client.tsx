@@ -250,7 +250,7 @@ export function PortalClient() {
   );
 
   return (
-    <div className="flex flex-1 flex-col gap-8">
+    <div className="flex w-full max-w-4xl flex-1 flex-col gap-8">
       <p role="status" className="sr-only">
         {srStatus}
       </p>
@@ -303,7 +303,7 @@ export function PortalClient() {
       {/* Question box, pinned to the bottom of the screen (above the
           listening-queue bar when it's showing). */}
       <div
-        className="sticky z-20 mt-auto -mx-4 bg-gradient-to-t from-background from-70% to-transparent px-4 pt-6 pb-4 sm:-mx-6 sm:px-6"
+        className="sticky z-20 mt-auto -mx-5 bg-gradient-to-t from-background from-70% to-transparent px-5 pt-6 pb-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
         style={{ bottom: "var(--queue-bar-h, 0px)" }}
       >
         <p id="portal-input-help" className="sr-only">
@@ -399,7 +399,7 @@ function EmptyState({
       <ul className="grid gap-3 sm:grid-cols-3">
         {groups.map((group) => (
           <li key={group.label} className="flex flex-col gap-2">
-            <p className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
+            <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted-foreground">
               {group.label}
             </p>
             <ul className="flex flex-col gap-2">
@@ -460,7 +460,7 @@ function FollowUps({ prompts, onPick }: { prompts: string[]; onPick: (question: 
   const headingId = useId();
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-2">
-      <h3 id={headingId} className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground">
+      <h3 id={headingId} className="font-mono text-[11px] font-normal tracking-[0.18em] uppercase text-muted-foreground">
         Keep going
       </h3>
       <ul className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">

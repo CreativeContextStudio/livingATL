@@ -4,6 +4,7 @@ import { ArrowUpRightIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { fetchArchiveStatsOrNull } from "@/lib/queries/recordings";
+import { titleClass } from "@/components/shell/page-header";
 
 /**
  * About page — what the collection is, how livingATL presents it, how the
@@ -66,14 +67,14 @@ const STEPS: Array<{ label: string; body: string }> = [
 export default async function AboutPage() {
   const stats = await fetchArchiveStatsOrNull();
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-6 py-10 lg:gap-12 lg:py-14">
-      <header className="flex max-w-3xl flex-col gap-4">
-        <h1 className="font-heading text-3xl leading-tight font-bold tracking-tight sm:text-4xl">
+    <main className="page-container page-y flex flex-col gap-10 lg:gap-12">
+      <header className="flex flex-col gap-4">
+        <h1 className={titleClass()}>
           A public home for the Living Atlanta interviews
         </h1>
       </header>
 
-      <section aria-label="The recordings" className="flex max-w-3xl flex-col gap-4 text-base leading-relaxed text-foreground/85">
+      <section aria-label="The recordings" className="flex max-w-4xl flex-col gap-4 text-base leading-relaxed text-pretty text-foreground/85">
         <p>
           In the late 1970s, WRFG (Radio Free Georgia, 89.3 FM) recorded more
           than 500 interviews for its{" "}
@@ -93,18 +94,18 @@ export default async function AboutPage() {
         </p>
       </section>
 
-      <section aria-label="How we present the recordings" className="flex flex-col gap-4">
-        <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
+      <section aria-labelledby="about-present" className="flex flex-col gap-4">
+        <h2 id="about-present" className="font-mono text-xs font-normal tracking-[0.2em] uppercase text-muted-foreground">
           How we present them
-        </p>
-        <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        </h2>
+        <ul className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:gap-5">
           {PRINCIPLES.map((p) => (
             <li key={p.heading} className="flex">
               <article className="flex h-full w-full flex-col gap-3 rounded-xl border border-border bg-card/60 p-5">
                 <div aria-hidden className={cn("h-1 w-12 rounded-full", p.accent)} />
-                <h2 className="font-heading text-lg font-semibold leading-tight tracking-tight">
+                <h3 className="font-heading text-lg font-semibold leading-tight tracking-tight">
                   {p.heading}
-                </h2>
+                </h3>
                 <p className="text-sm leading-relaxed text-foreground/80">{p.body}</p>
               </article>
             </li>
@@ -112,15 +113,15 @@ export default async function AboutPage() {
         </ul>
       </section>
 
-      <section aria-label="How it's made" className="flex flex-col gap-4">
-        <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
+      <section aria-labelledby="about-made" className="flex flex-col gap-4">
+        <h2 id="about-made" className="font-mono text-xs font-normal tracking-[0.2em] uppercase text-muted-foreground">
           How it&apos;s made
-        </p>
-        <ol className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        </h2>
+        <ol className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 lg:gap-4">
           {STEPS.map((s, i) => (
             <li key={s.label}>
               <article className="flex h-full flex-col gap-2 rounded-xl border border-border bg-card/50 p-5">
-                <p className="font-mono text-[10px] tabular-nums tracking-[0.22em] uppercase text-muted-foreground">
+                <p className="font-mono text-[11px] tabular-nums tracking-[0.22em] uppercase text-muted-foreground">
                   Step {i + 1}
                 </p>
                 <h3 className="font-heading text-base font-semibold leading-tight tracking-tight">
@@ -134,13 +135,13 @@ export default async function AboutPage() {
       </section>
 
       <section
-        aria-label="Who's behind it"
-        className="flex flex-col gap-3 rounded-xl border border-dashed border-border bg-card/40 p-6 sm:flex-row sm:items-start sm:justify-between sm:gap-8"
+        aria-labelledby="about-who"
+        className="flex flex-col gap-3 rounded-xl border border-dashed border-border bg-card/40 p-5 sm:flex-row sm:items-start sm:justify-between sm:gap-8 sm:p-6"
       >
         <div className="flex max-w-3xl flex-col gap-2">
-          <p className="font-mono text-[11px] tracking-[0.22em] uppercase text-muted-foreground">
+          <h2 id="about-who" className="font-mono text-[11px] font-normal tracking-[0.22em] uppercase text-muted-foreground">
             Who&apos;s behind it
-          </p>
+          </h2>
           <p className="text-sm leading-relaxed text-foreground/85">
             WRFG recorded the interviews. The Atlanta History Center houses
             the collection. Creative Context Studio designed and
@@ -150,17 +151,17 @@ export default async function AboutPage() {
         </div>
         <Link
           href="/contact"
-          className="inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-border bg-background/80 px-4 py-2 font-mono text-[10px] tracking-[0.22em] uppercase text-foreground transition-colors hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:self-center"
+          className="inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-border bg-background/80 min-h-11 px-4 py-2 font-mono text-[11px] tracking-[0.22em] uppercase text-foreground transition-colors hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:self-center"
         >
           Contact
           <ArrowUpRightIcon aria-hidden className="size-3.5" />
         </Link>
       </section>
 
-      <section aria-label="Further reading" className="flex max-w-3xl flex-col gap-2">
-        <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
+      <section aria-labelledby="about-reading" className="flex max-w-3xl flex-col gap-2">
+        <h2 id="about-reading" className="font-mono text-xs font-normal tracking-[0.2em] uppercase text-muted-foreground">
           Further reading
-        </p>
+        </h2>
         <p className="text-sm leading-relaxed text-foreground/85">
           The interviewers wrote their own book from these recordings: Clifford
           M. Kuhn, Harlon E. Joye, and E. Bernard West,{" "}

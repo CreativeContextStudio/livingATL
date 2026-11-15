@@ -37,7 +37,7 @@ export function SiteHeader({
   return (
     <>
     <header className="sticky top-0 z-20 w-full print:hidden border-b border-border/60 bg-background/85 backdrop-blur">
-      <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between px-6">
+      <div className="page-container flex h-14 items-center justify-between gap-4">
         <Link
           href="/"
           className="font-heading text-lg font-bold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
@@ -49,7 +49,7 @@ export function SiteHeader({
           {navEnabled ? (
             <>
               <nav aria-label="Primary" className="hidden sm:block">
-                <ul className="flex items-center gap-6">
+                <ul className="flex items-center gap-4 md:gap-6">
                   {NAV_SECTIONS.map((link) => {
                     const active = link.href === section?.href;
                     return (
@@ -59,8 +59,10 @@ export function SiteHeader({
                           aria-current={active ? "true" : undefined}
                           className={cn(
                             "inline-flex h-11 items-center font-mono text-xs tracking-[0.18em] uppercase transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded",
+                            // Active section: underlined as well as darker, so it
+                            // doesn't rely on colour alone (WCAG 1.4.1).
                             active
-                              ? "text-foreground"
+                              ? "text-foreground underline decoration-primary decoration-2 underline-offset-[10px]"
                               : "text-muted-foreground hover:text-foreground",
                           )}
                         >

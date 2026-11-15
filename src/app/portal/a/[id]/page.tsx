@@ -38,25 +38,25 @@ export default async function SharedAnswerPage({ params }: { params: Promise<{ i
   const date = share.createdAt.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-10">
-      <header className="flex flex-col gap-2">
-        <p className="flex items-center gap-1.5 font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
+    <main className="page-container page-y flex flex-col gap-6">
+      <header className="flex flex-col gap-3 sm:gap-4">
+        <p className="eyebrow flex items-center gap-1.5">
           <MessageSquareTextIcon aria-hidden className="size-3.5" />
           Shared answer
         </p>
-        <h1 className="font-heading text-2xl font-semibold leading-snug sm:text-3xl">{share.question}</h1>
-        <p className="text-xs text-muted-foreground">
+        <h1 className="font-heading text-[clamp(1.75rem,1.3rem+1.8vw,2.75rem)] font-bold leading-[1.1] tracking-tight text-balance">{share.question}</h1>
+        <p className="text-sm text-muted-foreground">
           Asked {date}. The answer below is AI-generated from the archive&apos;s transcripts; the
           sources it cites are the recordings themselves.
         </p>
       </header>
-      <section aria-label="Archive answer" className="flex flex-col gap-4">
+      <section aria-label="Archive answer" className="flex max-w-4xl flex-col gap-4">
         <PortalResponseCard text={share.answer} citations={share.citations} />
         <CitationsPanel citations={share.citations} />
         <PlayCitationsButton citations={share.citations} />
       </section>
       <p className="text-sm">
-        <Link href="/portal" className="font-medium text-primary-ink underline-offset-4 hover:underline">
+        <Link href="/portal" className="inline-flex min-h-6 items-center font-medium text-primary-ink underline-offset-4 hover:underline pointer-coarse:min-h-11 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           Ask your own question
         </Link>
       </p>

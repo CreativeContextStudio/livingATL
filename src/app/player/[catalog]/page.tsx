@@ -39,6 +39,7 @@ import { archiveIsPublic } from "@/lib/access";
 import { headers } from "next/headers";
 import { nonceFromCsp } from "@/lib/csp";
 import { siteUrl } from "@/lib/site-url";
+import { titleClass } from "@/components/shell/page-header";
 
 /**
  * Audio Player page — PRD §7.2.
@@ -179,7 +180,7 @@ export default async function PlayerPage({
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-6 sm:py-10 lg:py-14">
+    <main className="page-container page-y flex flex-col gap-6">
       <script
         type="application/ld+json"
         nonce={nonce}
@@ -194,18 +195,18 @@ export default async function PlayerPage({
           `aria-current="page"`. */}
       <nav
         aria-label="Breadcrumb"
-        className="[&_a]:inline-flex [&_a]:min-h-6 [&_a]:items-center pointer-coarse:[&_a]:min-h-11 flex flex-wrap items-center gap-1.5 font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground"
+        className="eyebrow [&_a]:inline-flex [&_a]:min-h-6 [&_a]:items-center pointer-coarse:[&_a]:min-h-11 flex flex-wrap items-center gap-1.5"
       >
         <Link
           href="/"
-          className="transition-colors hover:text-foreground focus-visible:outline-none focus-visible:text-foreground"
+          className="rounded-sm transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           livingATL
         </Link>
         <span aria-hidden className="text-muted-foreground">/</span>
         <Link
           href="/browse"
-          className="transition-colors hover:text-foreground focus-visible:outline-none focus-visible:text-foreground"
+          className="rounded-sm transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           Interviews
         </Link>
@@ -224,7 +225,7 @@ export default async function PlayerPage({
           aria-hidden
           className={cn("h-1.5 w-20 rounded-full", accent.tailwind.bgStrong)}
         />
-        <h1 className="font-heading text-3xl leading-tight font-bold tracking-tight sm:text-4xl">
+        <h1 className={titleClass()}>
           {storytellerLabel.name}
           {storytellerLabel.life ? (
             <span className="ml-2 align-baseline text-sm font-normal tracking-normal text-muted-foreground sm:text-base">
@@ -232,7 +233,7 @@ export default async function PlayerPage({
             </span>
           ) : null}
         </h1>
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-[1fr_18rem] sm:items-stretch lg:grid-cols-[1fr_22rem]">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-[1fr_18rem] md:items-stretch lg:grid-cols-[1fr_22rem]">
           <AboutThisRecording
             overview={data.briefOverview}
             title={titleForCard(data.title)}
@@ -335,7 +336,7 @@ function StorytellerPortraitPlaceholder({
           </span>
         ) : null}
       </div>
-      <span className="absolute bottom-2 left-3 font-mono text-[9px] tracking-[0.22em] text-muted-foreground uppercase">
+      <span className="absolute bottom-2 left-3 font-mono text-[11px] tracking-[0.22em] text-muted-foreground uppercase">
         Portrait
       </span>
     </div>

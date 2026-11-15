@@ -10,6 +10,7 @@ import { ReportForm } from "@/components/contact/report-form";
 import { REPORT_KINDS, type ReportKind } from "@/lib/reports";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
+import { leadClass, titleClass } from "@/components/shell/page-header";
 
 /**
  * Contact page. The Player (sidebar "Report or request a correction" link,
@@ -142,12 +143,12 @@ export default async function ContactPage({
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-6 py-10 lg:py-14">
+    <main className="page-container page-y flex flex-col gap-10">
       <header className="flex flex-col gap-3">
-        <h1 className="font-heading text-4xl leading-tight font-bold tracking-tight sm:text-5xl">
+        <h1 className={titleClass()}>
           Reach the stewards
         </h1>
-        <p className="text-base leading-relaxed text-muted-foreground">
+        <p className={leadClass()}>
           livingATL is assembled and maintained by three partners. Use the
           form below to report an error, question an AI-authored summary, or,
           if you are a storyteller or a storyteller&apos;s family, ask for a
@@ -158,7 +159,7 @@ export default async function ContactPage({
       <section
         id="report"
         aria-labelledby="report-heading"
-        className="flex scroll-mt-24 flex-col gap-5 rounded-xl border border-border bg-card/40 p-6"
+        className="flex scroll-mt-24 flex-col gap-5 rounded-xl border border-border bg-card/40 p-5 sm:p-6 lg:p-8"
       >
         <div className="flex flex-col gap-2">
           <p className="font-mono text-[11px] tracking-[0.2em] uppercase text-muted-foreground">
@@ -180,17 +181,17 @@ export default async function ContactPage({
         <ReportForm prefill={prefill} />
       </section>
 
-      <section className="flex flex-col gap-4">
+      <section aria-labelledby="partners-heading" className="flex flex-col gap-4">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
+          <h2 id="partners-heading" className="font-mono text-xs font-normal tracking-[0.2em] uppercase text-muted-foreground">
             Partners
-          </p>
+          </h2>
           <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
             03 · Organizations
           </p>
         </div>
 
-        <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:gap-5">
           {PARTNERS.map((p) => (
             <li key={p.name} className="flex">
               <article className="relative flex h-full w-full flex-col gap-4 rounded-xl border border-border bg-card/60 p-5">
@@ -237,9 +238,9 @@ export default async function ContactPage({
 
       <section aria-label="Support livingATL" className="flex flex-col gap-4">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
+          <h2 className="font-mono text-xs font-normal tracking-[0.2em] uppercase text-muted-foreground">
             Support
-          </p>
+          </h2>
           <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] uppercase text-muted-foreground">
             04 · Ways to contribute
           </p>

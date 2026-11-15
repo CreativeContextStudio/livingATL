@@ -22,9 +22,9 @@ export function SiteFooter() {
   return (
     <footer
       className="z-[var(--z-sticky)] w-full print:hidden border-t-2 border-border bg-card/85 backdrop-blur pb-[env(safe-area-inset-bottom)]"
-      style={{ height: "calc(var(--footer-h) + env(safe-area-inset-bottom))" }}
+      style={{ minHeight: "calc(var(--footer-h) + env(safe-area-inset-bottom))" }}
     >
-      <div className="mx-auto flex h-[var(--footer-h)] w-full max-w-7xl items-center justify-between gap-3 px-6 text-[11px] text-muted-foreground sm:text-xs">
+      <div className="page-container flex min-h-[var(--footer-h)] items-center justify-between gap-3 py-2 text-[11px] text-muted-foreground sm:text-xs">
         <div className="flex min-w-0 items-center gap-3">
           <p className="font-heading text-sm font-bold tracking-tight text-foreground">
             living<span className="text-primary-ink">ATL</span>
@@ -34,7 +34,7 @@ export function SiteFooter() {
           </p>
         </div>
         <p className="font-mono tracking-[0.14em] uppercase whitespace-nowrap">
-          <span className="hidden sm:inline">WRFG · Atlanta History Center · Creative Context Studio · </span><FooterYear />
+          <span className="hidden md:inline">WRFG · Atlanta History Center · Creative Context Studio · </span><FooterYear />
         </p>
       </div>
     </footer>

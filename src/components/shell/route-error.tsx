@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { titleClass } from "@/components/shell/page-header";
 
 /**
  * Shared body for every `error.tsx` boundary. Renders inside the root layout,
@@ -34,14 +35,14 @@ export function RouteError({
   }, [error, digest]);
 
   return (
-    <main className="mx-auto flex min-h-[60dvh] w-full max-w-3xl flex-col items-start justify-center gap-5 px-6 py-16">
-      <p className="font-mono text-[11px] tracking-[0.18em] uppercase text-muted-foreground">
+    <main className="page-container flex min-h-[60dvh] flex-col items-start justify-center gap-5 py-16">
+      <p className="eyebrow">
         Something went wrong
       </p>
-      <h1 className="font-heading text-3xl font-bold">
+      <h1 className={titleClass()}>
         {surface ?? "This page"} didn&rsquo;t load
       </h1>
-      <p className="max-w-prose text-muted-foreground">
+      <p className="max-w-prose leading-relaxed text-pretty text-muted-foreground">
         The archive couldn&rsquo;t be reached just now. This is usually
         temporary — try again in a moment.
       </p>

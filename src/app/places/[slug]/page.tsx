@@ -15,6 +15,7 @@ import { formatTimestamp } from "@/lib/player";
 import { fetchBrowserFacets, fetchBrowserRecordings } from "@/lib/queries/recordings";
 import { fetchTimelineData, type TimelineMoment } from "@/lib/queries/timeline";
 import { cn } from "@/lib/utils";
+import { titleClass } from "@/components/shell/page-header";
 
 /**
  * Place page (F-places) — one neighborhood, gathered from Browse (the
@@ -99,17 +100,17 @@ export default async function PlacePage({ params }: { params: Promise<{ slug: st
   const q = encodeURIComponent(name);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-6 py-10">
+    <main className="page-container page-y flex flex-col gap-10">
       <header className="flex flex-col gap-4">
-        <nav aria-label="Breadcrumb" className="[&_a]:inline-flex [&_a]:min-h-6 [&_a]:items-center pointer-coarse:[&_a]:min-h-11 font-mono text-xs tracking-[0.2em] uppercase text-muted-foreground">
-          <Link href="/places" className="hover:text-foreground hover:underline underline-offset-4">
+        <nav aria-label="Breadcrumb" className="eyebrow [&_a]:inline-flex [&_a]:min-h-6 [&_a]:items-center pointer-coarse:[&_a]:min-h-11">
+          <Link href="/places" className="hover:text-foreground hover:underline underline-offset-4 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             Places
           </Link>{" "}
           / {name}
         </nav>
         <div className="flex items-center gap-3">
-          <span aria-hidden className={cn("size-3.5 rounded-full border", style.border, style.bg)} />
-          <h1 className="font-heading text-4xl font-bold leading-tight tracking-tight sm:text-5xl">{name}</h1>
+          <span aria-hidden className={cn("size-3.5 shrink-0 rounded-full border sm:size-4", style.border, style.bg)} />
+          <h1 className={titleClass()}>{name}</h1>
         </div>
         <p className="text-sm text-muted-foreground">
           {recordings.length} recording{recordings.length === 1 ? "" : "s"} · {moments.length} chapter

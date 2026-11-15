@@ -10,6 +10,7 @@ import {
 } from "@/lib/queries/recordings";
 import { fetchNeighborhoodGeometries, toMapRecording } from "@/lib/queries/map";
 import { requireArchiveAccess } from "@/lib/access-request";
+import { leadClass, titleClass } from "@/components/shell/page-header";
 
 /**
  * Interactive Map — PRD §7.5 realistic v1.
@@ -77,16 +78,16 @@ export default async function MapPage({
   const totalRecordings = stats.processedRecordings;
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-6 py-8">
+    <main className="page-container flex flex-col gap-5 py-6 sm:py-8 lg:py-10">
       <header className="flex flex-col gap-2">
-        <h1 className="font-heading text-3xl leading-tight font-bold tracking-tight sm:text-4xl">
+        <h1 className={titleClass()}>
           Atlanta, in place
         </h1>
-        <p className="text-sm leading-relaxed text-muted-foreground">
+        <p className={leadClass()}>
           {filtered.length} of {totalRecordings} recordings mapped by the
           neighborhoods their storytellers describe. Click a pin to see who spoke
           about that place, or{" "}
-          <Link href="/places" className="text-primary-ink underline underline-offset-4">
+          <Link href="/places" className="rounded-sm text-primary-ink underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             browse all neighborhoods
           </Link>
           .

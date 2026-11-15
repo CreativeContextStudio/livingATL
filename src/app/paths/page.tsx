@@ -4,6 +4,7 @@ import { ListMusicIcon } from "lucide-react";
 
 import { requireArchiveAccess } from "@/lib/access-request";
 import { LISTENING_PATHS } from "@/lib/paths";
+import { leadClass, titleClass } from "@/components/shell/page-header";
 
 /**
  * Listening paths index (F-paths) — a low-friction way in for new
@@ -18,17 +19,17 @@ export const metadata: Metadata = {
 export default async function PathsPage() {
   await requireArchiveAccess();
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 py-10">
-      <header className="flex flex-col gap-2">
-        <h1 className="font-heading text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
+    <main className="page-container page-y flex flex-col gap-8">
+      <header className="flex flex-col gap-3 sm:gap-4">
+        <h1 className={titleClass()}>
           Start with a path
         </h1>
-        <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">
+        <p className={leadClass()}>
           Each path strings together a few minutes from several interviews, in order. Play the
           whole thing, or stop anywhere and open the full recording.
         </p>
       </header>
-      <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:gap-5">
         {LISTENING_PATHS.map((path) => (
           <li key={path.slug} className="flex">
             <Link
